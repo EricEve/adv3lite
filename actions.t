@@ -620,14 +620,19 @@ DefineIAction(Wait)
    
 ;
 
-DefineIAction(Jump)
-    execAction(cmd)
+Jump: SpecialTravelAction
+        
+    preCond = (gActor.location && gActor.location.getOutToJump ?
+               [actorOutOfNested]: nil)
+    travelProp = &jump
+    
+    fallback(loc) {  DMsg(jump, '{I} jump{s/ed} on the spot, fruitlessly. ');    }
+    
+    connotTravelInDark(loc)
     {
-        DMsg(jump, '{I} jump{s/ed} on the spot, fruitlessly. ');
+        DMsg(leap in the dark, 'It might be wiser not to hazard a leap in the dark {here}. ');
     }
     
-    preCond = (gActor.location && gActor.location.getOutToJump ?
-    [actorOutOfNested]: nil)
 ;
 
 DefineIAction(Yell)
@@ -808,33 +813,78 @@ Go: TravelAction
 ;
     
 /* 
-  *   Base class for special travel actions like XYZZY or ROAD which refer to similar-named
-  *   properties on the current room.
-  */    
+ *   Base class for special travel actions like CLIMB or JUMP or XYZZY which refer to similar-named
+ *   properties on the current room without implying any particular direction. This is similar to
+ *   TravelAction except that we define the property pointer on the action subclasses rather than
+ *   any associated direction.
+ *
+ *   Note that concrete instances of SpecialTravelAction can normally be defined using the macro
+ *.
+ *   DefSpecialTravel(action, prop, voc);
+ *.
+ *   Where action is both the action name and the associated VerbRule tag, prop is a property
+ *   pointer for the property we want to use on Room, and voc is the vocab/grammar we want to use to
+ *   invoke the action, e.g.,
+ *.
+ *   DefSpecialTravel(Xyzzy, &xyzzy, 'xyzzy') darkTravelAllowed = true;
+ */    
  class SpecialTravelAction: IAction
     baseActionClass = SpecialTravelAction
-    
-    /* The property defined on a Room that this action will match, e.g. &xyxxy */
+        
+    /* 
+     *   Property pointer for The property defined on a Room that this action will match, e.g. &jump
+     *   or &xyxxy. Subclasses MUST override this to an appropriate value.
+     */
     travelProp = nil
-    darkTravelAllowed = isMagicTravel
+    
+    /* 
+     *   Is rhis travel permitted in the dark? By default we don't permit this but subclasses can
+     *   override (for example if implememting travel via a magic work like XYZZY where light levels
+     *   may not be relevant).
+     */
+    darkTravelAllowed = nil
+    
+    /* 
+     *   Does the traveler need to be out of any nested room before travel can proceed? Normally
+     *   this will be the case.
+     */
     requireOutOfNested = true
+  
     
-    isMagicTravel = nil
-    
+    /* Carry out the travel (or other action) defined on our associated room property. */
     execAction(cmd)
     {
+        /* Note the current actor's room. */
         local loc = gActor.getOutermostRoom;
         local conn;
         
+        /* 
+         *   If location isn't illuminated and dark travel isn't allowed, just call our
+         *   cannotGoThatWayInDark() method and stop there.
+         */
         if(!loc.isIlluminated && !darkTravelAllowed)
         {
             "<<loc.cannotGoThatWayInDarkMsg>><.p>";
             return;
         }    
         
+        /* 
+         *   Otherwise, if our location doesn't define our travelProp property or that property is
+         *   nil, call our fsllback() method and stop there.
+         */     
+        if(!loc.propDefined(travelProp) || loc.propType(travelProp) == nil)
+        {
+            fallback(loc);
+            return;
+        }
         
+        /* 
+         *   Otherwise, carry out the action appropriate to the type of whatever's defined on our
+         *   locatoions travelProp property.
+         */
         switch(loc.propType(travelProp))
         {
+            /* If we're pointing to a travel connector, carry out travel via that connector. */
         case TypeObject:
             conn = loc.(travelProp);
             if(conn.ofKind(TravelConnector))
@@ -843,29 +893,64 @@ Go: TravelAction
                 conn.travelVia(gActor);
             }
             else
+                /* If it's any other kind of object, just display our noGoodHereMsg. */
                 noGoodHereMsg;
             break;
+            /* 
+             *   If we're pointing to a double quoted string or method, call the methor or display
+             *   the string.
+             */
         case TypeDString:
         case TypeCode:
+            /* Execute the method and store its return value. */
             conn = loc.(travelProp);
+            
+            /* 
+             *   If the return value is a travel connector, carry out travel via that travel
+             *   connector.
+             */
             if(objOfKind(conn, TravelConnector))
             {
                 getOutOfNested(conn);
-                local ret = conn.travelVia(gActor);       
-                if(ret)
-                    noteRetval(loc, ret);
-                    
+                conn.travelVia(gActor);       
             }
+            /* Otherwise let out noteRetval() method handle the value returned. */
+            else 
+                noteRetval(loc, conn);                                
             break;
+            /* If we're pointing to a aingle-quoted string, simply display the string */
         case TypeSString:
             say(loc.travelProp);
             break;
+            /* Otherwise, just display our noGoodHereMsg */
         default:
             noGoodHereMsg;
             break;            
         } 
     }
-    noGoodHereMsg = "That doesn't work here. "
+    
+    /* 
+     *   Our fallBack() method to use if our travelProp does not point to a non-nil property defined
+     *   on the actor's currec location. By default we just display our noGoodHereMsg.
+     */
+    fallBack(loc) { noGoodHereMsg; }
+    
+    
+    /* 
+     *   The message to display is travel is attempted in the dark from loc when dark travel is not
+     *   allowed.
+     */
+    connotTravelInDark(loc)
+    {
+        /* Call the location's cannotGoThatWayInDark() method to handle it. */
+        loc.cannotGoThatWayInDark(&travelProp);
+    }
+    
+    /* 
+     *   The message to display when our travelProp doesn't point to anything usable in the current
+     *   location.
+     */
+    noGoodHereMsg = DMsg(doesnt work here, 'That doesn\'t work here. ')
     
     /* 
      *   A chance to do something else with the return value of a method, triggered by travel,
@@ -879,10 +964,13 @@ Go: TravelAction
            say(val);
     }
     
-    
-    
+    /* Get our traveler out of any nested room it's in. */
     getOutOfNested(conn)
     {
+        /* 
+         *   If we requuire the traveler to be out of any nested room, delagate handling this to
+         *   TravelAction.
+         */
         if(requireOutOfNested)
             delegated TravelAction(conn);
     }
@@ -894,6 +982,12 @@ DefineIAction(GetOut)
     {        
         GoOut.execAction(cmd);
     }
+;
+
+ClimbVague: SpecialTravelAction
+    travelProp = &climb    
+    
+    fallback(loc) { askForDobj(Climb);  }
 ;
 
 /* 

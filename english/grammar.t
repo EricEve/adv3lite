@@ -3149,6 +3149,14 @@ VerbRule(PourOnto)
     iobjReply = onSingleNoun
 ;
 
+
+VerbRule(ClimbVague)
+    'climb' 
+    : VerbProduction
+    action = ClimbVague
+    verbPhrase = 'climb/climbing'   
+;
+
 VerbRule(Climb)
     'climb' singleDobj
     : VerbProduction

@@ -1393,1356 +1393,1469 @@
 <a name="1391"></a>     */
 <a name="1392"></a>    transmitsLight = true
 <a name="1393"></a>    
-<a name="1394"></a>    /*  
-<a name="1395"></a>     *   A TravelConnector (or at least, the exit it represents) is visible if
-<a name="1396"></a>     *   it's apparent (i.e. not concealed in some way) and if the lighting
-<a name="1397"></a>     *   conditions are adequate, or if it's visible in the dark.
-<a name="1398"></a>     */
-<a name="1399"></a>    isConnectorVisible()
-<a name="1400"></a>    {
-<a name="1401"></a>        local loc = gPlayerChar.getOutermostRoom();
-<a name="1402"></a>        local dest = getDestination(loc);
-<a name="1403"></a>        return (isConnectorApparent &amp;&amp; 
-<a name="1404"></a>                          (loc.isIlluminated
-<a name="1405"></a>                              || (dest != nil &amp;&amp; dest.isIlluminated
-<a name="1406"></a>                                  &amp;&amp; transmitsLight)
-<a name="1407"></a>                           || visibleInDark));
-<a name="1408"></a>    }
-<a name="1409"></a>    
-<a name="1410"></a>    /* The room to which this TravelConnector leads when it is traversed */    
-<a name="1411"></a>    destination = nil
-<a name="1412"></a>    
-<a name="1413"></a>    /* 
-<a name="1414"></a>     *   The room to which this TravelConnector leads when it is traversed from
-<a name="1415"></a>     *   origin.
-<a name="1416"></a>     */    
-<a name="1417"></a>    getDestination(origin)
-<a name="1418"></a>    {
-<a name="1419"></a>        return destination;
-<a name="1420"></a>    }
-<a name="1421"></a>    
-<a name="1422"></a>    /* 
-<a name="1423"></a>     *   Our apparent destination is used by the exit lister to decide whether to colour travel in
-<a name="1424"></a>     *   our direction as an unvisited exit. By default we just use our real destination, but game
-<a name="1425"></a>     *   code may occasionally wish to override this to make it appear than a visited destination
-<a name="1426"></a>     *   hasn't been visited yet, for example by returning nil.
-<a name="1427"></a>     */         
-<a name="1428"></a>    getApparentDestination(origin)
-<a name="1429"></a>    {
-<a name="1430"></a>        return getDestination(origin);
-<a name="1431"></a>    }
-<a name="1432"></a>    
-<a name="1433"></a>    /* 
-<a name="1434"></a>     *   Does the player char know where this travel connector leads? By default
-<a name="1435"></a>     *   s/he doesn't until s/he's visited its destination, but this could be
-<a name="1436"></a>     *   overridden for an area the PC is supposed to know well when the game
-<a name="1437"></a>     *   starts, such as their own house.
-<a name="1438"></a>     */    
-<a name="1439"></a>    isDestinationKnown()
-<a name="1440"></a>    {
-<a name="1441"></a>        local loc = gPlayerChar.getOutermostRoom();
-<a name="1442"></a>        local dest = getDestination(loc);
-<a name="1443"></a>        return (dest != nil &amp;&amp; dest.isDestinationKnown);
-<a name="1444"></a>    }
-<a name="1445"></a>    
-<a name="1446"></a>    /*   A travel connector is usually open. */
-<a name="1447"></a>    isOpen = true
+<a name="1394"></a>     /* 
+<a name="1395"></a>     *   Flag, do we want this connector as being effectively absent if it leads to a nil
+<a name="1396"></a>     *   destination? By default we do.
+<a name="1397"></a>     */
+<a name="1398"></a>    nilBlocksTravel = true
+<a name="1399"></a>    
+<a name="1400"></a>    /* 
+<a name="1401"></a>     *   If this connector apparerent from loc? (In other words if we're in loc, do we know of its
+<a name="1402"></a>     *   existence?)
+<a name="1403"></a>     */
+<a name="1404"></a>    connectorApparent(loc = gRoom)
+<a name="1405"></a>    {
+<a name="1406"></a>        /* 
+<a name="1407"></a>         *   This TravelConnector should be treated as apparent if its isConnectorApparent property
+<a name="1408"></a>         *   is true and it leads to a non-nil destination or we've set nilBlocksTravel to nil
+<a name="1409"></a>         *.
+<a name="1410"></a>         */
+<a name="1411"></a>        return isConnectorApparent &amp;&amp; !(nilBlocksTravel &amp;&amp; getDestination(loc) == nil);
+<a name="1412"></a>    }
+<a name="1413"></a>    
+<a name="1414"></a>     /*  
+<a name="1415"></a>     *   A TravelConnector (or at least, the exit it represents) is visible if
+<a name="1416"></a>     *   it's apparent (i.e. not concealed in some way) and if the lighting
+<a name="1417"></a>     *   conditions are adequate, or if it's visible in the dark.
+<a name="1418"></a>     */
+<a name="1419"></a>    isConnectorVisible()
+<a name="1420"></a>    {
+<a name="1421"></a>        local actor = gActor ?? gPlayerChar;
+<a name="1422"></a>        local loc = actor.getOutermostRoom();
+<a name="1423"></a>        local dest = getDestination(loc);
+<a name="1424"></a>        return (connectorApparent(loc) &amp;&amp; 
+<a name="1425"></a>                          (loc.isIlluminated
+<a name="1426"></a>                              || (dest != nil &amp;&amp; dest.isIlluminated
+<a name="1427"></a>                                  &amp;&amp; transmitsLight)
+<a name="1428"></a>                           || visibleInDark));
+<a name="1429"></a>    }
+<a name="1430"></a>    
+<a name="1431"></a>       
+<a name="1432"></a>    /* 
+<a name="1433"></a>     *   The room to which this TravelConnector leads when it is traversed. This can also be defined
+<a name="1434"></a>     *   as a method or expression that evaluates to a room, but for complex cases (such as those
+<a name="1435"></a>     *   involving randomization) you should use the VarDest mix-in class and define its calcDest
+<a name="1436"></a>     *   method instead.
+<a name="1437"></a>     */    
+<a name="1438"></a>    destination = nil
+<a name="1439"></a>    
+<a name="1440"></a>    /* 
+<a name="1441"></a>     *   The room to which this TravelConnector leads when it is traversed from
+<a name="1442"></a>     *   origin.
+<a name="1443"></a>     */    
+<a name="1444"></a>    getDestination(origin)
+<a name="1445"></a>    {
+<a name="1446"></a>        return destination;
+<a name="1447"></a>    }
 <a name="1448"></a>    
 <a name="1449"></a>    /* 
-<a name="1450"></a>     *   Carrier out travel via this connector, first checking that travel
-<a name="1451"></a>     *   through this connector is permitted for this actor.
-<a name="1452"></a>     */    
-<a name="1453"></a>    travelVia(actor)
-<a name="1454"></a>    {
-<a name="1455"></a>        /* 
-<a name="1456"></a>         *   The traveler is the object actually doing the travelling; usually
-<a name="1457"></a>         *   it's just the actor, but if the actor is in a vehicle, it will be
-<a name="1458"></a>         *   the vehicle.
-<a name="1459"></a>         */
-<a name="1460"></a>        local traveler = getTraveler(actor);       
-<a name="1461"></a>        
-<a name="1462"></a>        
-<a name="1463"></a>        /* This is a hook for the postures extension */
-<a name="1464"></a>        if(!setTravelPosture())
-<a name="1465"></a>            exit;    
-<a name="1466"></a>       
-<a name="1467"></a>        
-<a name="1468"></a>        /* 
-<a name="1469"></a>         *   Check the travel barriers on this TravelConnector to ensure that
-<a name="1470"></a>         *   travel is permitted. If so carry out the travel. If not
-<a name="1471"></a>         *   checkTravelBarriers will have reported the reason why travel is
-<a name="1472"></a>         *   blocked.
-<a name="1473"></a>         */
-<a name="1474"></a>        if(checkTravelBarriers(traveler))           
-<a name="1475"></a>            execTravel(actor, traveler, self);               
-<a name="1476"></a>    }
-<a name="1477"></a>     
-<a name="1478"></a>    setTravelPosture() { return true; }
-<a name="1479"></a>    
-<a name="1480"></a>    /* 
-<a name="1481"></a>     *   Get the traveler associated with this actor. Normally the traveler will
-<a name="1482"></a>     *   be the same as the actor, but if the actor is in a vehicle, then the
-<a name="1483"></a>     *   traveler will be the vehicle.
-<a name="1484"></a>     */
-<a name="1485"></a>    getTraveler(actor)
-<a name="1486"></a>    {
-<a name="1487"></a>        
-<a name="1488"></a>        local loc = actor.location;
+<a name="1450"></a>     *   Our apparent destination is used by the exit lister to decide whether to colour travel in
+<a name="1451"></a>     *   our direction as an unvisited exit. By default we just use our real destination, but game
+<a name="1452"></a>     *   code may occasionally wish to override this to make it appear than a visited destination
+<a name="1453"></a>     *   hasn't been visited yet, for example by returning nil.
+<a name="1454"></a>     */         
+<a name="1455"></a>    getApparentDestination(origin)
+<a name="1456"></a>    {
+<a name="1457"></a>        return getDestination(origin);
+<a name="1458"></a>    }
+<a name="1459"></a>    
+<a name="1460"></a>    /* 
+<a name="1461"></a>     *   Does the player char know where this travel connector leads? By default
+<a name="1462"></a>     *   s/he doesn't until s/he's visited its destination, but this could be
+<a name="1463"></a>     *   overridden for an area the PC is supposed to know well when the game
+<a name="1464"></a>     *   starts, such as their own house.
+<a name="1465"></a>     */    
+<a name="1466"></a>    isDestinationKnown()
+<a name="1467"></a>    {
+<a name="1468"></a>        local loc = gPlayerChar.getOutermostRoom();
+<a name="1469"></a>        local dest = getDestination(loc);
+<a name="1470"></a>        return (dest != nil &amp;&amp; dest.isDestinationKnown);
+<a name="1471"></a>    }
+<a name="1472"></a>    
+<a name="1473"></a>    /*   A travel connector is usually open. */
+<a name="1474"></a>    isOpen = true
+<a name="1475"></a>    
+<a name="1476"></a>    /* 
+<a name="1477"></a>     *   Carrier out travel via this connector, first checking that travel
+<a name="1478"></a>     *   through this connector is permitted for this actor.
+<a name="1479"></a>     */    
+<a name="1480"></a>    travelVia(actor)
+<a name="1481"></a>    {
+<a name="1482"></a>        /* 
+<a name="1483"></a>         *   The traveler is the object actually doing the travelling; usually
+<a name="1484"></a>         *   it's just the actor, but if the actor is in a vehicle, it will be
+<a name="1485"></a>         *   the vehicle.
+<a name="1486"></a>         */
+<a name="1487"></a>        local traveler = getTraveler(actor);       
+<a name="1488"></a>        
 <a name="1489"></a>        
-<a name="1490"></a>        while(loc != nil &amp;&amp; !loc.ofKind(Room))
-<a name="1491"></a>        {
-<a name="1492"></a>            if(loc.isVehicle)
-<a name="1493"></a>                return loc;
-<a name="1494"></a>            
-<a name="1495"></a>            loc = loc.location;
-<a name="1496"></a>        }
-<a name="1497"></a>        
-<a name="1498"></a>        
-<a name="1499"></a>        return actor;
-<a name="1500"></a>    }
-<a name="1501"></a>    
-<a name="1502"></a>    /*  Execute the travel for this actor via this connector */
-<a name="1503"></a>    execTravel(actor, traveler, conn)
-<a name="1504"></a>    {       
-<a name="1505"></a>        local loc = traveler.getOutermostRoom();
-<a name="1506"></a>        local dest = getDestination(loc);
-<a name="1507"></a>        
-<a name="1508"></a>        /* If we have a destination, let our destination handle it */
-<a name="1509"></a>        if(dest != nil)
-<a name="1510"></a>            dest.execTravel(actor, traveler, conn);        
-<a name="1511"></a>        
-<a name="1512"></a>        else 
-<a name="1513"></a>        {    
-<a name="1514"></a>            /* 
-<a name="1515"></a>             *   Carry out the beforeTravel notifications, since this can't be
-<a name="1516"></a>             *   done by our destination, but something in scope may still want
-<a name="1517"></a>             *   to react to or prohibit the attempt to travel.
-<a name="1518"></a>             */
-<a name="1519"></a>            beforeTravelNotifications(actor);
-<a name="1520"></a>            
-<a name="1521"></a>            /*  
-<a name="1522"></a>             *   Then call our noteTraversal method to carry out the
-<a name="1523"></a>             *   side-effects of travel; since we don't lead anywhere this may
-<a name="1524"></a>             *   be the only reason we exist. If, however, our noteTraversal()
-<a name="1525"></a>             *   method fails to display any output, instead display a report
-<a name="1526"></a>             *   that this connector doesn't lead anywhere.
-<a name="1527"></a>             */
-<a name="1528"></a>            if(gOutStream.watchForOutput({:noteTraversal(actor)}) == nil)
-<a name="1529"></a>                sayNoDestination();
-<a name="1530"></a>        }
-<a name="1531"></a>    }
-<a name="1532"></a>    
-<a name="1533"></a>         
-<a name="1534"></a>    /* 
-<a name="1535"></a>     *   Display a message saying that this travel connector doesn't actually
-<a name="1536"></a>     *   lead anywhere; this may be needed if our destination is nil and our
-<a name="1537"></a>     *   noteTraversal() method doesn't display anything.
-<a name="1538"></a>     */
-<a name="1539"></a>    sayNoDestination()
-<a name="1540"></a>    {
-<a name="1541"></a>        DMsg(no destination, 'That{dummy} {doesn\'t} lead anywhere. ');
-<a name="1542"></a>    }
-<a name="1543"></a>
-<a name="1544"></a>       
-<a name="1545"></a>    /*  
-<a name="1546"></a>     *   If the actor doing the traveling is the player character, display the
-<a name="1547"></a>     *   travelDesc. Note that although this might normally be a simple
-<a name="1548"></a>     *   description of the travel, the travelDesc method could also be used to
-<a name="1549"></a>     *   carry out any other side-effects of the travel via this connector.
-<a name="1550"></a>     */
-<a name="1551"></a>    noteTraversal(actor)
-<a name="1552"></a>    {
-<a name="1553"></a>        if(actor == gPlayerChar &amp;&amp; !(gAction.isPushTravelAction &amp;&amp; suppressTravelDescForPushTravel))
-<a name="1554"></a>        {                
-<a name="1555"></a>            travelDesc;
-<a name="1556"></a>            "&lt;.p&gt;";
+<a name="1490"></a>        /* This is a hook for the postures extension */
+<a name="1491"></a>        if(!setTravelPosture())
+<a name="1492"></a>            exit;    
+<a name="1493"></a>       
+<a name="1494"></a>        
+<a name="1495"></a>        /* 
+<a name="1496"></a>         *   Check the travel barriers on this TravelConnector to ensure that
+<a name="1497"></a>         *   travel is permitted. If so carry out the travel. If not
+<a name="1498"></a>         *   checkTravelBarriers will have reported the reason why travel is
+<a name="1499"></a>         *   blocked.
+<a name="1500"></a>         */
+<a name="1501"></a>        if(checkTravelBarriers(traveler))           
+<a name="1502"></a>            execTravel(actor, traveler, self);               
+<a name="1503"></a>    }
+<a name="1504"></a>     
+<a name="1505"></a>    setTravelPosture() { return true; }
+<a name="1506"></a>    
+<a name="1507"></a>    /* 
+<a name="1508"></a>     *   Get the traveler associated with this actor. Normally the traveler will
+<a name="1509"></a>     *   be the same as the actor, but if the actor is in a vehicle, then the
+<a name="1510"></a>     *   traveler will be the vehicle.
+<a name="1511"></a>     */
+<a name="1512"></a>    getTraveler(actor)
+<a name="1513"></a>    {
+<a name="1514"></a>        
+<a name="1515"></a>        local loc = actor.location;
+<a name="1516"></a>        
+<a name="1517"></a>        while(loc != nil &amp;&amp; !loc.ofKind(Room))
+<a name="1518"></a>        {
+<a name="1519"></a>            if(loc.isVehicle)
+<a name="1520"></a>                return loc;
+<a name="1521"></a>            
+<a name="1522"></a>            loc = loc.location;
+<a name="1523"></a>        }
+<a name="1524"></a>        
+<a name="1525"></a>        
+<a name="1526"></a>        return actor;
+<a name="1527"></a>    }
+<a name="1528"></a>    
+<a name="1529"></a>    /*  Execute the travel for this actor via this connector */
+<a name="1530"></a>    execTravel(actor, traveler, conn)
+<a name="1531"></a>    {       
+<a name="1532"></a>        local loc = traveler.getOutermostRoom();
+<a name="1533"></a>        local dest = getDestination(loc);
+<a name="1534"></a>        
+<a name="1535"></a>        /* If we have a destination, let our destination handle it */
+<a name="1536"></a>        if(dest != nil)
+<a name="1537"></a>            dest.execTravel(actor, traveler, conn);        
+<a name="1538"></a>        
+<a name="1539"></a>        else 
+<a name="1540"></a>        {    
+<a name="1541"></a>            /* 
+<a name="1542"></a>             *   Carry out the beforeTravel notifications, since this can't be
+<a name="1543"></a>             *   done by our destination, but something in scope may still want
+<a name="1544"></a>             *   to react to or prohibit the attempt to travel.
+<a name="1545"></a>             */
+<a name="1546"></a>            beforeTravelNotifications(actor);
+<a name="1547"></a>            
+<a name="1548"></a>            /*  
+<a name="1549"></a>             *   Then call our noteTraversal method to carry out the
+<a name="1550"></a>             *   side-effects of travel; since we don't lead anywhere this may
+<a name="1551"></a>             *   be the only reason we exist. If, however, our noteTraversal()
+<a name="1552"></a>             *   method fails to display any output, instead display a report
+<a name="1553"></a>             *   that this connector doesn't lead anywhere.
+<a name="1554"></a>             */
+<a name="1555"></a>            if(gOutStream.watchForOutput({:noteTraversal(actor)}) == nil)
+<a name="1556"></a>                sayNoDestination();
 <a name="1557"></a>        }
-<a name="1558"></a>        
-<a name="1559"></a>        /* 
-<a name="1560"></a>         *   Note that the actor has traversed us. If the actor is in a vehicle, also note the
-<a name="1561"></a>         *   vehicle has traversed us.
-<a name="1562"></a>         */
-<a name="1563"></a>        local travelers = (actor.location &amp;&amp; actor.location.isVehicle)
-<a name="1564"></a>            ? [actor, actor.location] : [actor];
-<a name="1565"></a>        
-<a name="1566"></a>        traversedBy = traversedBy.appendUnique(travelers); 
-<a name="1567"></a>    }
-<a name="1568"></a>    
-<a name="1569"></a>    /* 
-<a name="1570"></a>     *   A list of the actors, vehicles and pushTraverers that have traversed this TravelConnector.
-<a name="1571"></a>     *   This is maintained by the noteTraversal(), so game code should normally treat this property
-<a name="1572"></a>     *   as read-only.
-<a name="1573"></a>     */
-<a name="1574"></a>    traversedBy = []
-<a name="1575"></a>    
-<a name="1576"></a>    /* 
-<a name="1577"></a>     *   Test whether this TravelConnector has been traversed by traveler (which may be an actor, a
-<a name="1578"></a>     *   vehicle, or something pushed through the TravelConnector by an actor).
-<a name="1579"></a>     */
-<a name="1580"></a>    hasBeenTraversedBy(traveler)
-<a name="1581"></a>    {
-<a name="1582"></a>        /* Return true if traveler is in our travdersedBy list. */
-<a name="1583"></a>        return traversedBy.indexOf(traveler) != nil;
-<a name="1584"></a>    }    
-<a name="1585"></a>    
-<a name="1586"></a>    /* Have we been traversed by the player character? Return true if and only if we have. */
-<a name="1587"></a>    traversed = (hasBeenTraversedBy(gPlayerChar))
-<a name="1588"></a>    
-<a name="1589"></a>    /* Carry out the before travel notifications for this actor. */
-<a name="1590"></a>    beforeTravelNotifications(actor)
-<a name="1591"></a>    {
-<a name="1592"></a>        /* 
-<a name="1593"></a>         *   Call the before travel notifications on every object that's in
-<a name="1594"></a>         *   scope for the actor.
-<a name="1595"></a>         */
-<a name="1596"></a>        Q.scopeList(actor).toList.forEach({x: x.beforeTravel(actor, self)});
-<a name="1597"></a>        
-<a name="1598"></a>        
-<a name="1599"></a>        
-<a name="1600"></a>         /* 
-<a name="1601"></a>          *   Finall, carry out before travel notifications in all the regions
-<a name="1602"></a>          *   the traveler starts out in.
-<a name="1603"></a>          */
-<a name="1604"></a>        foreach(local reg in actor.getOutermostRoom.allRegions)
-<a name="1605"></a>            reg.regionBeforeTravel(actor, self);
-<a name="1606"></a>    }
-<a name="1607"></a>    
-<a name="1608"></a>    /* Carry out the after travel notifications for this actor */
-<a name="1609"></a>    afterTravelNotifications(actor)
-<a name="1610"></a>    {
-<a name="1611"></a>        /* 
-<a name="1612"></a>         *   Call the after travel notification for every object that's in scope for this actor plus
-<a name="1613"></a>         *   anything else in our notirication list.
-<a name="1614"></a>         */
-<a name="1615"></a>         
-<a name="1616"></a>        local notifyList = Q.scopeList(actor).toList.appendUnique(valToList(travelNotificationList));
-<a name="1617"></a>        
-<a name="1618"></a>        notifyList.forEach({x: x.afterTravel(actor, self)});
-<a name="1619"></a>        
-<a name="1620"></a>        /*   
-<a name="1621"></a>         *   Finally, carry out after travel notifications in all the regions
-<a name="1622"></a>         *   the traveler ends up in.
-<a name="1623"></a>         */
-<a name="1624"></a>        foreach(local reg in actor.getOutermostRoom.allRegions)
-<a name="1625"></a>            reg.regionAfterTravel(actor, self); 
+<a name="1558"></a>    }
+<a name="1559"></a>    
+<a name="1560"></a>         
+<a name="1561"></a>    /* 
+<a name="1562"></a>     *   Display a message saying that this travel connector doesn't actually
+<a name="1563"></a>     *   lead anywhere; this may be needed if our destination is nil and our
+<a name="1564"></a>     *   noteTraversal() method doesn't display anything.
+<a name="1565"></a>     */
+<a name="1566"></a>    sayNoDestination()
+<a name="1567"></a>    {
+<a name="1568"></a>        DMsg(no destination, 'That{dummy} {doesn\'t} lead anywhere. ');
+<a name="1569"></a>    }
+<a name="1570"></a>
+<a name="1571"></a>       
+<a name="1572"></a>    /*  
+<a name="1573"></a>     *   If the actor doing the traveling is the player character, display the
+<a name="1574"></a>     *   travelDesc. Note that although this might normally be a simple
+<a name="1575"></a>     *   description of the travel, the travelDesc method could also be used to
+<a name="1576"></a>     *   carry out any other side-effects of the travel via this connector.
+<a name="1577"></a>     */
+<a name="1578"></a>    noteTraversal(actor)
+<a name="1579"></a>    {
+<a name="1580"></a>        if(actor == gPlayerChar &amp;&amp; !(gAction.isPushTravelAction &amp;&amp; suppressTravelDescForPushTravel))
+<a name="1581"></a>        {                
+<a name="1582"></a>            travelDesc;
+<a name="1583"></a>            "&lt;.p&gt;";
+<a name="1584"></a>        }
+<a name="1585"></a>        
+<a name="1586"></a>        /* 
+<a name="1587"></a>         *   Note that the actor has traversed us. If the actor is in a vehicle, also note the
+<a name="1588"></a>         *   vehicle has traversed us.
+<a name="1589"></a>         */
+<a name="1590"></a>        local travelers = (actor.location &amp;&amp; actor.location.isVehicle)
+<a name="1591"></a>            ? [actor, actor.location] : [actor];
+<a name="1592"></a>        
+<a name="1593"></a>        traversedBy = traversedBy.appendUnique(travelers); 
+<a name="1594"></a>    }
+<a name="1595"></a>    
+<a name="1596"></a>    /* 
+<a name="1597"></a>     *   A list of the actors, vehicles and pushTraverers that have traversed this TravelConnector.
+<a name="1598"></a>     *   This is maintained by the noteTraversal(), so game code should normally treat this property
+<a name="1599"></a>     *   as read-only.
+<a name="1600"></a>     */
+<a name="1601"></a>    traversedBy = []
+<a name="1602"></a>    
+<a name="1603"></a>    /* 
+<a name="1604"></a>     *   Test whether this TravelConnector has been traversed by traveler (which may be an actor, a
+<a name="1605"></a>     *   vehicle, or something pushed through the TravelConnector by an actor).
+<a name="1606"></a>     */
+<a name="1607"></a>    hasBeenTraversedBy(traveler)
+<a name="1608"></a>    {
+<a name="1609"></a>        /* Return true if traveler is in our travdersedBy list. */
+<a name="1610"></a>        return traversedBy.indexOf(traveler) != nil;
+<a name="1611"></a>    }    
+<a name="1612"></a>    
+<a name="1613"></a>    /* Have we been traversed by the player character? Return true if and only if we have. */
+<a name="1614"></a>    traversed = (hasBeenTraversedBy(gPlayerChar))
+<a name="1615"></a>    
+<a name="1616"></a>    /* Carry out the before travel notifications for this actor. */
+<a name="1617"></a>    beforeTravelNotifications(actor)
+<a name="1618"></a>    {
+<a name="1619"></a>        /* 
+<a name="1620"></a>         *   Call the before travel notifications on every object that's in
+<a name="1621"></a>         *   scope for the actor.
+<a name="1622"></a>         */
+<a name="1623"></a>        Q.scopeList(actor).toList.forEach({x: x.beforeTravel(actor, self)});
+<a name="1624"></a>        
+<a name="1625"></a>        
 <a name="1626"></a>        
-<a name="1627"></a>    }
-<a name="1628"></a>
-<a name="1629"></a>    /* List of additional actors to be notified that this actor has travelled. */
-<a name="1630"></a>    travelNotificationList = []    
-<a name="1631"></a>        
-<a name="1632"></a>    /*  
-<a name="1633"></a>     *   Method that should return true is actor is allowed to pass through this
-<a name="1634"></a>     *   TravelConnector and nil otherwise. We allow travel by default but this
-<a name="1635"></a>     *   could be overridden to block travel under certain conditions.
-<a name="1636"></a>     */
-<a name="1637"></a>    canTravelerPass(actor) { return true; }
-<a name="1638"></a>    
-<a name="1639"></a>    
-<a name="1640"></a>    /*  
-<a name="1641"></a>     *   If canTravelerPass returns nil explainTravelBarrier should display a
-<a name="1642"></a>     *   message explaining why travel has been prohibited.
-<a name="1643"></a>     */
-<a name="1644"></a>    explainTravelBarrier(actor) { }
-<a name="1645"></a>    
-<a name="1646"></a>    /*   
-<a name="1647"></a>     *   Carry out any side effects of travel if the traveler is the player
-<a name="1648"></a>     *   character. Typically we might just display some text describing the
-<a name="1649"></a>     *   travel here, but this method could be used for any side-effects of the
-<a name="1650"></a>     *   travel. If the TravelConnector is mixed in with an EventList class then
-<a name="1651"></a>     *   the default behaviour is to call the doScript() method here to drive
-<a name="1652"></a>     *   the EventList.
-<a name="1653"></a>     */
-<a name="1654"></a>    travelDesc() 
-<a name="1655"></a>    { 
-<a name="1656"></a>        if(ofKind(Script))
-<a name="1657"></a>            doScript();
-<a name="1658"></a>    }
-<a name="1659"></a>    
-<a name="1660"></a>    /* 
-<a name="1661"></a>     *   an additional TravelBarrier or a list of TravelBarriers to check on
-<a name="1662"></a>     *   this TravelConnector to see if travel is allowed.
+<a name="1627"></a>         /* 
+<a name="1628"></a>          *   Finall, carry out before travel notifications in all the regions
+<a name="1629"></a>          *   the traveler starts out in.
+<a name="1630"></a>          */
+<a name="1631"></a>        foreach(local reg in actor.getOutermostRoom.allRegions)
+<a name="1632"></a>            reg.regionBeforeTravel(actor, self);
+<a name="1633"></a>    }
+<a name="1634"></a>    
+<a name="1635"></a>    /* Carry out the after travel notifications for this actor */
+<a name="1636"></a>    afterTravelNotifications(actor)
+<a name="1637"></a>    {
+<a name="1638"></a>        /* 
+<a name="1639"></a>         *   Call the after travel notification for every object that's in scope for this actor plus
+<a name="1640"></a>         *   anything else in our notirication list.
+<a name="1641"></a>         */
+<a name="1642"></a>         
+<a name="1643"></a>        local notifyList = Q.scopeList(actor).toList.appendUnique(valToList(travelNotificationList));
+<a name="1644"></a>        
+<a name="1645"></a>        notifyList.forEach({x: x.afterTravel(actor, self)});
+<a name="1646"></a>        
+<a name="1647"></a>        /*   
+<a name="1648"></a>         *   Finally, carry out after travel notifications in all the regions
+<a name="1649"></a>         *   the traveler ends up in.
+<a name="1650"></a>         */
+<a name="1651"></a>        foreach(local reg in actor.getOutermostRoom.allRegions)
+<a name="1652"></a>            reg.regionAfterTravel(actor, self); 
+<a name="1653"></a>        
+<a name="1654"></a>    }
+<a name="1655"></a>
+<a name="1656"></a>    /* List of additional actors to be notified that this actor has travelled. */
+<a name="1657"></a>    travelNotificationList = []    
+<a name="1658"></a>        
+<a name="1659"></a>    /*  
+<a name="1660"></a>     *   Method that should return true is actor is allowed to pass through this
+<a name="1661"></a>     *   TravelConnector and nil otherwise. We allow travel by default but this
+<a name="1662"></a>     *   could be overridden to block travel under certain conditions.
 <a name="1663"></a>     */
-<a name="1664"></a>    travelBarriers = nil
-<a name="1665"></a>       
+<a name="1664"></a>    canTravelerPass(actor) { return true; }
+<a name="1665"></a>    
 <a name="1666"></a>    
-<a name="1667"></a>    /* 
-<a name="1668"></a>     *   Check all the travel barriers associated with this connector to
-<a name="1669"></a>     *   determine whether the traveler is allowed to pass through this travel
-<a name="1670"></a>     *   connector.
-<a name="1671"></a>     */
-<a name="1672"></a>    checkTravelBarriers(traveler)
-<a name="1673"></a>    {
-<a name="1674"></a>        /* 
-<a name="1675"></a>         *   First check if we have a checkReach method that might prevent the traveler from
-<a name="1676"></a>         *   accessing this connector.
-<a name="1677"></a>         */
-<a name="1678"></a>        if(propDefined(&amp;checkReach))
-<a name="1679"></a>        {    
-<a name="1680"></a>            if(gOutStream.watchForOutput({: checkReach(traveler)}))
-<a name="1681"></a>               return nil;
-<a name="1682"></a>        }
-<a name="1683"></a>        
-<a name="1684"></a>        /* 
-<a name="1685"></a>         *   Next, check if this TravelConnector has any staging locations, and if so, wheteher the
-<a name="1686"></a>         *   traveler is in one of them. If not, disallow the travel.
-<a name="1687"></a>         */
-<a name="1688"></a>        if(stagingLocations)
-<a name="1689"></a>        {
-<a name="1690"></a>            local stagLocs = valToList(stagingLocations);
-<a name="1691"></a>            if(stagLocs.length &gt; 0)
-<a name="1692"></a>            {
-<a name="1693"></a>                if(!stagLocs.indexWhich({x: traveler.location.ofKind(x)}))
-<a name="1694"></a>                {
-<a name="1695"></a>                    sayNotInStagingLocation(traveler);
-<a name="1696"></a>                    return nil;
-<a name="1697"></a>                }                                            
-<a name="1698"></a>            }
-<a name="1699"></a>        }
-<a name="1700"></a>        
-<a name="1701"></a>        /* first check our own built-in barrier test. */
-<a name="1702"></a>        if(!canTravelerPass(traveler))
-<a name="1703"></a>        {
-<a name="1704"></a>            /* 
-<a name="1705"></a>             *   If travel is not permitted display a message explaining why and
-<a name="1706"></a>             *   then return nil to cancel the travel.
-<a name="1707"></a>             */
-<a name="1708"></a>            explainTravelBarrier(traveler);
-<a name="1709"></a>            return nil;
-<a name="1710"></a>        }
-<a name="1711"></a>        
-<a name="1712"></a>        /* Then check any additional travel barrier objects */
-<a name="1713"></a>        if(valToList(travelBarriers).indexWhich({b: b.checkTravelBarrier
-<a name="1714"></a>                                                (traveler,  self) == nil}))
-<a name="1715"></a>            return nil;
-<a name="1716"></a>        
-<a name="1717"></a>        /* 
-<a name="1718"></a>         *   If we've reached this point then no travel barrier is objecting to
-<a name="1719"></a>         *   the traveler traveling to this connector, so return true to signal
-<a name="1720"></a>         *   that travel is permitted.
-<a name="1721"></a>         */
-<a name="1722"></a>        return true;   
-<a name="1723"></a>    }
-<a name="1724"></a>    
-<a name="1725"></a>    /* 
-<a name="1726"></a>     *   Display a message to say that an actor is departing via this connector.
-<a name="1727"></a>     *   On the base class the default behaviour is to describe the departure
-<a name="1728"></a>     *   via a compass direction. The actor in question would normally be an NPC
-<a name="1729"></a>     *   visible to the player character.
-<a name="1730"></a>     */
-<a name="1731"></a>    sayDeparting(traveler)
-<a name="1732"></a>    {       
-<a name="1733"></a>        /* Create a message parameter substitution for the traveler */
-<a name="1734"></a>        gMessageParams(traveler);        
-<a name="1735"></a>        
-<a name="1736"></a>        /* Find the direction to which this connector is attached. */
-<a name="1737"></a>        local depdir = getDepartingDirection(traveler);
+<a name="1667"></a>    /*  
+<a name="1668"></a>     *   If canTravelerPass returns nil explainTravelBarrier should display a
+<a name="1669"></a>     *   message explaining why travel has been prohibited.
+<a name="1670"></a>     */
+<a name="1671"></a>    explainTravelBarrier(actor) { }
+<a name="1672"></a>    
+<a name="1673"></a>    /*   
+<a name="1674"></a>     *   Carry out any side effects of travel if the traveler is the player
+<a name="1675"></a>     *   character. Typically we might just display some text describing the
+<a name="1676"></a>     *   travel here, but this method could be used for any side-effects of the
+<a name="1677"></a>     *   travel. If the TravelConnector is mixed in with an EventList class then
+<a name="1678"></a>     *   the default behaviour is to call the doScript() method here to drive
+<a name="1679"></a>     *   the EventList.
+<a name="1680"></a>     */
+<a name="1681"></a>    travelDesc() 
+<a name="1682"></a>    { 
+<a name="1683"></a>        if(ofKind(Script))
+<a name="1684"></a>            doScript();
+<a name="1685"></a>    }
+<a name="1686"></a>    
+<a name="1687"></a>    /* 
+<a name="1688"></a>     *   an additional TravelBarrier or a list of TravelBarriers to check on
+<a name="1689"></a>     *   this TravelConnector to see if travel is allowed.
+<a name="1690"></a>     */
+<a name="1691"></a>    travelBarriers = nil
+<a name="1692"></a>       
+<a name="1693"></a>    
+<a name="1694"></a>    /* 
+<a name="1695"></a>     *   Check all the travel barriers associated with this connector to
+<a name="1696"></a>     *   determine whether the traveler is allowed to pass through this travel
+<a name="1697"></a>     *   connector.
+<a name="1698"></a>     */
+<a name="1699"></a>    checkTravelBarriers(traveler)
+<a name="1700"></a>    {
+<a name="1701"></a>        /* 
+<a name="1702"></a>         *   First check if we have a checkReach method that might prevent the traveler from
+<a name="1703"></a>         *   accessing this connector.
+<a name="1704"></a>         */
+<a name="1705"></a>        if(propDefined(&amp;checkReach))
+<a name="1706"></a>        {    
+<a name="1707"></a>            if(gOutStream.watchForOutput({: checkReach(traveler)}))
+<a name="1708"></a>               return nil;
+<a name="1709"></a>        }
+<a name="1710"></a>        
+<a name="1711"></a>        /* 
+<a name="1712"></a>         *   Next, check if this TravelConnector has any staging locations, and if so, wheteher the
+<a name="1713"></a>         *   traveler is in one of them. If not, disallow the travel.
+<a name="1714"></a>         */
+<a name="1715"></a>        if(stagingLocations)
+<a name="1716"></a>        {
+<a name="1717"></a>            local stagLocs = valToList(stagingLocations);
+<a name="1718"></a>            if(stagLocs.length &gt; 0)
+<a name="1719"></a>            {
+<a name="1720"></a>                if(!stagLocs.indexWhich({x: traveler.location.ofKind(x)}))
+<a name="1721"></a>                {
+<a name="1722"></a>                    sayNotInStagingLocation(traveler);
+<a name="1723"></a>                    return nil;
+<a name="1724"></a>                }                                            
+<a name="1725"></a>            }
+<a name="1726"></a>        }
+<a name="1727"></a>        
+<a name="1728"></a>        /* first check our own built-in barrier test. */
+<a name="1729"></a>        if(!canTravelerPass(traveler))
+<a name="1730"></a>        {
+<a name="1731"></a>            /* 
+<a name="1732"></a>             *   If travel is not permitted display a message explaining why and
+<a name="1733"></a>             *   then return nil to cancel the travel.
+<a name="1734"></a>             */
+<a name="1735"></a>            explainTravelBarrier(traveler, connector);
+<a name="1736"></a>            return nil;
+<a name="1737"></a>        }
 <a name="1738"></a>        
-<a name="1739"></a>        if(depdir == nil)
-<a name="1740"></a>            DMsg(say departing vague, '&lt;.p&gt;{The subj traveler} {leaves} the
-<a name="1741"></a>                area. ');
-<a name="1742"></a>        else        
-<a name="1743"></a>            DMsg(say departing dir, '&lt;.p&gt;{The subj traveler} {goes} {1}. '
-<a name="1744"></a>                 , depdir.departureName);
-<a name="1745"></a>                        
-<a name="1746"></a>    }
-<a name="1747"></a>    
-<a name="1748"></a>    /* 
-<a name="1749"></a>     *   Display a message to say that follower is following leader in the
-<a name="1750"></a>     *   direction of this connector.
-<a name="1751"></a>     */
-<a name="1752"></a>    sayActorFollowing(follower, leader)
-<a name="1753"></a>    {
-<a name="1754"></a>        /* Create a message parameter substitution for the traveler */
-<a name="1755"></a>        gMessageParams(follower, leader);        
-<a name="1756"></a>        
-<a name="1757"></a>        /* Find the direction to which this connector is attached. */
-<a name="1758"></a>        local depdir = getDepartingDirection(follower);
-<a name="1759"></a>        
-<a name="1760"></a>        if(depdir == nil)
-<a name="1761"></a>            DMsg(say following vague, '&lt;.p&gt;{The subj follower} follow{s/ed} {the
-<a name="1762"></a>                leader}. ');
-<a name="1763"></a>        else        
-<a name="1764"></a>            DMsg(say following dir, '&lt;.p&gt;{The subj follower} follow{s/ed} {the
-<a name="1765"></a>                leader} {1}. ', depdir.departureName);
-<a name="1766"></a>        
-<a name="1767"></a>    }
-<a name="1768"></a>    
-<a name="1769"></a>    /* 
-<a name="1770"></a>     *   Create a phrase describing the direction of travel through this
-<a name="1771"></a>     *   connector (e.g. 'to the north')
-<a name="1772"></a>     */
-<a name="1773"></a>    traversalMsg()
-<a name="1774"></a>    {
-<a name="1775"></a>        local depDir = getDepartingDirection(gActor);
-<a name="1776"></a>        
-<a name="1777"></a>        return  BMsg(traverse connector, '{1}', depDir.departureName);
-<a name="1778"></a>    }
-<a name="1779"></a>    
-<a name="1780"></a>   
-<a name="1781"></a>    /* 
-<a name="1782"></a>     *   Get the direction traveler needs to go in to traverse this connector
-<a name="1783"></a>     *   from traveler's current location.
-<a name="1784"></a>     */
-<a name="1785"></a>    getDepartingDirection(traveler)
-<a name="1786"></a>    {                
-<a name="1787"></a>        /* Note what room the traveler is in prior to departure */
-<a name="1788"></a>        local room = traveler.getOutermostRoom;
-<a name="1789"></a>        
-<a name="1790"></a>        /* Return the direction to which this connector is attached. */
-<a name="1791"></a>        return room.getDirection(self);
-<a name="1792"></a>    }
-<a name="1793"></a>    
-<a name="1794"></a>    /* 
-<a name="1795"></a>     *   Our list of stagingLocations. We don't need to define this, in which case we'll assume the
-<a name="1796"></a>     *   traveler needs to be directly in the room they're traveling from. If we do define this
-<a name="1797"></a>     *   property it should contain a list of objects and/or classes and the traveler must be
-<a name="1798"></a>     *   directly in one of them for the travel to be allowed to proceed.
-<a name="1799"></a>     */      
-<a name="1800"></a>    stagingLocations = nil 
-<a name="1801"></a>  
-<a name="1802"></a>    /* 
-<a name="1803"></a>     *   The message to display if stagingLocations is not nil and the traveler is not in one of our
-<a name="1804"></a>     *   staging locations. It may often be better to pre-empt the display of this generic message
-<a name="1805"></a>     *   by defining a checkReach() method on this TravelConnector if it's a physicsl one.
-<a name="1806"></a>     */
-<a name="1807"></a>    sayNotInStagingLocation(traveler)
-<a name="1808"></a>    {
-<a name="1809"></a>        gMessageParams(traveler);
-<a name="1810"></a>        DMsg(not in staging location, '{The subj traveler} {can\'t} access that exit from
-<a name="1811"></a>            {his traveler} current location. ' );
-<a name="1812"></a>    }
-<a name="1813"></a>    
-<a name="1814"></a>    /* 
-<a name="1815"></a>     *   Optionally specify a nested room within our destination room a traveler traveling via
-<a name="1816"></a>     *   should be moved to on entering this room. If this returns anything that's not in our
-<a name="1817"></a>     *   destination room it will be igonored.     
-<a name="1818"></a>     */
-<a name="1819"></a>    exitLocation(dest) { }
+<a name="1739"></a>        /* Then check any additional travel barrier objects */
+<a name="1740"></a>        if(valToList(travelBarriers).indexWhich({b: b.checkTravelBarrier
+<a name="1741"></a>                                                (traveler,  self) == nil}))
+<a name="1742"></a>            return nil;
+<a name="1743"></a>        
+<a name="1744"></a>        /* 
+<a name="1745"></a>         *   If we've reached this point then no travel barrier is objecting to
+<a name="1746"></a>         *   the traveler traveling to this connector, so return true to signal
+<a name="1747"></a>         *   that travel is permitted.
+<a name="1748"></a>         */
+<a name="1749"></a>        return true;   
+<a name="1750"></a>    }
+<a name="1751"></a>    
+<a name="1752"></a>    /* 
+<a name="1753"></a>     *   Display a message to say that an actor is departing via this connector.
+<a name="1754"></a>     *   On the base class the default behaviour is to describe the departure
+<a name="1755"></a>     *   via a compass direction. The actor in question would normally be an NPC
+<a name="1756"></a>     *   visible to the player character.
+<a name="1757"></a>     */
+<a name="1758"></a>    sayDeparting(traveler)
+<a name="1759"></a>    {       
+<a name="1760"></a>        /* Create a message parameter substitution for the traveler */
+<a name="1761"></a>        gMessageParams(traveler);        
+<a name="1762"></a>        
+<a name="1763"></a>        /* Find the direction to which this connector is attached. */
+<a name="1764"></a>        local depdir = getDepartingDirection(traveler);
+<a name="1765"></a>        
+<a name="1766"></a>        if(depdir == nil)
+<a name="1767"></a>            DMsg(say departing vague, '&lt;.p&gt;{The subj traveler} {leaves} the
+<a name="1768"></a>                area. ');
+<a name="1769"></a>        else        
+<a name="1770"></a>            DMsg(say departing dir, '&lt;.p&gt;{The subj traveler} {goes} {1}. '
+<a name="1771"></a>                 , depdir.departureName);
+<a name="1772"></a>                        
+<a name="1773"></a>    }
+<a name="1774"></a>    
+<a name="1775"></a>    /* 
+<a name="1776"></a>     *   Display a message to say that follower is following leader in the
+<a name="1777"></a>     *   direction of this connector.
+<a name="1778"></a>     */
+<a name="1779"></a>    sayActorFollowing(follower, leader)
+<a name="1780"></a>    {
+<a name="1781"></a>        /* Create a message parameter substitution for the traveler */
+<a name="1782"></a>        gMessageParams(follower, leader);        
+<a name="1783"></a>        
+<a name="1784"></a>        /* Find the direction to which this connector is attached. */
+<a name="1785"></a>        local depdir = getDepartingDirection(follower);
+<a name="1786"></a>        
+<a name="1787"></a>        if(depdir == nil)
+<a name="1788"></a>            DMsg(say following vague, '&lt;.p&gt;{The subj follower} follow{s/ed} {the
+<a name="1789"></a>                leader}. ');
+<a name="1790"></a>        else        
+<a name="1791"></a>            DMsg(say following dir, '&lt;.p&gt;{The subj follower} follow{s/ed} {the
+<a name="1792"></a>                leader} {1}. ', depdir.departureName);
+<a name="1793"></a>        
+<a name="1794"></a>    }
+<a name="1795"></a>    
+<a name="1796"></a>    /* 
+<a name="1797"></a>     *   Create a phrase describing the direction of travel through this
+<a name="1798"></a>     *   connector (e.g. 'to the north')
+<a name="1799"></a>     */
+<a name="1800"></a>    traversalMsg()
+<a name="1801"></a>    {
+<a name="1802"></a>        local depDir = getDepartingDirection(gActor);
+<a name="1803"></a>        
+<a name="1804"></a>        return  BMsg(traverse connector, '{1}', depDir.departureName);
+<a name="1805"></a>    }
+<a name="1806"></a>    
+<a name="1807"></a>   
+<a name="1808"></a>    /* 
+<a name="1809"></a>     *   Get the direction traveler needs to go in to traverse this connector
+<a name="1810"></a>     *   from traveler's current location.
+<a name="1811"></a>     */
+<a name="1812"></a>    getDepartingDirection(traveler)
+<a name="1813"></a>    {                
+<a name="1814"></a>        /* Note what room the traveler is in prior to departure */
+<a name="1815"></a>        local room = traveler.getOutermostRoom;
+<a name="1816"></a>        
+<a name="1817"></a>        /* Return the direction to which this connector is attached. */
+<a name="1818"></a>        return room.getDirection(self);
+<a name="1819"></a>    }
 <a name="1820"></a>    
-<a name="1821"></a>       
-<a name="1822"></a>    
-<a name="1823"></a>    /* 
-<a name="1824"></a>     *   The TravelVia action is supplied so game code can execute a TravelVia
-<a name="1825"></a>     *   action on a TravelConnector; there is no TRAVEL VIA command that can be
-<a name="1826"></a>     *   issued directly by a player, but a player command may be translated
-<a name="1827"></a>     *   into this action.
-<a name="1828"></a>     */    
-<a name="1829"></a>    dobjFor(TravelVia)
-<a name="1830"></a>    {
-<a name="1831"></a>        preCond = [travelPermitted]
-<a name="1832"></a>        
-<a name="1833"></a>        action()
-<a name="1834"></a>        {
-<a name="1835"></a>            /* 
-<a name="1836"></a>             *   For now, we just call the travelVia() method on the
-<a name="1837"></a>             *   TravelConnector. Subsequentlly we might add appropriate code
-<a name="1838"></a>             *   for the other action phases.
-<a name="1839"></a>             */
-<a name="1840"></a>            travelVia(gActor);
-<a name="1841"></a>        }
-<a name="1842"></a>    }
-<a name="1843"></a>    
-<a name="1844"></a>    dobjFor(GoThrough)
-<a name="1845"></a>    {
-<a name="1846"></a>        preCond = [travelPermitted]
-<a name="1847"></a>    }
-<a name="1848"></a>    
+<a name="1821"></a>    /* 
+<a name="1822"></a>     *   Our list of stagingLocations. We don't need to define this, in which case we'll assume the
+<a name="1823"></a>     *   traveler needs to be directly in the room they're traveling from. If we do define this
+<a name="1824"></a>     *   property it should contain a list of objects and/or classes and the traveler must be
+<a name="1825"></a>     *   directly in one of them for the travel to be allowed to proceed.
+<a name="1826"></a>     */      
+<a name="1827"></a>    stagingLocations = nil 
+<a name="1828"></a>  
+<a name="1829"></a>    /* 
+<a name="1830"></a>     *   The message to display if stagingLocations is not nil and the traveler is not in one of our
+<a name="1831"></a>     *   staging locations. It may often be better to pre-empt the display of this generic message
+<a name="1832"></a>     *   by defining a checkReach() method on this TravelConnector if it's a physicsl one.
+<a name="1833"></a>     */
+<a name="1834"></a>    sayNotInStagingLocation(traveler)
+<a name="1835"></a>    {
+<a name="1836"></a>        gMessageParams(traveler);
+<a name="1837"></a>        DMsg(not in staging location, '{The subj traveler} {can\'t} access that exit from
+<a name="1838"></a>            {his traveler} current location. ' );
+<a name="1839"></a>    }
+<a name="1840"></a>    
+<a name="1841"></a>    /* 
+<a name="1842"></a>     *   Optionally specify a nested room within our destination room a traveler traveling via
+<a name="1843"></a>     *   should be moved to on entering this room. If this returns anything that's not in our
+<a name="1844"></a>     *   destination room it will be igonored.     
+<a name="1845"></a>     */
+<a name="1846"></a>    exitLocation(dest) { }
+<a name="1847"></a>    
+<a name="1848"></a>       
 <a name="1849"></a>    
-<a name="1850"></a>    iobjFor(PushTravelThrough)
-<a name="1851"></a>    {
-<a name="1852"></a>        preCond = [travelPermitted]
-<a name="1853"></a>        verify() 
-<a name="1854"></a>        {  
-<a name="1855"></a>            
-<a name="1856"></a>        }
-<a name="1857"></a>        
-<a name="1858"></a>        check() { checkPushTravel(); }       
-<a name="1859"></a>    }
-<a name="1860"></a>    
-<a name="1861"></a>    
-<a name="1862"></a>    /* Check the travel barriers on the indirect object of the action */
-<a name="1863"></a>    checkPushTravel()
-<a name="1864"></a>    {
-<a name="1865"></a>        /* 
-<a name="1866"></a>         *   First check the travel barriers for the actor doing the pushing.
-<a name="1867"></a>         *   Only go on to check those for the item being pushed if the actor
-<a name="1868"></a>         *   can travel, so we don't see the same messages twice.
-<a name="1869"></a>         */
-<a name="1870"></a>        if(checkTravelBarriers(gActor))        
-<a name="1871"></a>            checkTravelBarriers(gDobj);      
-<a name="1872"></a>    }
-<a name="1873"></a>    
-<a name="1874"></a>    
-<a name="1875"></a>    /* 
-<a name="1876"></a>     *   The appropriate PushTravelAction for pushing something something
-<a name="1877"></a>     *   through a TravelConnector.
-<a name="1878"></a>     */
-<a name="1879"></a>    PushTravelVia = PushTravelThrough
-<a name="1880"></a>    
-<a name="1881"></a>    
-<a name="1882"></a>    /* 
-<a name="1883"></a>     *   If we display a message for pushing something via us, we probably don't also want the
-<a name="1884"></a>     *   travelDesc describing the actor's travel. Game code can override if both messages are
-<a name="1885"></a>     *   wanted when push-travelling.
-<a name="1886"></a>     */
-<a name="1887"></a>    suppressTravelDescForPushTravel = true
+<a name="1850"></a>    /* 
+<a name="1851"></a>     *   The TravelVia action is supplied so game code can execute a TravelVia
+<a name="1852"></a>     *   action on a TravelConnector; there is no TRAVEL VIA command that can be
+<a name="1853"></a>     *   issued directly by a player, but a player command may be translated
+<a name="1854"></a>     *   into this action.
+<a name="1855"></a>     */    
+<a name="1856"></a>    dobjFor(TravelVia)
+<a name="1857"></a>    {
+<a name="1858"></a>        preCond = [travelPermitted]
+<a name="1859"></a>        
+<a name="1860"></a>        action()
+<a name="1861"></a>        {
+<a name="1862"></a>            /* 
+<a name="1863"></a>             *   For now, we just call the travelVia() method on the
+<a name="1864"></a>             *   TravelConnector. Subsequentlly we might add appropriate code
+<a name="1865"></a>             *   for the other action phases.
+<a name="1866"></a>             */
+<a name="1867"></a>            travelVia(gActor);
+<a name="1868"></a>        }
+<a name="1869"></a>    }
+<a name="1870"></a>    
+<a name="1871"></a>    dobjFor(GoThrough)
+<a name="1872"></a>    {
+<a name="1873"></a>        preCond = [travelPermitted]
+<a name="1874"></a>    }
+<a name="1875"></a>    
+<a name="1876"></a>    
+<a name="1877"></a>    iobjFor(PushTravelThrough)
+<a name="1878"></a>    {
+<a name="1879"></a>        preCond = [travelPermitted]
+<a name="1880"></a>        verify() 
+<a name="1881"></a>        {  
+<a name="1882"></a>            
+<a name="1883"></a>        }
+<a name="1884"></a>        
+<a name="1885"></a>        check() { checkPushTravel(); }       
+<a name="1886"></a>    }
+<a name="1887"></a>    
 <a name="1888"></a>    
-<a name="1889"></a>;
-<a name="1890"></a>
-<a name="1891"></a>
-<a name="1892"></a>/* 
-<a name="1893"></a> *   An UnlistedProxyConnector is a special kind of TravelConnector created by
-<a name="1894"></a> *   the asExit macro to make one exit do duty for another. There is probably
-<a name="1895"></a> *   never any need for this class to be used explicitly in game code, since
-<a name="1896"></a> *   game authors will always use the asExit macro instead.
-<a name="1897"></a> */
-<a name="1898"></a>class UnlistedProxyConnector: TravelConnector
-<a name="1899"></a>    
-<a name="1900"></a>    /* The direction property for which we're a proxy. */
-<a name="1901"></a>    proxyForProp = direction.dirProp
-<a name="1902"></a>    
-<a name="1903"></a>    /* 
-<a name="1904"></a>     *   The loc parameter should contain the room in which this UnlistedProxyConnector is used, but
-<a name="1905"></a>     *   calling code will need to supply it.
-<a name="1906"></a>     */
-<a name="1907"></a>    proxyForConnector(loc)
-<a name="1908"></a>    {
-<a name="1909"></a>        local ptype = loc.propType(proxyForProp);
-<a name="1910"></a>        
-<a name="1911"></a>        return ptype == TypeObject ? loc.(proxyForProp) : ptype;       
-<a name="1912"></a>            
-<a name="1913"></a>    }   
-<a name="1914"></a>    
+<a name="1889"></a>    /* Check the travel barriers on the indirect object of the action */
+<a name="1890"></a>    checkPushTravel()
+<a name="1891"></a>    {
+<a name="1892"></a>        /* 
+<a name="1893"></a>         *   First check the travel barriers for the actor doing the pushing.
+<a name="1894"></a>         *   Only go on to check those for the item being pushed if the actor
+<a name="1895"></a>         *   can travel, so we don't see the same messages twice.
+<a name="1896"></a>         */
+<a name="1897"></a>        if(checkTravelBarriers(gActor))        
+<a name="1898"></a>            checkTravelBarriers(gDobj);      
+<a name="1899"></a>    }
+<a name="1900"></a>    
+<a name="1901"></a>    
+<a name="1902"></a>    /* 
+<a name="1903"></a>     *   The appropriate PushTravelAction for pushing something something
+<a name="1904"></a>     *   through a TravelConnector.
+<a name="1905"></a>     */
+<a name="1906"></a>    PushTravelVia = PushTravelThrough
+<a name="1907"></a>    
+<a name="1908"></a>    
+<a name="1909"></a>    /* 
+<a name="1910"></a>     *   If we display a message for pushing something via us, we probably don't also want the
+<a name="1911"></a>     *   travelDesc describing the actor's travel. Game code can override if both messages are
+<a name="1912"></a>     *   wanted when push-travelling.
+<a name="1913"></a>     */
+<a name="1914"></a>    suppressTravelDescForPushTravel = true
 <a name="1915"></a>    
-<a name="1916"></a>    /* An UnlistedProxyConnector is never listed as an exit in its own right. */
-<a name="1917"></a>    isConnectorListed = nil
-<a name="1918"></a>    
-<a name="1919"></a>    /* 
-<a name="1920"></a>     *   We'll assume an UnlistedProxyListedConnector is always 'visible', since
-<a name="1921"></a>     *   it's a proxy for some other connector which will handle the actual
-<a name="1922"></a>     *   visibility conditions.
-<a name="1923"></a>     */
-<a name="1924"></a>    isConnectorVisible = true
-<a name="1925"></a>    
-<a name="1926"></a>    
-<a name="1927"></a>    /* Carry out travel via this connector. */
-<a name="1928"></a>    travelVia(traveler)
-<a name="1929"></a>    {
-<a name="1930"></a>        /* Get the travel connector for which we're a proxy. */
-<a name="1931"></a>        local conn = proxyForConnector(traveler.getOutermostRoom);
-<a name="1932"></a>        
-<a name="1933"></a>        /* 
-<a name="1934"></a>         *   If the connector is actually a TravelConnector, then execute travel via that connector.
-<a name="1935"></a>         */
-<a name="1936"></a>        if(objOfKind(conn,TravelConnector))            
-<a name="1937"></a>            conn.travelVia(traveler);
-<a name="1938"></a>        
-<a name="1939"></a>        /* 
-<a name="1940"></a>         *   Otherwise, the direction we're a proxy for points to something else that's not a
-<a name="1941"></a>         *   TravelConnector, such as a string or method, in which case call the nonTravel()
-<a name="1942"></a>         *   function to handle
-<a name="1943"></a>         it.*/
-<a name="1944"></a>        else
-<a name="1945"></a>            nonTravel(traveler.getOutermostRoom, direction);
-<a name="1946"></a>            
-<a name="1947"></a>    }
+<a name="1916"></a>;
+<a name="1917"></a>
+<a name="1918"></a>/* 
+<a name="1919"></a> *   Mix-in class for use with a TravelConnector whose destination may vary. To use a VarDest list
+<a name="1920"></a> *   it before the TravelConnector class in the class list of your object/class definition and use
+<a name="1921"></a> *   its caldDest method to define the expression or method yielding the connector's destination.
+<a name="1922"></a> *   This is only necessary if the value of this method might change in the course of one turn (when
+<a name="1923"></a> *   it will be evaluated multiple times), as may, for example, occur if it contains an element of
+<a name="1924"></a> *   randomness.
+<a name="1925"></a> */
+<a name="1926"></a>class VarDest: object
+<a name="1927"></a>    /* Obtain our destination for the current turn. */
+<a name="1928"></a>    destination
+<a name="1929"></a>    {         
+<a name="1930"></a>        /* 
+<a name="1931"></a>         *   If we're no longer on the same turn as when we last calculated our destination,
+<a name="1932"></a>         *   recalculate it, cache the result, and update our own turn count.
+<a name="1933"></a>         */
+<a name="1934"></a>        if(lastTurn != gTurns)
+<a name="1935"></a>        {
+<a name="1936"></a>            /* Note which turn we're on. */
+<a name="1937"></a>            lastTurn = gTurns;
+<a name="1938"></a>            
+<a name="1939"></a>            /* Calculate our current destination and store the result. */
+<a name="1940"></a>            currentDest = calcDest();
+<a name="1941"></a>        }
+<a name="1942"></a>        /* Return our stored current destination. */
+<a name="1943"></a>        return currentDest;            
+<a name="1944"></a>    }      
+<a name="1945"></a>    
+<a name="1946"></a>    /* The last turn on which our destination was calculated. */
+<a name="1947"></a>    lastTurn = 0
 <a name="1948"></a>    
-<a name="1949"></a>    
-<a name="1950"></a>    /* Construct a new UnlistedProxyConnector. */
-<a name="1951"></a>    construct(dir_)
-<a name="1952"></a>    {
-<a name="1953"></a>        /* Note the direction this connector is a proxy for. */
-<a name="1954"></a>        direction = dir_;        
-<a name="1955"></a>        
-<a name="1956"></a>    }
+<a name="1949"></a>    /* Our current destination. */
+<a name="1950"></a>    currentDest = nil
+<a name="1951"></a>    
+<a name="1952"></a>    /* 
+<a name="1953"></a>     *   The method or expression to calculate our corrent destination. User code must override as
+<a name="1954"></a>     *   required for particular cases.
+<a name="1955"></a>     */
+<a name="1956"></a>    calcDest() { }
 <a name="1957"></a>    
-<a name="1958"></a>  
-<a name="1959"></a>    /* 
-<a name="1960"></a>     *   We don't want an UnlistedProxyConnector to trigger any travel
-<a name="1961"></a>     *   notifications since these will be triggered - if appropriate - on the
-<a name="1962"></a>     *   real connector we point to.     */
-<a name="1963"></a>    
-<a name="1964"></a>    beforeTravelNotifications(actor) {}    
-<a name="1965"></a>    afterTravelNotifications(actor) {}
-<a name="1966"></a>    
-<a name="1967"></a>    /* 
-<a name="1968"></a>     *   Return the actual destination, if any, an actor will arrive at by traversing the connector
-<a name="1969"></a>     *   we're a proxy for from origin.
-<a name="1970"></a>     */
-<a name="1971"></a>    getDestination(origin)
-<a name="1972"></a>    {
-<a name="1973"></a>        local conn = proxyForConnector(origin);
-<a name="1974"></a>               
-<a name="1975"></a>        return objOfKind(conn, TravelConnector) ? conn.getDestination(origin) : nil;
-<a name="1976"></a>        
-<a name="1977"></a>    }
-<a name="1978"></a>    
-<a name="1979"></a>    getApparentDestination(origin)
-<a name="1980"></a>    {
-<a name="1981"></a>        local conn = proxyForConnector(origin);
-<a name="1982"></a>               
-<a name="1983"></a>        return objOfKind(conn, TravelConnector) ? conn.getApparentDestination(origin) : nil;
-<a name="1984"></a>        
-<a name="1985"></a>    }
-<a name="1986"></a>    
-<a name="1987"></a>     /* 
-<a name="1988"></a>      *   Handle going through this connector by calling our travelVia() method to execute travel
-<a name="1989"></a>      *   via the connector for which we're a proxy.
-<a name="1990"></a>      */
-<a name="1991"></a>    dobjFor(GoThrough)
-<a name="1992"></a>    {      
-<a name="1993"></a>        preCond = [travelPermitted]   
-<a name="1994"></a>        
-<a name="1995"></a>        action { travelVia(gActor); }
-<a name="1996"></a>    }
-<a name="1997"></a>;
-<a name="1998"></a>
-<a name="1999"></a>/* 
-<a name="2000"></a> *   A TravelBarrier is an object that can optionally be associated with one or
-<a name="2001"></a> *   more TravelConnectors to define additional conditional (or even
-<a name="2002"></a> *   unconditional) barriers preventing travel.
-<a name="2003"></a> */
-<a name="2004"></a>class TravelBarrier: object
-<a name="2005"></a>    
-<a name="2006"></a>    /* 
-<a name="2007"></a>     *   This method should return true to permit the traveler to travel via
-<a name="2008"></a>     *   connector and nil to prohibit travel. By default we simply allow travel
-<a name="2009"></a>     *   but particular instances will need to override this method to specify
-<a name="2010"></a>     *   the conditions under which travel is or is not permitted.
-<a name="2011"></a>     */
-<a name="2012"></a>    canTravelerPass(traveler, connector)
-<a name="2013"></a>    {
-<a name="2014"></a>        return true;
-<a name="2015"></a>    }
-<a name="2016"></a>    
-<a name="2017"></a>    /*  
-<a name="2018"></a>     *   Display some text explaining why traveler is not permitted to travel
-<a name="2019"></a>     *   via connector when canTravelerPass() returns nil.
-<a name="2020"></a>     */
-<a name="2021"></a>    explainTravelBarrier(traveler, connector)
-<a name="2022"></a>    {
-<a name="2023"></a>    }
-<a name="2024"></a>    
-<a name="2025"></a>    /* 
-<a name="2026"></a>     *   Check whether traveler can pass through this connector. If it can,
-<a name="2027"></a>     *   return true; otherise explain why travel is disallowed and return nil.
-<a name="2028"></a>     */    
-<a name="2029"></a>    checkTravelBarrier(traveler, connector)
-<a name="2030"></a>    {
-<a name="2031"></a>        if(canTravelerPass(traveler, connector))
-<a name="2032"></a>            return true;
-<a name="2033"></a>        
-<a name="2034"></a>        explainTravelBarrier(traveler, connector);
-<a name="2035"></a>        return nil;
-<a name="2036"></a>    }
-<a name="2037"></a>;
-<a name="2038"></a>
-<a name="2039"></a>/* 
-<a name="2040"></a> *   A Direction object represents a direction in which an actor might attempt
-<a name="2041"></a> *   to travel. The library defines eight compass directions (north, south,
-<a name="2042"></a> *   etc.) and a further eight special directions (in, out, up, down, port,
-<a name="2043"></a> *   starboard, fore and aft), but game code can define additional directions if
-<a name="2044"></a> *   required.
-<a name="2045"></a> *
-<a name="2046"></a> *   The convention that should be followed in naming a Direction object is to
-<a name="2047"></a> *   use the name of the direction followed by Dir; e.g. the Direction object
-<a name="2048"></a> *   corresponding to north is called northDir. Custom directions should follow
-<a name="2049"></a> *   the same convention, since it is assumed by the goInstead() and goNested()
-<a name="2050"></a> *   macros.
-<a name="2051"></a> */
-<a name="2052"></a>class Direction: object
-<a name="2053"></a>    
-<a name="2054"></a>    /* 
-<a name="2055"></a>     *   The exit property of a room association with this Direction, e.g.
-<a name="2056"></a>     *   &amp;north (corresponding to northDir).
-<a name="2057"></a>     */
-<a name="2058"></a>    dirProp = nil
-<a name="2059"></a>    
-<a name="2060"></a>    /*  
-<a name="2061"></a>     *   The name of this direction, e.g. 'north'. This is the name that appears
-<a name="2062"></a>     *   in the exit lister.
-<a name="2063"></a>     */
-<a name="2064"></a>    name = nil
-<a name="2065"></a>    
-<a name="2066"></a>    /*   Class property: a LookupTable matching names to direction objects. */
-<a name="2067"></a>    nameTab = static new LookupTable()
-<a name="2068"></a>    
-<a name="2069"></a>    /*  
-<a name="2070"></a>     *   The name to use when departing via this direction, e.g. 'to the north'
-<a name="2071"></a>     */
-<a name="2072"></a>    departureName = nil
-<a name="2073"></a>    
-<a name="2074"></a>    /*
-<a name="2075"></a>     *   Initialize.  We'll use this routine to add each Direction instance to
-<a name="2076"></a>     *   the master direction list (Direction.allDirections) during
-<a name="2077"></a>     *   pre-initialization. 
-<a name="2078"></a>     */
-<a name="2079"></a>    initializeDirection()
-<a name="2080"></a>    {
-<a name="2081"></a>        /* add myself to the master direction list */
-<a name="2082"></a>        Direction.allDirections.append(self);
-<a name="2083"></a>        
-<a name="2084"></a>        /* add myself to the master direction table */
-<a name="2085"></a>        Direction.nameTab[name] = self;			  
-<a name="2086"></a>    }
-<a name="2087"></a>
-<a name="2088"></a>    /*
-<a name="2089"></a>     *   Class initialization - this is called once on the class object.
-<a name="2090"></a>     *   We'll build our master list of all of the Direction objects in
-<a name="2091"></a>     *   the game, and then sort the list using the sorting order.  
-<a name="2092"></a>     */
-<a name="2093"></a>    classInit()
-<a name="2094"></a>    {
-<a name="2095"></a>        /* initialize each individual Direction object */
-<a name="2096"></a>        forEachInstance(Direction, { dir: dir.initializeDirection() });
-<a name="2097"></a>
-<a name="2098"></a>        /* 
-<a name="2099"></a>         *   sort the direction list according to the individual Directin
-<a name="2100"></a>         *   objects' defined sorting orders 
-<a name="2101"></a>         */
-<a name="2102"></a>        allDirections.sort(SortAsc, {a, b: a.sortingOrder - b.sortingOrder});
-<a name="2103"></a>    }
-<a name="2104"></a>
-<a name="2105"></a>    /* 
-<a name="2106"></a>     *   Our sorting order in the master list.  We use this to present
-<a name="2107"></a>     *   directions in a consistent, aesthetically pleasing order in
-<a name="2108"></a>     *   listings involving multiple directions.  The sorting order is
-<a name="2109"></a>     *   simply an integer that gives the relative position in the list;
-<a name="2110"></a>     *   the list of directions is sorted from lowest sorting order to
-<a name="2111"></a>     *   highest.  Sorting order numbers don't have to be contiguous,
-<a name="2112"></a>     *   since we simply put the directions in an order that makes the
-<a name="2113"></a>     *   sortingOrder values ascend through the list.  
-<a name="2114"></a>     */
-<a name="2115"></a>    sortingOrder = 1
-<a name="2116"></a>    
-<a name="2117"></a>    /* 
-<a name="2118"></a>     *   A Class property containing a Vector of all the directions defined in
-<a name="2119"></a>     *   the game (the 16 defined in the library plus any additionasl custom
-<a name="2120"></a>     *   directions defined in game code)
-<a name="2121"></a>     */
-<a name="2122"></a>    allDirections = static new Vector(12)
-<a name="2123"></a>   
-<a name="2124"></a>    /*   The direction that is opposite to this one. */
-<a name="2125"></a>    opposite = nil
-<a name="2126"></a>    
-<a name="2127"></a>    /*   The dirProp that's the opposite to prop */
-<a name="2128"></a>    oppositeProp(prop)
-<a name="2129"></a>    {
-<a name="2130"></a>        local dir = allDirections.valWhich({d: d.dirProp == prop});
-<a name="2131"></a>        
-<a name="2132"></a>        return dir == nil ? nil : 
-<a name="2133"></a>        (dir.opposite == nil ? nil : dir.opposite.dirProp);
-<a name="2134"></a>    }
-<a name="2135"></a>        
-<a name="2136"></a>    /* The direction to which prop points. */
-<a name="2137"></a>    propDir(prop)
-<a name="2138"></a>    {
-<a name="2139"></a>        return allDirections.valWhich({d: d.dirProp == prop});
-<a name="2140"></a>    }
-<a name="2141"></a>    
-<a name="2142"></a>;
-<a name="2143"></a>
-<a name="2144"></a>/* The compass directions */
-<a name="2145"></a>class CompassDirection: Direction
-<a name="2146"></a>    initializeDirection()
-<a name="2147"></a>	{
-<a name="2148"></a>	   /* Carry out the inherited handling */
-<a name="2149"></a>	   inherited();
-<a name="2150"></a>	   
-<a name="2151"></a>	   /* Add myself to the list of compass directions */
-<a name="2152"></a>	   CompassDirection.compassDirections.append(self);
-<a name="2153"></a>	}
-<a name="2154"></a>	
-<a name="2155"></a>	/* 
-<a name="2156"></a>	  * A Class property containing a Vector of all the compass
-<a name="2157"></a>	  * directions defined in the game.
-<a name="2158"></a>	  */
-<a name="2159"></a>	compassDirections = static new Vector(8)
-<a name="2160"></a>;
-<a name="2161"></a>
-<a name="2162"></a>/*  The sixteen directions defined in the library */
-<a name="2163"></a>northDir: CompassDirection
-<a name="2164"></a>    dirProp = &amp;north
-<a name="2165"></a>    name = BMsg(north, 'north')
-<a name="2166"></a>    departureName = BMsg(depart north, 'to the north')
-<a name="2167"></a>    arrivalName = BMsg(arrive north, 'from the north')
-<a name="2168"></a>    sortingOrder = 1000
-<a name="2169"></a>    opposite = southDir
-<a name="2170"></a>;
-<a name="2171"></a>
-<a name="2172"></a>eastDir: CompassDirection
-<a name="2173"></a>    dirProp = &amp;east
-<a name="2174"></a>    name = BMsg(east, 'east')
-<a name="2175"></a>    departureName = BMsg(depart east, 'to the east')
-<a name="2176"></a>    arrivalName = BMsg(arrive east, 'from the east')
-<a name="2177"></a>    sortingOrder = 1100
-<a name="2178"></a>    opposite = westDir
-<a name="2179"></a>;
-<a name="2180"></a>
-<a name="2181"></a>southDir: CompassDirection
-<a name="2182"></a>    dirProp = &amp;south
-<a name="2183"></a>    name = BMsg(south, 'south')
-<a name="2184"></a>    departureName = BMsg(depart south, 'to the south')
-<a name="2185"></a>    arrivalName = BMsg(arrive south, 'from the south')
-<a name="2186"></a>    sortingOrder = 1200
-<a name="2187"></a>    opposite = northDir
-<a name="2188"></a>;
-<a name="2189"></a>
-<a name="2190"></a>westDir: CompassDirection
-<a name="2191"></a>    dirProp = &amp;west
-<a name="2192"></a>    name = BMsg(west, 'west')
-<a name="2193"></a>    departureName = BMsg(depart west, 'to the west')
-<a name="2194"></a>    arrivalName = BMsg(arrive west, 'from the west')
-<a name="2195"></a>    sortingOrder = 1300
-<a name="2196"></a>    opposite = eastDir
-<a name="2197"></a>;
-<a name="2198"></a>
-<a name="2199"></a>northeastDir: CompassDirection
-<a name="2200"></a>    dirProp = &amp;northeast
-<a name="2201"></a>    name = BMsg(northeast, 'northeast')
-<a name="2202"></a>    departureName = BMsg(depart northeast, 'to the northeast')
-<a name="2203"></a>    arrivalName = BMsg(arrive northeast, 'from the northeast')
-<a name="2204"></a>    sortingOrder = 1400
-<a name="2205"></a>    opposite = southwestDir
-<a name="2206"></a>;
-<a name="2207"></a>
-<a name="2208"></a>northwestDir: CompassDirection
-<a name="2209"></a>    dirProp = &amp;northwest
-<a name="2210"></a>    name = BMsg(northwest, 'northwest')
-<a name="2211"></a>    departureName = BMsg(depart northwest, 'to the northwest')
-<a name="2212"></a>    arrivalName = BMsg(arrive northwest, 'from the northwest')
-<a name="2213"></a>    sortingOrder = 1500
-<a name="2214"></a>    opposite = southeastDir
-<a name="2215"></a>;
-<a name="2216"></a>
-<a name="2217"></a>southeastDir: CompassDirection
-<a name="2218"></a>    dirProp = &amp;southeast
-<a name="2219"></a>    name = BMsg(southeast, 'southeast')
-<a name="2220"></a>    departureName = BMsg(depart southeast, 'to the southeast')
-<a name="2221"></a>    arrivalName = BMsg(arrive southeast, 'from the southeast')
-<a name="2222"></a>    sortingOrder = 1600
-<a name="2223"></a>    opposite = northwestDir
-<a name="2224"></a>;
-<a name="2225"></a>
-<a name="2226"></a>southwestDir: CompassDirection
-<a name="2227"></a>    dirProp = &amp;southwest
-<a name="2228"></a>    name = BMsg(southwest, 'southwest')
-<a name="2229"></a>    departureName = BMsg(depart southwest, 'to the southwest')
-<a name="2230"></a>    arrivalName = BMsg(arrive southwest, 'from the southwest')
-<a name="2231"></a>    sortingOrder = 1700
-<a name="2232"></a>    opposite = northeastDir
-<a name="2233"></a>;
-<a name="2234"></a>
-<a name="2235"></a>downDir: Direction
-<a name="2236"></a>    dirProp = &amp;down
-<a name="2237"></a>    name = BMsg(down, 'down')
-<a name="2238"></a>    departureName = BMsg(depart down, 'down')
-<a name="2239"></a>    arrivalName = BMsg(arrive down, 'from below')
-<a name="2240"></a>    sortingOrder = 2000
-<a name="2241"></a>    opposite = upDir
-<a name="2242"></a>;
-<a name="2243"></a>
-<a name="2244"></a>upDir: Direction
-<a name="2245"></a>    dirProp = &amp;up
-<a name="2246"></a>    name = BMsg(up, 'up')
-<a name="2247"></a>    departureName = BMsg(depart up, 'up')
-<a name="2248"></a>    arrivalName = BMsg(arrive up, 'from above')
-<a name="2249"></a>    sortingOrder = 2100
-<a name="2250"></a>    opposite = downDir
-<a name="2251"></a>;
-<a name="2252"></a>
-<a name="2253"></a>inDir: Direction
-<a name="2254"></a>    dirProp = &amp;in
-<a name="2255"></a>    name = BMsg(in, 'in')
-<a name="2256"></a>    departureName = BMsg(depart in, 'inside')
-<a name="2257"></a>    arrivalName = BMsg(arrive in, 'from inside')
-<a name="2258"></a>    sortingOrder = 3000
-<a name="2259"></a>    opposite = outDir
-<a name="2260"></a>;
-<a name="2261"></a>
-<a name="2262"></a>outDir: Direction
-<a name="2263"></a>    dirProp = &amp;out
-<a name="2264"></a>    name = BMsg(out, 'out')
-<a name="2265"></a>    departureName = BMsg(depart out, 'out')
-<a name="2266"></a>    arrivalName = BMsg(arrive out, 'from outside')
-<a name="2267"></a>    sortingOrder = 3100
-<a name="2268"></a>    opposite = inDir
-<a name="2269"></a>;
-<a name="2270"></a>
-<a name="2271"></a>/* Directions for use aboard a vessel such as a ship */
-<a name="2272"></a>class ShipboardDirection: Direction
-<a name="2273"></a>    initializeDirection()
-<a name="2274"></a>	{
-<a name="2275"></a>	   /* Carry out the inherited handling */
-<a name="2276"></a>	   inherited();
-<a name="2277"></a>	   
-<a name="2278"></a>	   /* Add myself to the list of shipboard directions */
-<a name="2279"></a>	   ShipboardDirection.shipboardDirections.append(self);
-<a name="2280"></a>	} 
-<a name="2281"></a>    
-<a name="2282"></a>
-<a name="2283"></a>    /* 
-<a name="2284"></a>	  * A Class property containing a Vector of all the shipboard
-<a name="2285"></a>	  * directions defined in the game.
-<a name="2286"></a>	  */
-<a name="2287"></a>	shipboardDirections = static new Vector (4)
-<a name="2288"></a>;
-<a name="2289"></a>
-<a name="2290"></a>portDir: ShipboardDirection
-<a name="2291"></a>    dirProp = &amp;port
-<a name="2292"></a>    name = BMsg(port, 'port')
-<a name="2293"></a>    departureName = BMsg(depart port, 'to port')
-<a name="2294"></a>    arrivalName = BMsg(depart port, 'from port')
-<a name="2295"></a>    sortingOrder = 4000
-<a name="2296"></a>    opposite = starboardDir
-<a name="2297"></a>;
-<a name="2298"></a>
-<a name="2299"></a>starboardDir: ShipboardDirection
-<a name="2300"></a>    dirProp = &amp;starboard
-<a name="2301"></a>    name = BMsg(starboard, 'starboard')
-<a name="2302"></a>    departureName = BMsg(depart starboard, 'to starboard')
-<a name="2303"></a>    arrivalName = BMsg(arrive starboard, 'from starboard')
-<a name="2304"></a>    sortingOrder = 4100
-<a name="2305"></a>    opposite = portDir
-<a name="2306"></a>;
-<a name="2307"></a>
-<a name="2308"></a>foreDir: ShipboardDirection
-<a name="2309"></a>    dirProp = &amp;fore
-<a name="2310"></a>    name = BMsg(forward, 'forward')
-<a name="2311"></a>    departureName = BMsg(depart forward, 'forward')
-<a name="2312"></a>    arrivalName = BMsg(arrive forward, 'from forward')
-<a name="2313"></a>    sortingOrder = 4200
-<a name="2314"></a>    opposite = aftDir
-<a name="2315"></a>;
-<a name="2316"></a>
-<a name="2317"></a>aftDir: ShipboardDirection
-<a name="2318"></a>    dirProp = &amp;aft
-<a name="2319"></a>    name = BMsg(aft, 'aft')
-<a name="2320"></a>    departureName = BMsg(depart aft, 'aft')
-<a name="2321"></a>    arrivalName = BMsg(arrive aft, 'from aft')
-<a name="2322"></a>    sortingOrder = 4300
-<a name="2323"></a>    opposite = foreDir
-<a name="2324"></a>;
-<a name="2325"></a>
-<a name="2326"></a>/*  
-<a name="2327"></a> *   A Region is an object representing several rooms or even several other
-<a name="2328"></a> *   Regions.
-<a name="2329"></a> */
-<a name="2330"></a>class Region: object
-<a name="2331"></a>    
-<a name="2332"></a>    /* 
-<a name="2333"></a>     *   This region can optionally be in one or more regions. The regions
-<a name="2334"></a>     *   property hold the region or a the list of regions I'm in.
-<a name="2335"></a>     */    
-<a name="2336"></a>    regions = nil
-<a name="2337"></a>    
-<a name="2338"></a>    /* 
-<a name="2339"></a>     *   A Room can't be in another Room or a Thing, but it can notionally be in
-<a name="2340"></a>     *   a Region, so we check to see if we're in the list of our regions.
-<a name="2341"></a>     */    
-<a name="2342"></a>    isIn(region)
-<a name="2343"></a>    {               
-<a name="2344"></a>        return valToList(regions).indexWhich({x: x.isOrIsIn(region)}) != nil;
-<a name="2345"></a>    }
-<a name="2346"></a>    
-<a name="2347"></a>    /*  Is this Region either itself region or contained within in region */
-<a name="2348"></a>    isOrIsIn(region)
-<a name="2349"></a>    {
-<a name="2350"></a>        return region == self || isIn(region); 
-<a name="2351"></a>    }
-<a name="2352"></a>    
-<a name="2353"></a>    /* 
-<a name="2354"></a>     *   A list of all the regions this Region is within; in addition to any
-<a name="2355"></a>     *   regions this Region is directly in (defined on its regions property)
-<a name="2356"></a>     *   this will include all the regions it's indirectly in (i.e. any regions
-<a name="2357"></a>     *   the regions it's in are in and so forth).
-<a name="2358"></a>     */
-<a name="2359"></a>    allRegions()
-<a name="2360"></a>    {
-<a name="2361"></a>        /* Start with a vector of all the regions we're directly in */
-<a name="2362"></a>        local thisRegions = new Vector(valToList(regions));
-<a name="2363"></a>        
-<a name="2364"></a>        /* 
-<a name="2365"></a>         *   For each of the regions we're directly in, append all the regions
-<a name="2366"></a>         *   they're in.
-<a name="2367"></a>         */
-<a name="2368"></a>        foreach(local reg in valToList(regions))
-<a name="2369"></a>            thisRegions.appendUnique(reg.allRegions);
-<a name="2370"></a>        
-<a name="2371"></a>        /*   Convert the Vector to a list and return it. */
-<a name="2372"></a>        return thisRegions.toList();
-<a name="2373"></a>    }
-<a name="2374"></a>    
-<a name="2375"></a>    /* 
-<a name="2376"></a>     *   A list of all the rooms in this region. This is built automatically at
-<a name="2377"></a>     *   preinit and shouldn't be altered by the user/author.
-<a name="2378"></a>     */    
-<a name="2379"></a>    roomList = nil
-<a name="2380"></a>    
-<a name="2381"></a>    /*   
-<a name="2382"></a>     *   A user-defined list of the rooms in this region. At Preinit this will
-<a name="2383"></a>     *   be used along with the regions property of any rooms to build the
-<a name="2384"></a>     *   roomList of this Region.
-<a name="2385"></a>     */
-<a name="2386"></a>    rooms = nil
-<a name="2387"></a>       
-<a name="2388"></a>    /* 
-<a name="2389"></a>     *   Build the list of regions in all the rooms in this this region by going
-<a name="2390"></a>     *   through every room defined in the roomList and adding us to its list of
-<a name="2391"></a>     *   regions. Note that this is provided as an alternative way to define
-<a name="2392"></a>     *   what rooms start out in which regions.     
-<a name="2393"></a>     */
-<a name="2394"></a>    
-<a name="2395"></a>    makeRegionLists()
-<a name="2396"></a>    {       
-<a name="2397"></a>        if(rooms != nil)
-<a name="2398"></a>        {
-<a name="2399"></a>            foreach(local r in rooms)
-<a name="2400"></a>                r.regions = valToList(r.regions).appendUnique([self]);
-<a name="2401"></a>        }       
-<a name="2402"></a>    }
-<a name="2403"></a>    
-<a name="2404"></a>    /* 
-<a name="2405"></a>     *   Is the player char familiar with every room in this region. This should
-<a name="2406"></a>     *   be set to true for a region whose geography the PC starts out familiar
-<a name="2407"></a>     *   with, such as the layout of his own house.
-<a name="2408"></a>     */    
-<a name="2409"></a>    familiar = nil
-<a name="2410"></a>    
-<a name="2411"></a>    /* 
-<a name="2412"></a>     *   For games that track different familiarity on different Actors, we can call this method
-<a name="2413"></a>     *   with &amp;xxxFamiliart to farm out the answer to the appropriate xxxFamiliar property, which
-<a name="2414"></a>     *   we'll need to define on this region.
-<a name="2415"></a>     */
-<a name="2416"></a>    isFamiliar(prop = &amp;familiar)
-<a name="2417"></a>    {
-<a name="2418"></a>        return self.(prop);
-<a name="2419"></a>    }
-<a name="2420"></a>    
-<a name="2421"></a>    /* 
-<a name="2422"></a>     *   Go through all the rooms in this region setting them to familiar if the
-<a name="2423"></a>     *   region is familiar.
-<a name="2424"></a>     */    
-<a name="2425"></a>    setFamiliarRooms(prop = &amp;familiar)
+<a name="1958"></a>;
+<a name="1959"></a>
+<a name="1960"></a>
+<a name="1961"></a>/* 
+<a name="1962"></a> *   A TravelConnector leading to an exit not listed by the exit lister. This is principally for use
+<a name="1963"></a> *   with the ulExit(dest) macro.
+<a name="1964"></a> */
+<a name="1965"></a>class UnlistedTravelConnector: TravelConnector
+<a name="1966"></a>    isConnectorListed = nil
+<a name="1967"></a>;
+<a name="1968"></a>
+<a name="1969"></a>/* 
+<a name="1970"></a> *   An UnlistedProxyConnector is a special kind of TravelConnector created by
+<a name="1971"></a> *   the asExit macro to make one exit do duty for another. There is probably
+<a name="1972"></a> *   never any need for this class to be used explicitly in game code, since
+<a name="1973"></a> *   game authors will always use the asExit macro instead.
+<a name="1974"></a> */
+<a name="1975"></a>class UnlistedProxyConnector: TravelConnector    
+<a name="1976"></a>    
+<a name="1977"></a>    /* The direction property for which we're a proxy. */
+<a name="1978"></a>    proxyForProp = direction.dirProp
+<a name="1979"></a>    
+<a name="1980"></a>    /* 
+<a name="1981"></a>     *   The loc parameter should contain the room in which this UnlistedProxyConnector is used, but
+<a name="1982"></a>     *   calling code will need to supply it.
+<a name="1983"></a>     */
+<a name="1984"></a>    proxyForConnector(loc)
+<a name="1985"></a>    {
+<a name="1986"></a>        local ptype = loc.propType(proxyForProp);
+<a name="1987"></a>        
+<a name="1988"></a>        return ptype == TypeObject ? loc.(proxyForProp) : ptype;       
+<a name="1989"></a>            
+<a name="1990"></a>    }   
+<a name="1991"></a>    
+<a name="1992"></a>    
+<a name="1993"></a>    /* An UnlistedProxyConnector is never listed as an exit in its own right. */
+<a name="1994"></a>    isConnectorListed = nil
+<a name="1995"></a>    
+<a name="1996"></a>    /* 
+<a name="1997"></a>     *   We'll assume an UnlistedProxyListedConnector is always 'visible', since
+<a name="1998"></a>     *   it's a proxy for some other connector which will handle the actual
+<a name="1999"></a>     *   visibility conditions.
+<a name="2000"></a>     */
+<a name="2001"></a>    isConnectorVisible = true
+<a name="2002"></a>    
+<a name="2003"></a>    
+<a name="2004"></a>    /* Carry out travel via this connector. */
+<a name="2005"></a>    travelVia(traveler)
+<a name="2006"></a>    {
+<a name="2007"></a>        /* Get the travel connector for which we're a proxy. */
+<a name="2008"></a>        local conn = proxyForConnector(traveler.getOutermostRoom);
+<a name="2009"></a>        
+<a name="2010"></a>        /* 
+<a name="2011"></a>         *   If the connector is actually a TravelConnector, then execute travel via that connector.
+<a name="2012"></a>         */
+<a name="2013"></a>        if(objOfKind(conn,TravelConnector))            
+<a name="2014"></a>            conn.travelVia(traveler);
+<a name="2015"></a>        
+<a name="2016"></a>        /* 
+<a name="2017"></a>         *   Otherwise, the direction we're a proxy for points to something else that's not a
+<a name="2018"></a>         *   TravelConnector, such as a string or method, in which case call the nonTravel()
+<a name="2019"></a>         *   function to handle
+<a name="2020"></a>         it.*/
+<a name="2021"></a>        else
+<a name="2022"></a>            nonTravel(traveler.getOutermostRoom, direction);
+<a name="2023"></a>            
+<a name="2024"></a>    }
+<a name="2025"></a>    
+<a name="2026"></a>    
+<a name="2027"></a>    /* Construct a new UnlistedProxyConnector. */
+<a name="2028"></a>    construct(dir_)
+<a name="2029"></a>    {
+<a name="2030"></a>        /* Note the direction this connector is a proxy for. */
+<a name="2031"></a>        direction = dir_;        
+<a name="2032"></a>        
+<a name="2033"></a>    }
+<a name="2034"></a>    
+<a name="2035"></a>  
+<a name="2036"></a>    /* 
+<a name="2037"></a>     *   We don't want an UnlistedProxyConnector to trigger any travel
+<a name="2038"></a>     *   notifications since these will be triggered - if appropriate - on the
+<a name="2039"></a>     *   real connector we point to.     */
+<a name="2040"></a>    
+<a name="2041"></a>    beforeTravelNotifications(actor) {}    
+<a name="2042"></a>    afterTravelNotifications(actor) {}
+<a name="2043"></a>    
+<a name="2044"></a>    /* 
+<a name="2045"></a>     *   Return the actual destination, if any, an actor will arrive at by traversing the connector
+<a name="2046"></a>     *   we're a proxy for from origin.
+<a name="2047"></a>     */
+<a name="2048"></a>    getDestination(origin)
+<a name="2049"></a>    {
+<a name="2050"></a>        local conn = proxyForConnector(origin);
+<a name="2051"></a>               
+<a name="2052"></a>        return objOfKind(conn, TravelConnector) ? conn.getDestination(origin) : nil;
+<a name="2053"></a>        
+<a name="2054"></a>    }
+<a name="2055"></a>    
+<a name="2056"></a>    getApparentDestination(origin)
+<a name="2057"></a>    {
+<a name="2058"></a>        local conn = proxyForConnector(origin);
+<a name="2059"></a>               
+<a name="2060"></a>        return objOfKind(conn, TravelConnector) ? conn.getApparentDestination(origin) : nil;
+<a name="2061"></a>        
+<a name="2062"></a>    }
+<a name="2063"></a>    
+<a name="2064"></a>     /* 
+<a name="2065"></a>      *   Handle going through this connector by calling our travelVia() method to execute travel
+<a name="2066"></a>      *   via the connector for which we're a proxy.
+<a name="2067"></a>      */
+<a name="2068"></a>    dobjFor(GoThrough)
+<a name="2069"></a>    {      
+<a name="2070"></a>        preCond = [travelPermitted]   
+<a name="2071"></a>        
+<a name="2072"></a>        action { travelVia(gActor); }
+<a name="2073"></a>    }
+<a name="2074"></a>;
+<a name="2075"></a>
+<a name="2076"></a>/* 
+<a name="2077"></a> *   A TravelBarrier is an object that can optionally be associated with one or
+<a name="2078"></a> *   more TravelConnectors to define additional conditional (or even
+<a name="2079"></a> *   unconditional) barriers preventing travel.
+<a name="2080"></a> */
+<a name="2081"></a>class TravelBarrier: object
+<a name="2082"></a>    
+<a name="2083"></a>    /* 
+<a name="2084"></a>     *   This method should return true to permit the traveler to travel via
+<a name="2085"></a>     *   connector and nil to prohibit travel. By default we simply allow travel
+<a name="2086"></a>     *   but particular instances will need to override this method to specify
+<a name="2087"></a>     *   the conditions under which travel is or is not permitted.
+<a name="2088"></a>     */
+<a name="2089"></a>    canTravelerPass(traveler, connector)
+<a name="2090"></a>    {
+<a name="2091"></a>        return true;
+<a name="2092"></a>    }
+<a name="2093"></a>    
+<a name="2094"></a>    /*  
+<a name="2095"></a>     *   Display some text explaining why traveler is not permitted to travel
+<a name="2096"></a>     *   via connector when canTravelerPass() returns nil.
+<a name="2097"></a>     */
+<a name="2098"></a>    explainTravelBarrier(traveler, connector)
+<a name="2099"></a>    {
+<a name="2100"></a>    }
+<a name="2101"></a>    
+<a name="2102"></a>    /* 
+<a name="2103"></a>     *   Check whether traveler can pass through this connector. If it can,
+<a name="2104"></a>     *   return true; otherise explain why travel is disallowed and return nil.
+<a name="2105"></a>     */    
+<a name="2106"></a>    checkTravelBarrier(traveler, connector)
+<a name="2107"></a>    {
+<a name="2108"></a>        if(canTravelerPass(traveler, connector))
+<a name="2109"></a>            return true;
+<a name="2110"></a>        
+<a name="2111"></a>        explainTravelBarrier(traveler, connector);
+<a name="2112"></a>        return nil;
+<a name="2113"></a>    }
+<a name="2114"></a>;
+<a name="2115"></a>
+<a name="2116"></a>/* 
+<a name="2117"></a> *   A Direction object represents a direction in which an actor might attempt
+<a name="2118"></a> *   to travel. The library defines eight compass directions (north, south,
+<a name="2119"></a> *   etc.) and a further eight special directions (in, out, up, down, port,
+<a name="2120"></a> *   starboard, fore and aft), but game code can define additional directions if
+<a name="2121"></a> *   required.
+<a name="2122"></a> *
+<a name="2123"></a> *   The convention that should be followed in naming a Direction object is to
+<a name="2124"></a> *   use the name of the direction followed by Dir; e.g. the Direction object
+<a name="2125"></a> *   corresponding to north is called northDir. Custom directions should follow
+<a name="2126"></a> *   the same convention, since it is assumed by the goInstead() and goNested()
+<a name="2127"></a> *   macros.
+<a name="2128"></a> */
+<a name="2129"></a>class Direction: object
+<a name="2130"></a>    
+<a name="2131"></a>    /* 
+<a name="2132"></a>     *   The exit property of a room association with this Direction, e.g.
+<a name="2133"></a>     *   &amp;north (corresponding to northDir).
+<a name="2134"></a>     */
+<a name="2135"></a>    dirProp = nil
+<a name="2136"></a>    
+<a name="2137"></a>    /*  
+<a name="2138"></a>     *   The name of this direction, e.g. 'north'. This is the name that appears
+<a name="2139"></a>     *   in the exit lister.
+<a name="2140"></a>     */
+<a name="2141"></a>    name = nil
+<a name="2142"></a>    
+<a name="2143"></a>    /*   Class property: a LookupTable matching names to direction objects. */
+<a name="2144"></a>    nameTab = static new LookupTable()
+<a name="2145"></a>    
+<a name="2146"></a>    /*  
+<a name="2147"></a>     *   The name to use when departing via this direction, e.g. 'to the north'
+<a name="2148"></a>     */
+<a name="2149"></a>    departureName = nil
+<a name="2150"></a>    
+<a name="2151"></a>    /*
+<a name="2152"></a>     *   Initialize.  We'll use this routine to add each Direction instance to
+<a name="2153"></a>     *   the master direction list (Direction.allDirections) during
+<a name="2154"></a>     *   pre-initialization. 
+<a name="2155"></a>     */
+<a name="2156"></a>    initializeDirection()
+<a name="2157"></a>    {
+<a name="2158"></a>        /* add myself to the master direction list */
+<a name="2159"></a>        Direction.allDirections.append(self);
+<a name="2160"></a>        
+<a name="2161"></a>        /* add myself to the master direction table */
+<a name="2162"></a>        Direction.nameTab[name] = self;			  
+<a name="2163"></a>    }
+<a name="2164"></a>
+<a name="2165"></a>    /*
+<a name="2166"></a>     *   Class initialization - this is called once on the class object.
+<a name="2167"></a>     *   We'll build our master list of all of the Direction objects in
+<a name="2168"></a>     *   the game, and then sort the list using the sorting order.  
+<a name="2169"></a>     */
+<a name="2170"></a>    classInit()
+<a name="2171"></a>    {
+<a name="2172"></a>        /* initialize each individual Direction object */
+<a name="2173"></a>        forEachInstance(Direction, { dir: dir.initializeDirection() });
+<a name="2174"></a>
+<a name="2175"></a>        /* 
+<a name="2176"></a>         *   sort the direction list according to the individual Directin
+<a name="2177"></a>         *   objects' defined sorting orders 
+<a name="2178"></a>         */
+<a name="2179"></a>        allDirections.sort(SortAsc, {a, b: a.sortingOrder - b.sortingOrder});
+<a name="2180"></a>    }
+<a name="2181"></a>
+<a name="2182"></a>    /* 
+<a name="2183"></a>     *   Our sorting order in the master list.  We use this to present
+<a name="2184"></a>     *   directions in a consistent, aesthetically pleasing order in
+<a name="2185"></a>     *   listings involving multiple directions.  The sorting order is
+<a name="2186"></a>     *   simply an integer that gives the relative position in the list;
+<a name="2187"></a>     *   the list of directions is sorted from lowest sorting order to
+<a name="2188"></a>     *   highest.  Sorting order numbers don't have to be contiguous,
+<a name="2189"></a>     *   since we simply put the directions in an order that makes the
+<a name="2190"></a>     *   sortingOrder values ascend through the list.  
+<a name="2191"></a>     */
+<a name="2192"></a>    sortingOrder = 1
+<a name="2193"></a>    
+<a name="2194"></a>    /* 
+<a name="2195"></a>     *   A Class property containing a Vector of all the directions defined in
+<a name="2196"></a>     *   the game (the 16 defined in the library plus any additionasl custom
+<a name="2197"></a>     *   directions defined in game code)
+<a name="2198"></a>     */
+<a name="2199"></a>    allDirections = static new Vector(12)
+<a name="2200"></a>   
+<a name="2201"></a>    /*   The direction that is opposite to this one. */
+<a name="2202"></a>    opposite = nil
+<a name="2203"></a>    
+<a name="2204"></a>    /*   The dirProp that's the opposite to prop */
+<a name="2205"></a>    oppositeProp(prop)
+<a name="2206"></a>    {
+<a name="2207"></a>        local dir = allDirections.valWhich({d: d.dirProp == prop});
+<a name="2208"></a>        
+<a name="2209"></a>        return dir == nil ? nil : 
+<a name="2210"></a>        (dir.opposite == nil ? nil : dir.opposite.dirProp);
+<a name="2211"></a>    }
+<a name="2212"></a>        
+<a name="2213"></a>    /* The direction to which prop points. */
+<a name="2214"></a>    propDir(prop)
+<a name="2215"></a>    {
+<a name="2216"></a>        return allDirections.valWhich({d: d.dirProp == prop});
+<a name="2217"></a>    }
+<a name="2218"></a>    
+<a name="2219"></a>;
+<a name="2220"></a>
+<a name="2221"></a>/* The compass directions */
+<a name="2222"></a>class CompassDirection: Direction
+<a name="2223"></a>    initializeDirection()
+<a name="2224"></a>	{
+<a name="2225"></a>	   /* Carry out the inherited handling */
+<a name="2226"></a>	   inherited();
+<a name="2227"></a>	   
+<a name="2228"></a>	   /* Add myself to the list of compass directions */
+<a name="2229"></a>	   CompassDirection.compassDirections.append(self);
+<a name="2230"></a>	}
+<a name="2231"></a>	
+<a name="2232"></a>	/* 
+<a name="2233"></a>	  * A Class property containing a Vector of all the compass
+<a name="2234"></a>	  * directions defined in the game.
+<a name="2235"></a>	  */
+<a name="2236"></a>	compassDirections = static new Vector(8)
+<a name="2237"></a>;
+<a name="2238"></a>
+<a name="2239"></a>/*  The sixteen directions defined in the library */
+<a name="2240"></a>northDir: CompassDirection
+<a name="2241"></a>    dirProp = &amp;north
+<a name="2242"></a>    name = BMsg(north, 'north')
+<a name="2243"></a>    departureName = BMsg(depart north, 'to the north')
+<a name="2244"></a>    arrivalName = BMsg(arrive north, 'from the north')
+<a name="2245"></a>    sortingOrder = 1000
+<a name="2246"></a>    opposite = southDir
+<a name="2247"></a>;
+<a name="2248"></a>
+<a name="2249"></a>eastDir: CompassDirection
+<a name="2250"></a>    dirProp = &amp;east
+<a name="2251"></a>    name = BMsg(east, 'east')
+<a name="2252"></a>    departureName = BMsg(depart east, 'to the east')
+<a name="2253"></a>    arrivalName = BMsg(arrive east, 'from the east')
+<a name="2254"></a>    sortingOrder = 1100
+<a name="2255"></a>    opposite = westDir
+<a name="2256"></a>;
+<a name="2257"></a>
+<a name="2258"></a>southDir: CompassDirection
+<a name="2259"></a>    dirProp = &amp;south
+<a name="2260"></a>    name = BMsg(south, 'south')
+<a name="2261"></a>    departureName = BMsg(depart south, 'to the south')
+<a name="2262"></a>    arrivalName = BMsg(arrive south, 'from the south')
+<a name="2263"></a>    sortingOrder = 1200
+<a name="2264"></a>    opposite = northDir
+<a name="2265"></a>;
+<a name="2266"></a>
+<a name="2267"></a>westDir: CompassDirection
+<a name="2268"></a>    dirProp = &amp;west
+<a name="2269"></a>    name = BMsg(west, 'west')
+<a name="2270"></a>    departureName = BMsg(depart west, 'to the west')
+<a name="2271"></a>    arrivalName = BMsg(arrive west, 'from the west')
+<a name="2272"></a>    sortingOrder = 1300
+<a name="2273"></a>    opposite = eastDir
+<a name="2274"></a>;
+<a name="2275"></a>
+<a name="2276"></a>northeastDir: CompassDirection
+<a name="2277"></a>    dirProp = &amp;northeast
+<a name="2278"></a>    name = BMsg(northeast, 'northeast')
+<a name="2279"></a>    departureName = BMsg(depart northeast, 'to the northeast')
+<a name="2280"></a>    arrivalName = BMsg(arrive northeast, 'from the northeast')
+<a name="2281"></a>    sortingOrder = 1400
+<a name="2282"></a>    opposite = southwestDir
+<a name="2283"></a>;
+<a name="2284"></a>
+<a name="2285"></a>northwestDir: CompassDirection
+<a name="2286"></a>    dirProp = &amp;northwest
+<a name="2287"></a>    name = BMsg(northwest, 'northwest')
+<a name="2288"></a>    departureName = BMsg(depart northwest, 'to the northwest')
+<a name="2289"></a>    arrivalName = BMsg(arrive northwest, 'from the northwest')
+<a name="2290"></a>    sortingOrder = 1500
+<a name="2291"></a>    opposite = southeastDir
+<a name="2292"></a>;
+<a name="2293"></a>
+<a name="2294"></a>southeastDir: CompassDirection
+<a name="2295"></a>    dirProp = &amp;southeast
+<a name="2296"></a>    name = BMsg(southeast, 'southeast')
+<a name="2297"></a>    departureName = BMsg(depart southeast, 'to the southeast')
+<a name="2298"></a>    arrivalName = BMsg(arrive southeast, 'from the southeast')
+<a name="2299"></a>    sortingOrder = 1600
+<a name="2300"></a>    opposite = northwestDir
+<a name="2301"></a>;
+<a name="2302"></a>
+<a name="2303"></a>southwestDir: CompassDirection
+<a name="2304"></a>    dirProp = &amp;southwest
+<a name="2305"></a>    name = BMsg(southwest, 'southwest')
+<a name="2306"></a>    departureName = BMsg(depart southwest, 'to the southwest')
+<a name="2307"></a>    arrivalName = BMsg(arrive southwest, 'from the southwest')
+<a name="2308"></a>    sortingOrder = 1700
+<a name="2309"></a>    opposite = northeastDir
+<a name="2310"></a>;
+<a name="2311"></a>
+<a name="2312"></a>downDir: Direction
+<a name="2313"></a>    dirProp = &amp;down
+<a name="2314"></a>    name = BMsg(down, 'down')
+<a name="2315"></a>    departureName = BMsg(depart down, 'down')
+<a name="2316"></a>    arrivalName = BMsg(arrive down, 'from below')
+<a name="2317"></a>    sortingOrder = 2000
+<a name="2318"></a>    opposite = upDir
+<a name="2319"></a>;
+<a name="2320"></a>
+<a name="2321"></a>upDir: Direction
+<a name="2322"></a>    dirProp = &amp;up
+<a name="2323"></a>    name = BMsg(up, 'up')
+<a name="2324"></a>    departureName = BMsg(depart up, 'up')
+<a name="2325"></a>    arrivalName = BMsg(arrive up, 'from above')
+<a name="2326"></a>    sortingOrder = 2100
+<a name="2327"></a>    opposite = downDir
+<a name="2328"></a>;
+<a name="2329"></a>
+<a name="2330"></a>inDir: Direction
+<a name="2331"></a>    dirProp = &amp;in
+<a name="2332"></a>    name = BMsg(in, 'in')
+<a name="2333"></a>    departureName = BMsg(depart in, 'inside')
+<a name="2334"></a>    arrivalName = BMsg(arrive in, 'from inside')
+<a name="2335"></a>    sortingOrder = 3000
+<a name="2336"></a>    opposite = outDir
+<a name="2337"></a>;
+<a name="2338"></a>
+<a name="2339"></a>outDir: Direction
+<a name="2340"></a>    dirProp = &amp;out
+<a name="2341"></a>    name = BMsg(out, 'out')
+<a name="2342"></a>    departureName = BMsg(depart out, 'out')
+<a name="2343"></a>    arrivalName = BMsg(arrive out, 'from outside')
+<a name="2344"></a>    sortingOrder = 3100
+<a name="2345"></a>    opposite = inDir
+<a name="2346"></a>;
+<a name="2347"></a>
+<a name="2348"></a>/* Directions for use aboard a vessel such as a ship */
+<a name="2349"></a>class ShipboardDirection: Direction
+<a name="2350"></a>    initializeDirection()
+<a name="2351"></a>	{
+<a name="2352"></a>	   /* Carry out the inherited handling */
+<a name="2353"></a>	   inherited();
+<a name="2354"></a>	   
+<a name="2355"></a>	   /* Add myself to the list of shipboard directions */
+<a name="2356"></a>	   ShipboardDirection.shipboardDirections.append(self);
+<a name="2357"></a>	} 
+<a name="2358"></a>    
+<a name="2359"></a>
+<a name="2360"></a>    /* 
+<a name="2361"></a>	  * A Class property containing a Vector of all the shipboard
+<a name="2362"></a>	  * directions defined in the game.
+<a name="2363"></a>	  */
+<a name="2364"></a>	shipboardDirections = static new Vector (4)
+<a name="2365"></a>;
+<a name="2366"></a>
+<a name="2367"></a>portDir: ShipboardDirection
+<a name="2368"></a>    dirProp = &amp;port
+<a name="2369"></a>    name = BMsg(port, 'port')
+<a name="2370"></a>    departureName = BMsg(depart port, 'to port')
+<a name="2371"></a>    arrivalName = BMsg(depart port, 'from port')
+<a name="2372"></a>    sortingOrder = 4000
+<a name="2373"></a>    opposite = starboardDir
+<a name="2374"></a>;
+<a name="2375"></a>
+<a name="2376"></a>starboardDir: ShipboardDirection
+<a name="2377"></a>    dirProp = &amp;starboard
+<a name="2378"></a>    name = BMsg(starboard, 'starboard')
+<a name="2379"></a>    departureName = BMsg(depart starboard, 'to starboard')
+<a name="2380"></a>    arrivalName = BMsg(arrive starboard, 'from starboard')
+<a name="2381"></a>    sortingOrder = 4100
+<a name="2382"></a>    opposite = portDir
+<a name="2383"></a>;
+<a name="2384"></a>
+<a name="2385"></a>foreDir: ShipboardDirection
+<a name="2386"></a>    dirProp = &amp;fore
+<a name="2387"></a>    name = BMsg(forward, 'forward')
+<a name="2388"></a>    departureName = BMsg(depart forward, 'forward')
+<a name="2389"></a>    arrivalName = BMsg(arrive forward, 'from forward')
+<a name="2390"></a>    sortingOrder = 4200
+<a name="2391"></a>    opposite = aftDir
+<a name="2392"></a>;
+<a name="2393"></a>
+<a name="2394"></a>aftDir: ShipboardDirection
+<a name="2395"></a>    dirProp = &amp;aft
+<a name="2396"></a>    name = BMsg(aft, 'aft')
+<a name="2397"></a>    departureName = BMsg(depart aft, 'aft')
+<a name="2398"></a>    arrivalName = BMsg(arrive aft, 'from aft')
+<a name="2399"></a>    sortingOrder = 4300
+<a name="2400"></a>    opposite = foreDir
+<a name="2401"></a>;
+<a name="2402"></a>
+<a name="2403"></a>/*  
+<a name="2404"></a> *   A Region is an object representing several rooms or even several other
+<a name="2405"></a> *   Regions.
+<a name="2406"></a> */
+<a name="2407"></a>class Region: object
+<a name="2408"></a>    
+<a name="2409"></a>    /* 
+<a name="2410"></a>     *   This region can optionally be in one or more regions. The regions
+<a name="2411"></a>     *   property hold the region or a the list of regions I'm in.
+<a name="2412"></a>     */    
+<a name="2413"></a>    regions = nil
+<a name="2414"></a>    
+<a name="2415"></a>    /* 
+<a name="2416"></a>     *   A Room can't be in another Room or a Thing, but it can notionally be in
+<a name="2417"></a>     *   a Region, so we check to see if we're in the list of our regions.
+<a name="2418"></a>     */    
+<a name="2419"></a>    isIn(region)
+<a name="2420"></a>    {               
+<a name="2421"></a>        return valToList(regions).indexWhich({x: x.isOrIsIn(region)}) != nil;
+<a name="2422"></a>    }
+<a name="2423"></a>    
+<a name="2424"></a>    /*  Is this Region either itself region or contained within in region */
+<a name="2425"></a>    isOrIsIn(region)
 <a name="2426"></a>    {
-<a name="2427"></a>        if(isFamiliar(prop))
-<a name="2428"></a>        {
-<a name="2429"></a>            /* 
-<a name="2430"></a>             *   If this Region is familiar then go through each room in the
-<a name="2431"></a>             *   list of rooms in the Region and mark it as familiar.
-<a name="2432"></a>             */
-<a name="2433"></a>            foreach(local rm in valToList(roomList))
-<a name="2434"></a>            {
-<a name="2435"></a>                rm.(prop) = true;                
-<a name="2436"></a>            }
-<a name="2437"></a>        }
-<a name="2438"></a>    }
-<a name="2439"></a>    
-<a name="2440"></a>      
-<a name="2441"></a>        
-<a name="2442"></a>    /* 
-<a name="2443"></a>     *   To add an object to our contents we need to add it to the contents of
-<a name="2444"></a>     *   every room in this region. If the optional vec parameter is supplied it
-<a name="2445"></a>     *   must be a vector; the rooms will then be added to the vector as well.
-<a name="2446"></a>     *   The vec parameter is primarily for use by the MultiLoc class.
-<a name="2447"></a>     */    
-<a name="2448"></a>    addToContents(obj, vec?)
-<a name="2449"></a>    {
-<a name="2450"></a>        foreach(local cur in roomList)
-<a name="2451"></a>        {
-<a name="2452"></a>            cur.addToContents(obj, vec);
-<a name="2453"></a>        }
-<a name="2454"></a>    }
-<a name="2455"></a>    
-<a name="2456"></a>    /* 
-<a name="2457"></a>     *   To remove an object from our contents we need to remove it from the
-<a name="2458"></a>     *   contents of every room in the region. If the optional vec parameter is
-<a name="2459"></a>     *   supplied it must be a vector; the rooms will then be removed from the
-<a name="2460"></a>     *   vector as well.
-<a name="2461"></a>     */         
-<a name="2462"></a>    removeFromContents(obj, vec?)
-<a name="2463"></a>    {
-<a name="2464"></a>        foreach(local cur in roomList)
-<a name="2465"></a>        {
-<a name="2466"></a>            cur.removeFromContents(obj, vec);
-<a name="2467"></a>        }
-<a name="2468"></a>    }
-<a name="2469"></a>    
-<a name="2470"></a>    /* 
-<a name="2471"></a>     *   Add an additional room (passed as the rm parameter) to our list of
-<a name="2472"></a>     *   rooms. This method is intended for internal library use at PreInit
-<a name="2473"></a>     *   only.
-<a name="2474"></a>     */
-<a name="2475"></a>    addToRoomList(rm)
-<a name="2476"></a>    {
-<a name="2477"></a>        /* 
-<a name="2478"></a>         *   Add rm to our existing roomList, making sure we don't duplicate an
-<a name="2479"></a>         *   existing entry, and converting the roomList from nil to a list if
-<a name="2480"></a>         *   isn't a list already.
-<a name="2481"></a>         */
-<a name="2482"></a>        roomList = nilToList(roomList).appendUnique([rm]);
-<a name="2483"></a>        
-<a name="2484"></a>        /*  Add rm to the room list of all the regions we're in */
-<a name="2485"></a>        foreach(local cur in valToList(regions))
-<a name="2486"></a>            cur.addToRoomList(rm);
-<a name="2487"></a>    }
-<a name="2488"></a>    
-<a name="2489"></a>    /* 
-<a name="2490"></a>     *   Put extra items in scope when action is carried out in any room in this
-<a name="2491"></a>     *   region.
+<a name="2427"></a>        return region == self || isIn(region); 
+<a name="2428"></a>    }
+<a name="2429"></a>    
+<a name="2430"></a>    /* 
+<a name="2431"></a>     *   A list of all the regions this Region is within; in addition to any
+<a name="2432"></a>     *   regions this Region is directly in (defined on its regions property)
+<a name="2433"></a>     *   this will include all the regions it's indirectly in (i.e. any regions
+<a name="2434"></a>     *   the regions it's in are in and so forth).
+<a name="2435"></a>     */
+<a name="2436"></a>    allRegions()
+<a name="2437"></a>    {
+<a name="2438"></a>        /* Start with a vector of all the regions we're directly in */
+<a name="2439"></a>        local thisRegions = new Vector(valToList(regions));
+<a name="2440"></a>        
+<a name="2441"></a>        /* 
+<a name="2442"></a>         *   For each of the regions we're directly in, append all the regions
+<a name="2443"></a>         *   they're in.
+<a name="2444"></a>         */
+<a name="2445"></a>        foreach(local reg in valToList(regions))
+<a name="2446"></a>            thisRegions.appendUnique(reg.allRegions);
+<a name="2447"></a>        
+<a name="2448"></a>        /*   Convert the Vector to a list and return it. */
+<a name="2449"></a>        return thisRegions.toList();
+<a name="2450"></a>    }
+<a name="2451"></a>    
+<a name="2452"></a>    /* 
+<a name="2453"></a>     *   A list of all the rooms in this region. This is built automatically at
+<a name="2454"></a>     *   preinit and shouldn't be altered by the user/author.
+<a name="2455"></a>     */    
+<a name="2456"></a>    roomList = nil
+<a name="2457"></a>    
+<a name="2458"></a>    /*   
+<a name="2459"></a>     *   A user-defined list of the rooms in this region. At Preinit this will
+<a name="2460"></a>     *   be used along with the regions property of any rooms to build the
+<a name="2461"></a>     *   roomList of this Region.
+<a name="2462"></a>     */
+<a name="2463"></a>    rooms = nil
+<a name="2464"></a>       
+<a name="2465"></a>    /* 
+<a name="2466"></a>     *   Build the list of regions in all the rooms in this this region by going
+<a name="2467"></a>     *   through every room defined in the roomList and adding us to its list of
+<a name="2468"></a>     *   regions. Note that this is provided as an alternative way to define
+<a name="2469"></a>     *   what rooms start out in which regions.     
+<a name="2470"></a>     */
+<a name="2471"></a>    
+<a name="2472"></a>    makeRegionLists()
+<a name="2473"></a>    {       
+<a name="2474"></a>        if(rooms != nil)
+<a name="2475"></a>        {
+<a name="2476"></a>            foreach(local r in rooms)
+<a name="2477"></a>                r.regions = valToList(r.regions).appendUnique([self]);
+<a name="2478"></a>        }       
+<a name="2479"></a>    }
+<a name="2480"></a>    
+<a name="2481"></a>    /* 
+<a name="2482"></a>     *   Is the player char familiar with every room in this region. This should
+<a name="2483"></a>     *   be set to true for a region whose geography the PC starts out familiar
+<a name="2484"></a>     *   with, such as the layout of his own house.
+<a name="2485"></a>     */    
+<a name="2486"></a>    familiar = nil
+<a name="2487"></a>    
+<a name="2488"></a>    /* 
+<a name="2489"></a>     *   For games that track different familiarity on different Actors, we can call this method
+<a name="2490"></a>     *   with &amp;xxxFamiliart to farm out the answer to the appropriate xxxFamiliar property, which
+<a name="2491"></a>     *   we'll need to define on this region.
 <a name="2492"></a>     */
-<a name="2493"></a>    addExtraScopeItems(action)
+<a name="2493"></a>    isFamiliar(prop = &amp;familiar)
 <a name="2494"></a>    {
-<a name="2495"></a>        /* 
-<a name="2496"></a>         *   Add our list of extraScopeItems to the existing scopeList of the
-<a name="2497"></a>         *   action, avoiding creating any duplicate entries.
-<a name="2498"></a>         */
-<a name="2499"></a>        action.scopeList =
-<a name="2500"></a>            action.scopeList.appendUnique(valToList(extraScopeItems));
-<a name="2501"></a>        
-<a name="2502"></a>        /* 
-<a name="2503"></a>         *   Add any further additional scope items from any of the regions
-<a name="2504"></a>         *   that this region is in.
-<a name="2505"></a>         */
-<a name="2506"></a>        foreach(local reg in valToList(regions))
-<a name="2507"></a>            reg.addExtraScopeItems(action);
-<a name="2508"></a>    }
-<a name="2509"></a>    
-<a name="2510"></a>    /* 
-<a name="2511"></a>     *   A list of items that should be added to the standard scope list for
-<a name="2512"></a>     *   actions carried out in any room in this region.
-<a name="2513"></a>     */
-<a name="2514"></a>    extraScopeItems = []
-<a name="2515"></a>    
-<a name="2516"></a>     /* 
-<a name="2517"></a>      *   This method is invoked when traveler is about to leave this region and
-<a name="2518"></a>      *   go to dest (the destination room).
-<a name="2519"></a>      */
-<a name="2520"></a>    travelerLeaving(traveler, dest) { }
-<a name="2521"></a>    
-<a name="2522"></a>     /* 
-<a name="2523"></a>      *   This method is invoked when traveler is about to enter this region
-<a name="2524"></a>      *   from origin (the room traveled from.
-<a name="2525"></a>      */    
-<a name="2526"></a>    travelerEntering(traveler, origin) { }
-<a name="2527"></a>    
-<a name="2528"></a>    /* Carry out before notifications on the region */
-<a name="2529"></a>    notifyBefore()
-<a name="2530"></a>    {
-<a name="2531"></a>        /* First call our own regionBeforeAction() method */
-<a name="2532"></a>        regionBeforeAction();
-<a name="2533"></a>        
-<a name="2534"></a>        /* 
-<a name="2535"></a>         *   Then call the beforeAction notification on all the regions we're
-<a name="2536"></a>         *   in.
-<a name="2537"></a>         */
-<a name="2538"></a>        foreach(local reg in valToList(regions))
-<a name="2539"></a>            reg.notifyBefore();
-<a name="2540"></a>    }
-<a name="2541"></a>    
-<a name="2542"></a>    /* 
-<a name="2543"></a>     *   This method is called just before an action takes places in this
-<a name="2544"></a>     *   region.
-<a name="2545"></a>     */
-<a name="2546"></a>    regionBeforeAction() { }
-<a name="2547"></a>    
-<a name="2548"></a>    /* Carry out after notifications on the region */
-<a name="2549"></a>    notifyAfter()
-<a name="2550"></a>    {
-<a name="2551"></a>        /* First call our own regionAfterAction() method */
-<a name="2552"></a>        regionAfterAction();
-<a name="2553"></a>        
+<a name="2495"></a>        return self.(prop);
+<a name="2496"></a>    }
+<a name="2497"></a>    
+<a name="2498"></a>    /* 
+<a name="2499"></a>     *   Go through all the rooms in this region setting them to familiar if the
+<a name="2500"></a>     *   region is familiar.
+<a name="2501"></a>     */    
+<a name="2502"></a>    setFamiliarRooms(prop = &amp;familiar)
+<a name="2503"></a>    {
+<a name="2504"></a>        if(isFamiliar(prop))
+<a name="2505"></a>        {
+<a name="2506"></a>            /* 
+<a name="2507"></a>             *   If this Region is familiar then go through each room in the
+<a name="2508"></a>             *   list of rooms in the Region and mark it as familiar.
+<a name="2509"></a>             */
+<a name="2510"></a>            foreach(local rm in valToList(roomList))
+<a name="2511"></a>            {
+<a name="2512"></a>                rm.(prop) = true;                
+<a name="2513"></a>            }
+<a name="2514"></a>        }
+<a name="2515"></a>    }
+<a name="2516"></a>    
+<a name="2517"></a>      
+<a name="2518"></a>        
+<a name="2519"></a>    /* 
+<a name="2520"></a>     *   To add an object to our contents we need to add it to the contents of
+<a name="2521"></a>     *   every room in this region. If the optional vec parameter is supplied it
+<a name="2522"></a>     *   must be a vector; the rooms will then be added to the vector as well.
+<a name="2523"></a>     *   The vec parameter is primarily for use by the MultiLoc class.
+<a name="2524"></a>     */    
+<a name="2525"></a>    addToContents(obj, vec?)
+<a name="2526"></a>    {
+<a name="2527"></a>        foreach(local cur in roomList)
+<a name="2528"></a>        {
+<a name="2529"></a>            cur.addToContents(obj, vec);
+<a name="2530"></a>        }
+<a name="2531"></a>    }
+<a name="2532"></a>    
+<a name="2533"></a>    /* 
+<a name="2534"></a>     *   To remove an object from our contents we need to remove it from the
+<a name="2535"></a>     *   contents of every room in the region. If the optional vec parameter is
+<a name="2536"></a>     *   supplied it must be a vector; the rooms will then be removed from the
+<a name="2537"></a>     *   vector as well.
+<a name="2538"></a>     */         
+<a name="2539"></a>    removeFromContents(obj, vec?)
+<a name="2540"></a>    {
+<a name="2541"></a>        foreach(local cur in roomList)
+<a name="2542"></a>        {
+<a name="2543"></a>            cur.removeFromContents(obj, vec);
+<a name="2544"></a>        }
+<a name="2545"></a>    }
+<a name="2546"></a>    
+<a name="2547"></a>    /* 
+<a name="2548"></a>     *   Add an additional room (passed as the rm parameter) to our list of
+<a name="2549"></a>     *   rooms. This method is intended for internal library use at PreInit
+<a name="2550"></a>     *   only.
+<a name="2551"></a>     */
+<a name="2552"></a>    addToRoomList(rm)
+<a name="2553"></a>    {
 <a name="2554"></a>        /* 
-<a name="2555"></a>         *   Then call the afterAction notification on all the regions we're
-<a name="2556"></a>         *   in.
-<a name="2557"></a>         */
-<a name="2558"></a>        foreach(local reg in valToList(regions))
-<a name="2559"></a>            reg.notifyAfter();
-<a name="2560"></a>    }
-<a name="2561"></a>    
-<a name="2562"></a>    /* Method called just after an action has taken place in this region. */
-<a name="2563"></a>    regionAfterAction() { }
-<a name="2564"></a>    
-<a name="2565"></a>    /* 
-<a name="2566"></a>     *   This method is called just before travel takes places in this
-<a name="2567"></a>     *   region (when traveler is about to travel via connector).
-<a name="2568"></a>     */
-<a name="2569"></a>    regionBeforeTravel(traveler, connector) { }       
-<a name="2570"></a>   
-<a name="2571"></a>    
-<a name="2572"></a>    /* 
-<a name="2573"></a>     *   Method called just after travel has taken place in this region (when
-<a name="2574"></a>     *   traveler has just traveled via connector).
-<a name="2575"></a>     */
-<a name="2576"></a>    regionAfterTravel(traveler, connector) { }
-<a name="2577"></a>    
-<a name="2578"></a>    /*   
-<a name="2579"></a>     *   Should the fastGoTo option be used in this region (i.e. traveling from
-<a name="2580"></a>     *   one room in the region to another is all done in one turn without the
-<a name="2581"></a>     *   need for CONTINUE, even if several steps are involved)? Note that the
-<a name="2582"></a>     *   value of this setting has no effect if gameMain.fastGoTo is true, since
-<a name="2583"></a>     *   then the fastGoTo setting is always in effect.
-<a name="2584"></a>     */
-<a name="2585"></a>    fastGoTo = nil
+<a name="2555"></a>         *   Add rm to our existing roomList, making sure we don't duplicate an
+<a name="2556"></a>         *   existing entry, and converting the roomList from nil to a list if
+<a name="2557"></a>         *   isn't a list already.
+<a name="2558"></a>         */
+<a name="2559"></a>        roomList = nilToList(roomList).appendUnique([rm]);
+<a name="2560"></a>        
+<a name="2561"></a>        /*  Add rm to the room list of all the regions we're in */
+<a name="2562"></a>        foreach(local cur in valToList(regions))
+<a name="2563"></a>            cur.addToRoomList(rm);
+<a name="2564"></a>    }
+<a name="2565"></a>    
+<a name="2566"></a>    /* 
+<a name="2567"></a>     *   Put extra items in scope when action is carried out in any room in this
+<a name="2568"></a>     *   region.
+<a name="2569"></a>     */
+<a name="2570"></a>    addExtraScopeItems(action)
+<a name="2571"></a>    {
+<a name="2572"></a>        /* 
+<a name="2573"></a>         *   Add our list of extraScopeItems to the existing scopeList of the
+<a name="2574"></a>         *   action, avoiding creating any duplicate entries.
+<a name="2575"></a>         */
+<a name="2576"></a>        action.scopeList =
+<a name="2577"></a>            action.scopeList.appendUnique(valToList(extraScopeItems));
+<a name="2578"></a>        
+<a name="2579"></a>        /* 
+<a name="2580"></a>         *   Add any further additional scope items from any of the regions
+<a name="2581"></a>         *   that this region is in.
+<a name="2582"></a>         */
+<a name="2583"></a>        foreach(local reg in valToList(regions))
+<a name="2584"></a>            reg.addExtraScopeItems(action);
+<a name="2585"></a>    }
 <a name="2586"></a>    
-<a name="2587"></a>    /*   
-<a name="2588"></a>     *   Should the briefGoTo option be used in this region (i.e. traveling from one room in the
-<a name="2589"></a>     *   region to another is all done in one turn without the need for CONTINUE and without
-<a name="2590"></a>     *   intervening rooms descriptions, even if several steps are involved)? Note that the value of
-<a name="2591"></a>     *   this setting has no effect if gameMain.briefGoTo is true, since then the briedGoTo setting
-<a name="2592"></a>     *   is always in effect.
-<a name="2593"></a>     */
-<a name="2594"></a>    
-<a name="2595"></a>    briefGoTo = nil
-<a name="2596"></a>    
-<a name="2597"></a>    /* 
-<a name="2598"></a>     *   Move a MultiLoc (ml) into this region, by moving it into every room in
-<a name="2599"></a>     *   this Region.
-<a name="2600"></a>     */
-<a name="2601"></a>    moveMLIntoAdd(ml)
-<a name="2602"></a>    {
-<a name="2603"></a>        roomList.forEach({r: ml.moveIntoAdd(r)});
-<a name="2604"></a>    }
-<a name="2605"></a>    
-<a name="2606"></a>    /*  
-<a name="2607"></a>     *   Move a MultiLoc (ml) out of this region, by moving it out of every room
-<a name="2608"></a>     *   in the Region.
-<a name="2609"></a>     */
-<a name="2610"></a>    moveMLOutOf(ml)
-<a name="2611"></a>    {
-<a name="2612"></a>        roomList.forEach({r: ml.moveOutOf(r)});
-<a name="2613"></a>    }
-<a name="2614"></a>    
-<a name="2615"></a>    /* 
-<a name="2616"></a>     *   The regionDaemon method is executed on ever region in which the player character is
-<a name="2617"></a>     *   currently located. By default we call the region's doScript() method so that the if the
-<a name="2618"></a>     *   region is mixed in with an EventList class, that EventList can be executed.
-<a name="2619"></a>     */
-<a name="2620"></a>    regionDaemon { doScript(); }
-<a name="2621"></a>    
-<a name="2622"></a>    
-<a name="2623"></a>;
-<a name="2624"></a>/* 
-<a name="2625"></a> *   Go through each room and add it to every regions it's (directly or
-<a name="2626"></a> *   indirectly) in. Then if the region is familiar, mark all its rooms as
-<a name="2627"></a> *   familiar.
-<a name="2628"></a> */
-<a name="2629"></a>regionPreinit: PreinitObject    
-<a name="2630"></a>    execute()
-<a name="2631"></a>    {
-<a name="2632"></a>        forEachInstance(Region, {r: r.makeRegionLists });
-<a name="2633"></a>        
-<a name="2634"></a>        forEachInstance(Room, {r: r.addToRegions()} );
-<a name="2635"></a>        
-<a name="2636"></a>        forEachInstance(Region, { r: r.setFamiliarRooms() } );
+<a name="2587"></a>    /* 
+<a name="2588"></a>     *   A list of items that should be added to the standard scope list for
+<a name="2589"></a>     *   actions carried out in any room in this region.
+<a name="2590"></a>     */
+<a name="2591"></a>    extraScopeItems = []
+<a name="2592"></a>    
+<a name="2593"></a>     /* 
+<a name="2594"></a>      *   This method is invoked when traveler is about to leave this region and
+<a name="2595"></a>      *   go to dest (the destination room).
+<a name="2596"></a>      */
+<a name="2597"></a>    travelerLeaving(traveler, dest) { }
+<a name="2598"></a>    
+<a name="2599"></a>     /* 
+<a name="2600"></a>      *   This method is invoked when traveler is about to enter this region
+<a name="2601"></a>      *   from origin (the room traveled from.
+<a name="2602"></a>      */    
+<a name="2603"></a>    travelerEntering(traveler, origin) { }
+<a name="2604"></a>    
+<a name="2605"></a>    /* Carry out before notifications on the region */
+<a name="2606"></a>    notifyBefore()
+<a name="2607"></a>    {
+<a name="2608"></a>        /* First call our own regionBeforeAction() method */
+<a name="2609"></a>        regionBeforeAction();
+<a name="2610"></a>        
+<a name="2611"></a>        /* 
+<a name="2612"></a>         *   Then call the beforeAction notification on all the regions we're
+<a name="2613"></a>         *   in.
+<a name="2614"></a>         */
+<a name="2615"></a>        foreach(local reg in valToList(regions))
+<a name="2616"></a>            reg.notifyBefore();
+<a name="2617"></a>    }
+<a name="2618"></a>    
+<a name="2619"></a>    /* 
+<a name="2620"></a>     *   This method is called just before an action takes places in this
+<a name="2621"></a>     *   region.
+<a name="2622"></a>     */
+<a name="2623"></a>    regionBeforeAction() { }
+<a name="2624"></a>    
+<a name="2625"></a>    /* Carry out after notifications on the region */
+<a name="2626"></a>    notifyAfter()
+<a name="2627"></a>    {
+<a name="2628"></a>        /* First call our own regionAfterAction() method */
+<a name="2629"></a>        regionAfterAction();
+<a name="2630"></a>        
+<a name="2631"></a>        /* 
+<a name="2632"></a>         *   Then call the afterAction notification on all the regions we're
+<a name="2633"></a>         *   in.
+<a name="2634"></a>         */
+<a name="2635"></a>        foreach(local reg in valToList(regions))
+<a name="2636"></a>            reg.notifyAfter();
 <a name="2637"></a>    }
 <a name="2638"></a>    
-<a name="2639"></a>;
-<a name="2640"></a>
-<a name="2641"></a>
-<a name="2642"></a>/* 
-<a name="2643"></a> *   Function to handle what will probably be non-travel in a direction that doesn't point to exit.
-<a name="2644"></a> *   The loc parameter specifies the room we're attempting travel from. For use as a common routine
-<a name="2645"></a> *   called by TravelAction, PushTravelDir and UnlistedProxyConnnector.
-<a name="2646"></a> *.
-<a name="2647"></a> */
-<a name="2648"></a>nonTravel(loc, dir)
-<a name="2649"></a>{
-<a name="2650"></a>    
-<a name="2651"></a>    /* Note whether we meet the lighting conditions to permit travel */
-<a name="2652"></a>    local illum = loc.allowDarkTravel || loc.isIlluminated;
-<a name="2653"></a>    
-<a name="2654"></a>    local conn;
-<a name="2655"></a>    
-<a name="2656"></a>    switch (loc.propType(dir.dirProp))
-<a name="2657"></a>    {
-<a name="2658"></a>        /* 
-<a name="2659"></a>         *   If there's nothing there, simply display the appropriate message explaining that travel
-<a name="2660"></a>         *   that way isn't possible.
-<a name="2661"></a>         */
-<a name="2662"></a>    case TypeNil:
-<a name="2663"></a>        if(illum &amp;&amp; gActor == gPlayerChar)
-<a name="2664"></a>            loc.cannotGoThatWay(dir);
-<a name="2665"></a>        else if(gActor == gPlayerChar)
-<a name="2666"></a>            loc.cannotGoThatWayInDark(dir);            
-<a name="2667"></a>        break;
-<a name="2668"></a>        
-<a name="2669"></a>        
-<a name="2670"></a>        /* 
-<a name="2671"></a>         *   If the direction property points to a double-quoted method or a string, then provided
-<a name="2672"></a>         *   the illumination is right, we display the string or execute the method. Otherwise show
-<a name="2673"></a>         *   the message saying we can't travel that way in the dark.
-<a name="2674"></a>         */            
-<a name="2675"></a>    case TypeDString:
-<a name="2676"></a>    case TypeCode:                
-<a name="2677"></a>        if(illum)
-<a name="2678"></a>        {
-<a name="2679"></a>            /* 
-<a name="2680"></a>             *   Call the before travel notifications on every object that's in scope for the actor.
-<a name="2681"></a>             *   Since we don't have a connector object to pass to the beforeTravel notifications,
-<a name="2682"></a>             *   we use the direction object instead.
-<a name="2683"></a>             */
-<a name="2684"></a>            Q.scopeList(gActor).toList.forEach({x: x.beforeTravel(gActor,
-<a name="2685"></a>                dir)});
-<a name="2686"></a>            
-<a name="2687"></a>            
-<a name="2688"></a>            /*  
-<a name="2689"></a>             *   If going this way would take us to a known destination that's a Room (so that
-<a name="2690"></a>             *   executing the travel should take the actor out of his/her current room) notify the
-<a name="2691"></a>             *   current room that the actor is about to depart.
-<a name="2692"></a>             */                
-<a name="2693"></a>            local dest;
-<a name="2694"></a>            
-<a name="2695"></a>            if(loc.propType(dir.dirProp) == TypeCode)                
-<a name="2696"></a>                dest = libGlobal.extraDestInfo[[loc, dir]];
-<a name="2697"></a>            else
-<a name="2698"></a>                dest = nil;
-<a name="2699"></a>            
-<a name="2700"></a>            if(dest &amp;&amp; dest.ofKind(Room))
-<a name="2701"></a>                loc.notifyDeparture(gActor, dest);
-<a name="2702"></a>            
-<a name="2703"></a>            /*  
-<a name="2704"></a>             *   Then execute the method or display the double-quoted string.
-<a name="2705"></a>             */
-<a name="2706"></a>            loc.(dir.dirProp);
-<a name="2707"></a>            
-<a name="2708"></a>            /* 
-<a name="2709"></a>             *   If we've just executed a method, it may have moved the actor to a new location, so
-<a name="2710"></a>             *   if the actor is the player character note where the method took the actor to so
-<a name="2711"></a>             *   that the pathfinder can find a route via this exit.
-<a name="2712"></a>             */
-<a name="2713"></a>            if(gActor == gPlayerChar)
-<a name="2714"></a>                libGlobal.addExtraDestInfo(loc, dir,
-<a name="2715"></a>                                           gActor.getOutermostRoom);
-<a name="2716"></a>        }
-<a name="2717"></a>        else if(gActor == gPlayerChar)
-<a name="2718"></a>            loc.cannotGoThatWayInDark(dir);
-<a name="2719"></a>        break;
-<a name="2720"></a>        
-<a name="2721"></a>        /* 
-<a name="2722"></a>         *   If the direction property points to a single-quoted string, simply display the string
-<a name="2723"></a>         *   if the illumination is sufficient, otherwise display the message saying we can't go
-<a name="2724"></a>         *   that way in the dark. If the actor isn't the player character, do nothing.
-<a name="2725"></a>         */
-<a name="2726"></a>    case TypeSString:
-<a name="2727"></a>        if(gActor == gPlayerChar)
-<a name="2728"></a>        {
-<a name="2729"></a>            conn = loc.(dir.dirProp);
-<a name="2730"></a>            if(illum)
-<a name="2731"></a>            {
-<a name="2732"></a>                say(conn);
-<a name="2733"></a>                libGlobal.addExtraDestInfo(loc, dir,
-<a name="2734"></a>                                           gActor.getOutermostRoom); 
-<a name="2735"></a>            }
-<a name="2736"></a>            else
-<a name="2737"></a>                loc.cannotGoThatWayInDark(dir);
-<a name="2738"></a>        }    
-<a name="2739"></a>        break;
-<a name="2740"></a>        
-<a name="2741"></a>    }        
-<a name="2742"></a>}
+<a name="2639"></a>    /* Method called just after an action has taken place in this region. */
+<a name="2640"></a>    regionAfterAction() { }
+<a name="2641"></a>    
+<a name="2642"></a>    /* 
+<a name="2643"></a>     *   This method is called just before travel takes places in this
+<a name="2644"></a>     *   region (when traveler is about to travel via connector).
+<a name="2645"></a>     */
+<a name="2646"></a>    regionBeforeTravel(traveler, connector) { }       
+<a name="2647"></a>   
+<a name="2648"></a>    
+<a name="2649"></a>    /* 
+<a name="2650"></a>     *   Method called just after travel has taken place in this region (when
+<a name="2651"></a>     *   traveler has just traveled via connector).
+<a name="2652"></a>     */
+<a name="2653"></a>    regionAfterTravel(traveler, connector) { }
+<a name="2654"></a>    
+<a name="2655"></a>    /*   
+<a name="2656"></a>     *   Should the fastGoTo option be used in this region (i.e. traveling from
+<a name="2657"></a>     *   one room in the region to another is all done in one turn without the
+<a name="2658"></a>     *   need for CONTINUE, even if several steps are involved)? Note that the
+<a name="2659"></a>     *   value of this setting has no effect if gameMain.fastGoTo is true, since
+<a name="2660"></a>     *   then the fastGoTo setting is always in effect.
+<a name="2661"></a>     */
+<a name="2662"></a>    fastGoTo = nil
+<a name="2663"></a>    
+<a name="2664"></a>    /*   
+<a name="2665"></a>     *   Should the briefGoTo option be used in this region (i.e. traveling from one room in the
+<a name="2666"></a>     *   region to another is all done in one turn without the need for CONTINUE and without
+<a name="2667"></a>     *   intervening rooms descriptions, even if several steps are involved)? Note that the value of
+<a name="2668"></a>     *   this setting has no effect if gameMain.briefGoTo is true, since then the briedGoTo setting
+<a name="2669"></a>     *   is always in effect.
+<a name="2670"></a>     */
+<a name="2671"></a>    
+<a name="2672"></a>    briefGoTo = nil
+<a name="2673"></a>    
+<a name="2674"></a>    /* 
+<a name="2675"></a>     *   Move a MultiLoc (ml) into this region, by moving it into every room in
+<a name="2676"></a>     *   this Region.
+<a name="2677"></a>     */
+<a name="2678"></a>    moveMLIntoAdd(ml)
+<a name="2679"></a>    {
+<a name="2680"></a>        roomList.forEach({r: ml.moveIntoAdd(r)});
+<a name="2681"></a>    }
+<a name="2682"></a>    
+<a name="2683"></a>    /*  
+<a name="2684"></a>     *   Move a MultiLoc (ml) out of this region, by moving it out of every room
+<a name="2685"></a>     *   in the Region.
+<a name="2686"></a>     */
+<a name="2687"></a>    moveMLOutOf(ml)
+<a name="2688"></a>    {
+<a name="2689"></a>        roomList.forEach({r: ml.moveOutOf(r)});
+<a name="2690"></a>    }
+<a name="2691"></a>    
+<a name="2692"></a>    /* 
+<a name="2693"></a>     *   The regionDaemon method is executed on ever region in which the player character is
+<a name="2694"></a>     *   currently located. By default we call the region's doScript() method so that the if the
+<a name="2695"></a>     *   region is mixed in with an EventList class, that EventList can be executed.
+<a name="2696"></a>     */
+<a name="2697"></a>    regionDaemon { doScript(); }
+<a name="2698"></a>    
+<a name="2699"></a>    
+<a name="2700"></a>;
+<a name="2701"></a>/* 
+<a name="2702"></a> *   Go through each room and add it to every regions it's (directly or
+<a name="2703"></a> *   indirectly) in. Then if the region is familiar, mark all its rooms as
+<a name="2704"></a> *   familiar.
+<a name="2705"></a> */
+<a name="2706"></a>regionPreinit: PreinitObject    
+<a name="2707"></a>    execute()
+<a name="2708"></a>    {
+<a name="2709"></a>        forEachInstance(Region, {r: r.makeRegionLists });
+<a name="2710"></a>        
+<a name="2711"></a>        forEachInstance(Room, {r: r.addToRegions()} );
+<a name="2712"></a>        
+<a name="2713"></a>        forEachInstance(Region, { r: r.setFamiliarRooms() } );
+<a name="2714"></a>    }
+<a name="2715"></a>    
+<a name="2716"></a>;
+<a name="2717"></a>
+<a name="2718"></a>
+<a name="2719"></a>/* 
+<a name="2720"></a> *   Function to handle what will probably be non-travel in a direction that doesn't point to exit.
+<a name="2721"></a> *   The loc parameter specifies the room we're attempting travel from. For use as a common routine
+<a name="2722"></a> *   called by TravelAction, PushTravelDir and UnlistedProxyConnnector.
+<a name="2723"></a> *.
+<a name="2724"></a> */
+<a name="2725"></a>nonTravel(loc, dir)
+<a name="2726"></a>{
+<a name="2727"></a>    
+<a name="2728"></a>    /* Note whether we meet the lighting conditions to permit travel */
+<a name="2729"></a>    local illum = loc.allowDarkTravel || loc.isIlluminated;
+<a name="2730"></a>    
+<a name="2731"></a>    local conn;
+<a name="2732"></a>    
+<a name="2733"></a>    switch (loc.propType(dir.dirProp))
+<a name="2734"></a>    {
+<a name="2735"></a>        /* 
+<a name="2736"></a>         *   If there's nothing there, simply display the appropriate message explaining that travel
+<a name="2737"></a>         *   that way isn't possible.
+<a name="2738"></a>         */
+<a name="2739"></a>    case TypeNil:
+<a name="2740"></a>        if(illum &amp;&amp; gActor == gPlayerChar)
+<a name="2741"></a>            loc.cannotGoThatWay(dir);
+<a name="2742"></a>        else if(gActor == gPlayerChar)
+<a name="2743"></a>            loc.cannotGoThatWayInDark(dir);            
+<a name="2744"></a>        break;
+<a name="2745"></a>        
+<a name="2746"></a>        
+<a name="2747"></a>        /* 
+<a name="2748"></a>         *   If the direction property points to a double-quoted method or a string, then provided
+<a name="2749"></a>         *   the illumination is right, we display the string or execute the method. Otherwise show
+<a name="2750"></a>         *   the message saying we can't travel that way in the dark.
+<a name="2751"></a>         */            
+<a name="2752"></a>    case TypeDString:
+<a name="2753"></a>    case TypeCode:                
+<a name="2754"></a>        if(illum)
+<a name="2755"></a>        {
+<a name="2756"></a>            /* 
+<a name="2757"></a>             *   Call the before travel notifications on every object that's in scope for the actor.
+<a name="2758"></a>             *   Since we don't have a connector object to pass to the beforeTravel notifications,
+<a name="2759"></a>             *   we use the direction object instead.
+<a name="2760"></a>             */
+<a name="2761"></a>            Q.scopeList(gActor).toList.forEach({x: x.beforeTravel(gActor,
+<a name="2762"></a>                dir)});
+<a name="2763"></a>            
+<a name="2764"></a>            
+<a name="2765"></a>            /*  
+<a name="2766"></a>             *   If going this way would take us to a known destination that's a Room (so that
+<a name="2767"></a>             *   executing the travel should take the actor out of his/her current room) notify the
+<a name="2768"></a>             *   current room that the actor is about to depart.
+<a name="2769"></a>             */                
+<a name="2770"></a>            local dest;
+<a name="2771"></a>            
+<a name="2772"></a>            if(loc.propType(dir.dirProp) == TypeCode)                
+<a name="2773"></a>                dest = libGlobal.extraDestInfo[[loc, dir]];
+<a name="2774"></a>            else
+<a name="2775"></a>                dest = nil;
+<a name="2776"></a>            
+<a name="2777"></a>            if(dest &amp;&amp; dest.ofKind(Room))
+<a name="2778"></a>                loc.notifyDeparture(gActor, dest);
+<a name="2779"></a>            
+<a name="2780"></a>            /*  
+<a name="2781"></a>             *   Then execute the method or display the double-quoted string and note the return
+<a name="2782"></a>             *   value
+<a name="2783"></a>             */
+<a name="2784"></a>            conn = loc.(dir.dirProp);
+<a name="2785"></a>            
+<a name="2786"></a>            /*  
+<a name="2787"></a>             *   If the return value is a viable TravelConnector, execute travel via that connector.
+<a name="2788"></a>             */
+<a name="2789"></a>            if(objOfKind(conn, TravelConnector))
+<a name="2790"></a>            {
+<a name="2791"></a>                /* 
+<a name="2792"></a>                 *   If the connector is visible to the actor then attempt travel via the connector.
+<a name="2793"></a>                 */
+<a name="2794"></a>                if(conn.isConnectorVisible)                        
+<a name="2795"></a>                    TravelAction.doVisibleTravel(conn);            
+<a name="2796"></a>                
+<a name="2797"></a>                /* 
+<a name="2798"></a>                 *   Otherwise if there's light enough to travel and the actor is the player
+<a name="2799"></a>                 *   character, display the standard can't travel message (as if the connector
+<a name="2800"></a>                 *   wasn't there.
+<a name="2801"></a>                 */
+<a name="2802"></a>                else if(illum &amp;&amp; gActor == gPlayerChar)
+<a name="2803"></a>                    loc.cannotGoThatWay(dir);                
+<a name="2804"></a>                
+<a name="2805"></a>            }
+<a name="2806"></a>            
+<a name="2807"></a>            /* 
+<a name="2808"></a>             *   If the method has returned a single-quoted string and the actor is the player
+<a name="2809"></a>             *   character, display the string.
+<a name="2810"></a>             */
+<a name="2811"></a>            if(dataType(conn) == TypeSString 
+<a name="2812"></a>               &amp;&amp; TravelAction.displayStrRet(loc, dir, dest, conn, gActor))
+<a name="2813"></a>                say(conn);
+<a name="2814"></a>            
+<a name="2815"></a>            
+<a name="2816"></a>            /* 
+<a name="2817"></a>             *   If we've just executed a method, it may have moved the actor to a new location, so
+<a name="2818"></a>             *   if the actor is the player character note where the method took the actor to so
+<a name="2819"></a>             *   that the pathfinder can find a route via this exit.
+<a name="2820"></a>             */
+<a name="2821"></a>            if(gActor == gPlayerChar)
+<a name="2822"></a>                libGlobal.addExtraDestInfo(loc, dir,
+<a name="2823"></a>                                           gActor.getOutermostRoom);
+<a name="2824"></a>            
+<a name="2825"></a>            /*  Hook to allow further processing of the return avalue in user code. */
+<a name="2826"></a>            TravelAction.noteRetval(loc, dir, dest, conn, gActor);
+<a name="2827"></a>            
+<a name="2828"></a>            
+<a name="2829"></a>        }
+<a name="2830"></a>        else if(gActor == gPlayerChar)
+<a name="2831"></a>            loc.cannotGoThatWayInDark(dir);
+<a name="2832"></a>        break;
+<a name="2833"></a>        
+<a name="2834"></a>        /* 
+<a name="2835"></a>         *   If the direction property points to a single-quoted string, simply display the string
+<a name="2836"></a>         *   if the illumination is sufficient, otherwise display the message saying we can't go
+<a name="2837"></a>         *   that way in the dark. If the actor isn't the player character, do nothing.
+<a name="2838"></a>         */
+<a name="2839"></a>    case TypeSString:
+<a name="2840"></a>        if(gActor == gPlayerChar)
+<a name="2841"></a>        {
+<a name="2842"></a>            conn = loc.(dir.dirProp);
+<a name="2843"></a>            if(illum)
+<a name="2844"></a>            {
+<a name="2845"></a>                say(conn);
+<a name="2846"></a>                libGlobal.addExtraDestInfo(loc, dir,
+<a name="2847"></a>                                           gActor.getOutermostRoom); 
+<a name="2848"></a>            }
+<a name="2849"></a>            else
+<a name="2850"></a>                loc.cannotGoThatWayInDark(dir);
+<a name="2851"></a>        }    
+<a name="2852"></a>        break;
+<a name="2853"></a>        
+<a name="2854"></a>    }        
+<a name="2855"></a>}
 </pre>
-<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 13/06/2025 from adv3Lite version 2.2.1</div>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 20/10/2025 from adv3Lite version 2.2.1.1</div>
 </body>
 </html>

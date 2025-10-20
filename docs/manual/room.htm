@@ -177,6 +177,74 @@ grammar directionName(nornoreast): 'nornoreast' | 'nne' : Production
 </pre></div>
 
 <p>With these two definitions, you could then used nornoreast just like any of the built-in directions. The <b>sortingOrder</b> property on the Direction object defines the order in which this direction will appear in any list of exits; I chose 1450 here since this would make nornoreast come just after northeast. The grammar declaration that follows enables the parser to recognize 'nornoreast' and 'nne' as referring to the nornoreast direction.</p>
+<br>
+<h2 id="nondir">Non-Directional Travel Properties</h2>
+<p>It is also possible to define non-directional travel properties on a Room that work almost exactly like the directional ones except that they do not involve any particular direction, such as <code>jump</code> or that old magic word <code>xyzzy</code>. For example the inside of the little house at the start of Colossal Adventure could be defined like this:</p>
+
+<pre><code>
+insideBuilding: IndoorRoom 'Inside the Building'
+    "{I} {am} inside the building, a well house for a large spring. " 
+    out tcMsg(atEndOfRoad, "{I} step{s/?ed} outside. ")
+    west asExit(out)   
+    
+    xyzzy ulMsgExit(inDebrisRoom, "{I am} translated in the twinkling of an eye. ")
+    plugh = atY2            
+;
+</code></pre>
+
+<p>For this to work, we also need to define actions that will trigger travel via the two magic directions xyzzy and plugh. This can be done succinctly using the appropriate macro:</p>
+
+<pre><code>
+DefSpecialTravel(Xyzzy, &amp;xyzzy, 'xyzzy') darkTravelAllowed = true;
+DefSpecialTravel(Plugh, &amp;plugh, 'plugh') darkTravelAllowed  = true;
+</code></pre>
+
+<p>The macro <code>DefSpecialTravel(name, prop, gram)</code> sets up a VerbRule() with the grammar tag <i>name</i> using <i>gram</i> as its command input grammar, followed by an action called <i>name</i> which will invoke whatever's defined on the current Room's <i>prop</i>. Since this action's definition is unterminated until we add the final semicolon we can add any further properties or methods we need to the definition of our new action. In this example we define <code>darkTravelAllowed = true</code> true on both of them on the principle that the absence of light shouldn't affect the use of a magic word.</p>
+
+The macro <code>DefSpecialTravel(Xyzzy, &amp;xyzzy, 'xyzzy') darkTravelAllowed = true;</code> expands to:
+<pre><code>
+VerbRule(Xyxxy)
+   'xyzzy'
+   :VerbProduction
+   action = Xyzzy
+;
+
+Xyzzy: SpecialTravelAction
+   travelProp = &amp;xyzzy
+   darkTravelAllowed = true
+;   
+</code></pre>
+
+<p id='ntprops'>This may often be all that we need, but the SpecialTravelAction class allows further customization through a number of methods and properties, all of which (apart from <code>travelProp</code>, which is already defined by the macro) can be added between the macro invocation and the terminating semicolon:</p>
+
+<ul>
+<li><b>travelProp</b>: A property pointer to the Room property (e.g. &amp;jump or &amp;xyzzy) we want this SpecialTravelAction to invoke. This is the one property that user code MUST define, but we'll normally define it through the macro.</li>
+<li><b>darkTravelAllowed</b>: Flag - do we want to allow this action to trigger travel in the dark? This is nil by default but can be overriden to true for actions (such as magic words) where the lighting may be irrelevant.</li>
+<li><b>requireOutOfNested</b>: Flag - should travel via this action first remove the actor from any nested room they're in? The default is <code>true</code>.</li>
+<li><b>fallBack(loc)</b>: Method to fall back on when this action is invoked in a Room that does not define the corresponding property, or where it is defined as <code>nil</code>. By default we just display our <code>noGoodHereMsg</code>. </li>
+<li><b>noGoodHereMsg</b>: The message to display when this action is invoked in a Room that does not define the corresponding property, or where it is defined as <code>nil</code> (provided we haven't overridden <code>fallBack(loc)</code> to do something different). By default we just display "That doesn't work here" but user code may often want to override this (or <code>fallBack(loc)</code> to something more appopriate (as the library does for both 'jump' and 'climb').</li>
+<li><b>cannotTravelInDark(loc)</b>: Defines what to so if travel via this action is attempted in a dark room when <code>darkTravelAllowed</code> is nil. By default we call <code>loc.cannotGoThatWayInDark(travelProp)</code>, which by default simply displays loc's <code>cannotGoThatWayInDarkMsg</code>.</li>
+<li><b>noteRetval(loc, val)</b>. This is only called if we've defined our non-directional travel property to be a method and its return value is not a TravelConnector, in which case <i>val</i> is the method's return value and <code>loc</code> is the room where the method was invoked. By default we simply display <code>val</code> if it's a single-quoted string (which is probably the most useful case) and do nothing otherwise, but game code can override this method to so something different if desired. (If the method does return a TravelConnector, then travel will be attempted via that connector).</li>
+</ul>
+
+<p>Although non-directional travel properties work very like the directional ones (not least insofar as they can be defined in exactly the same way), there are three key differences that may make them the better choice in certain cases:</p>
+<ol>
+<li>Travel via a non-directional property using a non-directional verb does not require the definition of an additional direction (for example, we don't need to define an Xyzzy Direction or Jump direction when neither is truly direction-like). Although in individual rooms we might, for example, define <code>climb asExit(up)</code>, there is no <i>essential</i> connection between any non-directional property and any conventional direction.</li>
+<li>Non-directional properties are never listed in any exit lister (seeing 'jump' or 'xyzzy' in a list of exits would propably be jarring).</li>
+<li>The pathfinder ignores non-directional properties.</li>
+</ol>
+
+<p>Finally, (or penultimately), like ordinary travel properties, non-directional travel properties are not confined to triggering travel; we can use them for anything we like, for example:</p>
+<pre><code>
+lowCave: Room 'low cave' 
+   "There is very little headroom here. "
+   jump = "Ouch! You just banged your head on the ceiling! "
+   climb = "There's nowhere to climb to here. "
+   ...
+;
+</code></pre>
+
+<p>Finally, finally, the library defines two non-travel actions responding to CLIMB and JUMP (as in the example immediately above). Where no <code>climb</code> or <code>jump</code> property is defined, these commands behave just as they would have done before: "You jump on the spot fruitlessly" or "What do you want to climb?" (in the latter case, the parser may automagically select a climbable object if it's the best bet).</p>   
 
 
 <br>

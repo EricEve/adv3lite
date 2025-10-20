@@ -35,211 +35,267 @@
 <a name="33"></a>    
 <a name="34"></a>    eventOrder = 200
 <a name="35"></a>    
-<a name="36"></a>    
-<a name="37"></a>    
-<a name="38"></a>    /* The executeEvent() method is run each turn to drive the Scenes mechanism */
-<a name="39"></a>    executeEvent()
-<a name="40"></a>    {
-<a name="41"></a>        /* Go through each Scene defined in the game in turn. */
-<a name="42"></a>        for(local scene = firstObj(Scene); scene != nil ; scene = nextObj(scene,
-<a name="43"></a>            Scene))
-<a name="44"></a>            
-<a name="45"></a>        {
-<a name="46"></a>            /* 
-<a name="47"></a>             *   If the scene's startsWhen condition is true and the scene is
-<a name="48"></a>             *   not already happening, then provided it's a recurring scene or
-<a name="49"></a>             *   it's never been started before, start the scene.
-<a name="50"></a>             */
-<a name="51"></a>            if(scene.startsWhen &amp;&amp; !scene.isHappening 
-<a name="52"></a>               &amp;&amp; (scene.recurring || scene.startedAt == nil))
-<a name="53"></a>                scene.start();
-<a name="54"></a>            
-<a name="55"></a>            /*  
-<a name="56"></a>             *   If the scene is happening and its endsWhen property is non-nil,
-<a name="57"></a>             *   then record the value of its endsWhen property in its howEnded
-<a name="58"></a>             *   property and end the scene.
-<a name="59"></a>             */
-<a name="60"></a>            if(scene.isHappening &amp;&amp; (scene.howEnded = scene.endsWhen) != nil)
-<a name="61"></a>                scene.end();
-<a name="62"></a>            
-<a name="63"></a>            /* If the scene is happening, call its eachTurn() method */
-<a name="64"></a>            if(scene.isHappening)
-<a name="65"></a>                scene.eachTurn();
-<a name="66"></a>        }        
-<a name="67"></a>    }  
-<a name="68"></a>    
-<a name="69"></a>    execBeforeMe = [adv3LibInit]
-<a name="70"></a>    
-<a name="71"></a>    /* Run the beforeAction method on every currently active Scene */
-<a name="72"></a>    notifyBefore()
-<a name="73"></a>    {
-<a name="74"></a>        forEachInstance(Scene, function(scene) 
-<a name="75"></a>        {
-<a name="76"></a>            if(scene.isHappening)
-<a name="77"></a>                scene.beforeAction(); 
-<a name="78"></a>        });
-<a name="79"></a>    }
-<a name="80"></a>
-<a name="81"></a>    
-<a name="82"></a>    notifyAfter()
-<a name="83"></a>    {
-<a name="84"></a>         forEachInstance(Scene, function(scene) 
-<a name="85"></a>        {
-<a name="86"></a>            if(scene.isHappening)
-<a name="87"></a>                scene.afterAction(); 
-<a name="88"></a>        });
-<a name="89"></a>    }
-<a name="90"></a>;
-<a name="91"></a>
-<a name="92"></a>
-<a name="93"></a>/* 
-<a name="94"></a> *   A Scene is an object that represents a slice of time that starts and ends
-<a name="95"></a> *   according to specified conditions, and which can define what happens when
-<a name="96"></a> *   it starts and ends and also what happens each turn when it is happening.
-<a name="97"></a> */
-<a name="98"></a>class Scene: object
-<a name="99"></a>    
-<a name="100"></a>    /* 
-<a name="101"></a>     *   An expression or method that evaluates to true when you want the scene
-<a name="102"></a>     *   to start
-<a name="103"></a>     */
-<a name="104"></a>    startsWhen = nil
-<a name="105"></a>    
-<a name="106"></a>    /*  
-<a name="107"></a>     *   an expression or method that evaluates to something other than nil when
-<a name="108"></a>     *   you want the scene to end
-<a name="109"></a>     */
-<a name="110"></a>    endsWhen = nil
-<a name="111"></a>    
-<a name="112"></a>    /* 
-<a name="113"></a>     *   Normally a scene will only occur once. Set recurring to true if you
-<a name="114"></a>     *   want the scene to start again every time its startsWhen condition is
-<a name="115"></a>     *   true.
-<a name="116"></a>     */
-<a name="117"></a>    recurring = nil
-<a name="118"></a>    
-<a name="119"></a>    /* 
-<a name="120"></a>     *   Is this scene currently taking place? (Game code should treat this as
-<a name="121"></a>     *   read-only)
-<a name="122"></a>     */
-<a name="123"></a>    isHappening = nil
-<a name="124"></a>    
-<a name="125"></a>    /* 
-<a name="126"></a>     *   Is this scene currently taking place? (Game code should treat this as
-<a name="127"></a>     *   read-only). We provide isActive as a read-only synonym of isHappening in
-<a name="128"></a>     *   case game code uses it on analogy with several other adv3Lite entities
-<a name="129"></a>     *   that do use an isActive property
-<a name="130"></a>     */
-<a name="131"></a>    isActive = isHappening
-<a name="132"></a>    
-<a name="133"></a>    /* The turn this scene started at */
-<a name="134"></a>    startedAt = nil
-<a name="135"></a>    
-<a name="136"></a>    /* The turn this scene ended at */
-<a name="137"></a>    endedAt = nil
-<a name="138"></a>    
-<a name="139"></a>    /* 
-<a name="140"></a>     *   The method executed when this Scene starts. Game code should normally
-<a name="141"></a>     *   override whenStarting() rather than this method.
-<a name="142"></a>     */
-<a name="143"></a>    start()
+<a name="36"></a>    /* 
+<a name="37"></a>     *   Flagg: Do we want to allow the starting or ending of one Scene to trigger the starting or
+<a name="38"></a>     *   ending of another Scene. By default we do.
+<a name="39"></a>     */
+<a name="40"></a>    sameTurnTrigger = true
+<a name="41"></a>    
+<a name="42"></a>    /* 
+<a name="43"></a>     *   The maximum number of loops the do loop in executeEvent will go through before breaking
+<a name="44"></a>     *   out. This is to avoid getting into an infinite loop if Scenes are defined in a way that
+<a name="45"></a>     *   might otherwise cause them.
+<a name="46"></a>     */
+<a name="47"></a>    maxLoopCount = 10
+<a name="48"></a>    
+<a name="49"></a>    /* The executeEvent() method is run each turn to drive the Scenes mechanism */
+<a name="50"></a>    executeEvent()
+<a name="51"></a>    {       
+<a name="52"></a>        /* Check whether we have ended or started a Scene on this turn. */
+<a name="53"></a>        local sceneEnded = nil;
+<a name="54"></a>        local sceneStarted = nil;
+<a name="55"></a>        local loopCount = 0;
+<a name="56"></a>        
+<a name="57"></a>        /* 
+<a name="58"></a>         *   Keep track of all the Scenes we've called eachTurn() on so we don't it more than once
+<a name="59"></a>         *   on any given Scene.
+<a name="60"></a>         */
+<a name="61"></a>        local turnVec = new Vector;
+<a name="62"></a>        
+<a name="63"></a>        /* 
+<a name="64"></a>         *   We repeat the loop through all the Scenes in case starting or ending a Scene should
+<a name="65"></a>         *   tigger the start or end of another Scene.
+<a name="66"></a>         */
+<a name="67"></a>        do
+<a name="68"></a>        { 
+<a name="69"></a>            /* Increment the loop counter to check how many times we've been round this loop. */
+<a name="70"></a>            loopCount++;
+<a name="71"></a>            
+<a name="72"></a>            /* Check whether we have ended or started a Scene on this turn. */
+<a name="73"></a>            sceneEnded = nil;
+<a name="74"></a>            sceneStarted = nil;
+<a name="75"></a>            
+<a name="76"></a>           
+<a name="77"></a>            
+<a name="78"></a>            /* Go through each Scene defined in the game in turn. */
+<a name="79"></a>            for(local scene = firstObj(Scene); scene != nil ; scene = nextObj(scene,
+<a name="80"></a>                Scene))            
+<a name="81"></a>            {     
+<a name="82"></a>                
+<a name="83"></a>                
+<a name="84"></a>                /* 
+<a name="85"></a>                 *   If the scene's startsWhen condition is true and the scene is not already
+<a name="86"></a>                 *   happening, then provided it's a recurring scene or it's never been started
+<a name="87"></a>                 *   before, start the scene.
+<a name="88"></a>                 */
+<a name="89"></a>                if(scene.startsWhen &amp;&amp; !scene.isHappening 
+<a name="90"></a>                   &amp;&amp; (scene.recurring || scene.startedAt == nil))
+<a name="91"></a>                {
+<a name="92"></a>                    scene.start();
+<a name="93"></a>                    sceneStarted = true;
+<a name="94"></a>                }
+<a name="95"></a>                
+<a name="96"></a>                /*  
+<a name="97"></a>                 *   If the scene is happening and its endsWhen property is non-nil, then record the
+<a name="98"></a>                 *   value of its endsWhen property in its howEnded property and end the scene.
+<a name="99"></a>                 */
+<a name="100"></a>                if(scene.isHappening &amp;&amp; (scene.howEnded = scene.endsWhen) != nil)
+<a name="101"></a>                {
+<a name="102"></a>                    scene.end();
+<a name="103"></a>                    sceneEnded = true;
+<a name="104"></a>                }
+<a name="105"></a>                
+<a name="106"></a>                /* 
+<a name="107"></a>                 *   If the scene is happening, call its eachTurn() method, unless we've alreasy
+<a name="108"></a>                 *   called it.
+<a name="109"></a>                 */
+<a name="110"></a>                if(scene.isHappening &amp;&amp; turnVec.indexOf(scene) == nil)
+<a name="111"></a>                {
+<a name="112"></a>                    scene.eachTurn();
+<a name="113"></a>                    turnVec.appendUnique(scene);
+<a name="114"></a>                }
+<a name="115"></a>            }      
+<a name="116"></a>      
+<a name="117"></a>            /* 
+<a name="118"></a>             *   If a scene has started or ended we need to repeat going through all the Scenes in
+<a name="119"></a>             *   case this should trigger the stating or ending of another Scene
+<a name="120"></a>             */
+<a name="121"></a>        } while (sameTurnTrigger &amp;&amp; (sceneEnded || sceneStarted) &amp;&amp; loopCount &lt;= maxLoopCount);
+<a name="122"></a>            
+<a name="123"></a>        if(loopCount &gt;= maxLoopCount)
+<a name="124"></a>            "&lt;.p&gt;&lt;b&gt;WARNING!&lt;/b&gt; Potential infinite loop in one or more Scene definitions.&lt;.p&gt;";
+<a name="125"></a>            
+<a name="126"></a>    }
+<a name="127"></a>    
+<a name="128"></a>    execBeforeMe = [adv3LibInit]
+<a name="129"></a>    
+<a name="130"></a>    /* Run the beforeAction method on every currently active Scene */
+<a name="131"></a>    notifyBefore()
+<a name="132"></a>    {
+<a name="133"></a>        forEachInstance(Scene, function(scene) 
+<a name="134"></a>        {
+<a name="135"></a>            if(scene.isHappening)
+<a name="136"></a>                scene.beforeAction(); 
+<a name="137"></a>        });
+<a name="138"></a>}
+<a name="139"></a>
+<a name="140"></a>
+<a name="141"></a>notifyAfter()
+<a name="142"></a>{
+<a name="143"></a>    forEachInstance(Scene, function(scene) 
 <a name="144"></a>    {
-<a name="145"></a>        /* Note that this Scene is now happening */
-<a name="146"></a>        isHappening = true;
-<a name="147"></a>        
-<a name="148"></a>        /* Note the turn on which this Scene started */
-<a name="149"></a>        startedAt = libGlobal.totalTurns;
-<a name="150"></a>        
-<a name="151"></a>        /* 
-<a name="152"></a>         *   Execute our whenStarting() method to carry out the particular
-<a name="153"></a>         *   effects of this scene starting.
-<a name="154"></a>         */
-<a name="155"></a>        whenStarting();
-<a name="156"></a>    }
-<a name="157"></a>    
-<a name="158"></a>    /* 
-<a name="159"></a>     *   The method executed when this Scene ends. Game code should normally
-<a name="160"></a>     *   override whenStarting() rather than this method.
-<a name="161"></a>     */    
-<a name="162"></a>    end()
-<a name="163"></a>    {  
-<a name="164"></a>        /* 
-<a name="165"></a>         *   Execute our whenEnding method to carry out any particular effects
-<a name="166"></a>         *   of this scene coming to an end.
-<a name="167"></a>         */
-<a name="168"></a>        whenEnding();
-<a name="169"></a>        
-<a name="170"></a>        /* Note that this scene is no longer happening. */
-<a name="171"></a>        isHappening = nil;
-<a name="172"></a>        
-<a name="173"></a>        /* Note the turn on which this scene ended. */
-<a name="174"></a>        endedAt = libGlobal.totalTurns;       
-<a name="175"></a>        
-<a name="176"></a>        /* 
-<a name="177"></a>         *   Increment the counter of the number of times this scene has
-<a name="178"></a>         *   happened.
-<a name="179"></a>         */
-<a name="180"></a>        timesHappened++ ;        
-<a name="181"></a>    }
-<a name="182"></a>    
-<a name="183"></a>    /* Routine to execute when this scene starts */
-<a name="184"></a>    whenStarting() {}
-<a name="185"></a>    
-<a name="186"></a>    /* Routine to execute when this scene ends */
-<a name="187"></a>    whenEnding() {}
+<a name="145"></a>        if(scene.isHappening)
+<a name="146"></a>            scene.afterAction(); 
+<a name="147"></a>    });
+<a name="148"></a>}
+<a name="149"></a>;
+<a name="150"></a>
+<a name="151"></a>
+<a name="152"></a>/* 
+<a name="153"></a> *   A Scene is an object that represents a slice of time that starts and ends according to
+<a name="154"></a> *   specified conditions, and which can define what happens when it starts and ends and also what
+<a name="155"></a> *   happens each turn when it is happening.
+<a name="156"></a> */
+<a name="157"></a>class Scene: object
+<a name="158"></a>    
+<a name="159"></a>    /* 
+<a name="160"></a>     *   An expression or method that evaluates to true when you want the scene to start
+<a name="161"></a>     */
+<a name="162"></a>    startsWhen = nil
+<a name="163"></a>    
+<a name="164"></a>    /*  
+<a name="165"></a>     *   an expression or method that evaluates to something other than nil when you want the scene
+<a name="166"></a>     *   to end
+<a name="167"></a>     */
+<a name="168"></a>    endsWhen = nil
+<a name="169"></a>    
+<a name="170"></a>    /* 
+<a name="171"></a>     *   Normally a scene will only occur once. Set recurring to true if you want the scene to start
+<a name="172"></a>     *   again every time its startsWhen condition is true.
+<a name="173"></a>     */
+<a name="174"></a>    recurring = nil
+<a name="175"></a>    
+<a name="176"></a>    /* 
+<a name="177"></a>     *   Is this scene currently taking place? (Game code should treat this as read-only)
+<a name="178"></a>     */
+<a name="179"></a>    isHappening = nil
+<a name="180"></a>    
+<a name="181"></a>    /* 
+<a name="182"></a>     *   Is this scene currently taking place? (Game code should treat this as
+<a name="183"></a>     *   read-only). We provide isActive as a read-only synonym of isHappening in
+<a name="184"></a>     *   case game code uses it on analogy with several other adv3Lite entities
+<a name="185"></a>     *   that do use an isActive property
+<a name="186"></a>     */
+<a name="187"></a>    isActive = isHappening
 <a name="188"></a>    
-<a name="189"></a>    /* Routine to execute every turn this scene is in progress. */
-<a name="190"></a>    eachTurn() {}
+<a name="189"></a>    /* The turn this scene started at */
+<a name="190"></a>    startedAt = nil
 <a name="191"></a>    
-<a name="192"></a>    /* Flag to show whether this scene has ever happened. */
-<a name="193"></a>    hasHappened = (endedAt != nil)
+<a name="192"></a>    /* The turn this scene ended at */
+<a name="193"></a>    endedAt = nil
 <a name="194"></a>    
-<a name="195"></a>    /* The numbter of times this scene has happened. */
-<a name="196"></a>    timesHappened = 0
-<a name="197"></a>    
-<a name="198"></a>    /*  A user defined flag showing how the scene ended */
-<a name="199"></a>    howEnded = nil    
-<a name="200"></a>    
-<a name="201"></a>    /* 
-<a name="202"></a>     *   This method is called on every active Scene just before an action is
-<a name="203"></a>     *   about to take place. By default we do nothing here.
-<a name="204"></a>     */
-<a name="205"></a>    beforeAction() { }
-<a name="206"></a>    
-<a name="207"></a>    /* 
-<a name="208"></a>     *   This method is called on every active Scene just after an action has
-<a name="209"></a>     *   taken place. By default we do nothing here.
-<a name="210"></a>     */
-<a name="211"></a>    afterAction() { }
-<a name="212"></a>    
-<a name="213"></a>    /* 
-<a name="214"></a>     *   The number of turms this Scene has been active. Is this Scene is not happening, return -1.
-<a name="215"></a>     */
-<a name="216"></a>    turnsActive = (isHappening ? gTurns - startedAt : -1)
-<a name="217"></a>    
-<a name="218"></a>    
-<a name="219"></a>    /* 
-<a name="220"></a>     *   This method is called on each active scene before any Doers and can be used to
-<a name="221"></a>     *   conditionally rule out the action (by using abort or exit), for example if the player is
-<a name="222"></a>     *   character is tied up or otherwise incapacitated during the Scene. The lst parameter
-<a name="223"></a>     *   contains a list in the form [action, dobj, iobj] (or just [action] for an IAction or just
-<a name="224"></a>     *   [action, dobj]) and should be used to determine what the proposed action is.
-<a name="225"></a>     */ 
-<a name="226"></a>    
-<a name="227"></a>    preAction(lst) { }
-<a name="228"></a>    
-<a name="229"></a>    /* 
-<a name="230"></a>     *   Service method usede internally on the library to ensure that preAction() is called only on
-<a name="231"></a>     *   currently active scenes.
-<a name="232"></a>     */
-<a name="233"></a>    tryPreAction(lst)
-<a name="234"></a>    {
-<a name="235"></a>        if(isHappening)
-<a name="236"></a>            preAction(lst);
+<a name="195"></a>    /* 
+<a name="196"></a>     *   The method executed when this Scene starts. Game code should normally
+<a name="197"></a>     *   override whenStarting() rather than this method.
+<a name="198"></a>     */
+<a name="199"></a>    start()
+<a name="200"></a>    {
+<a name="201"></a>        /* Note that this Scene is now happening */
+<a name="202"></a>        isHappening = true;
+<a name="203"></a>        
+<a name="204"></a>        /* Note the turn on which this Scene started */
+<a name="205"></a>        startedAt = libGlobal.totalTurns;
+<a name="206"></a>        
+<a name="207"></a>        /* 
+<a name="208"></a>         *   Execute our whenStarting() method to carry out the particular
+<a name="209"></a>         *   effects of this scene starting.
+<a name="210"></a>         */
+<a name="211"></a>        whenStarting();
+<a name="212"></a>    }
+<a name="213"></a>    
+<a name="214"></a>    /* 
+<a name="215"></a>     *   The method executed when this Scene ends. Game code should normally
+<a name="216"></a>     *   override whenStarting() rather than this method.
+<a name="217"></a>     */    
+<a name="218"></a>    end()
+<a name="219"></a>    {  
+<a name="220"></a>        /* 
+<a name="221"></a>         *   Execute our whenEnding method to carry out any particular effects
+<a name="222"></a>         *   of this scene coming to an end.
+<a name="223"></a>         */
+<a name="224"></a>        whenEnding();
+<a name="225"></a>        
+<a name="226"></a>        /* Note that this scene is no longer happening. */
+<a name="227"></a>        isHappening = nil;
+<a name="228"></a>        
+<a name="229"></a>        /* Note the turn on which this scene ended. */
+<a name="230"></a>        endedAt = libGlobal.totalTurns;       
+<a name="231"></a>        
+<a name="232"></a>        /* 
+<a name="233"></a>         *   Increment the counter of the number of times this scene has
+<a name="234"></a>         *   happened.
+<a name="235"></a>         */
+<a name="236"></a>        timesHappened++ ;        
 <a name="237"></a>    }
-<a name="238"></a>;
-<a name="239"></a>
+<a name="238"></a>    
+<a name="239"></a>    /* Routine to execute when this scene starts */
+<a name="240"></a>    whenStarting() {}
+<a name="241"></a>    
+<a name="242"></a>    /* Routine to execute when this scene ends */
+<a name="243"></a>    whenEnding() {}
+<a name="244"></a>    
+<a name="245"></a>    /* Routine to execute every turn this scene is in progress. */
+<a name="246"></a>    eachTurn() {}
+<a name="247"></a>    
+<a name="248"></a>    /* Flag to show whether this scene has ever happened. */
+<a name="249"></a>    hasHappened = (endedAt != nil)
+<a name="250"></a>    
+<a name="251"></a>    /* The numbter of times this scene has happened. */
+<a name="252"></a>    timesHappened = 0
+<a name="253"></a>    
+<a name="254"></a>    /*  A user defined flag showing how the scene ended */
+<a name="255"></a>    howEnded = nil    
+<a name="256"></a>    
+<a name="257"></a>    /* 
+<a name="258"></a>     *   This method is called on every active Scene just before an action is
+<a name="259"></a>     *   about to take place. By default we do nothing here.
+<a name="260"></a>     */
+<a name="261"></a>    beforeAction() { }
+<a name="262"></a>    
+<a name="263"></a>    /* 
+<a name="264"></a>     *   This method is called on every active Scene just after an action has
+<a name="265"></a>     *   taken place. By default we do nothing here.
+<a name="266"></a>     */
+<a name="267"></a>    afterAction() { }
+<a name="268"></a>    
+<a name="269"></a>    /* 
+<a name="270"></a>     *   The number of turms this Scene has been active. Is this Scene is not happening, return -1.
+<a name="271"></a>     */
+<a name="272"></a>    turnsActive = (isHappening ? gTurns - startedAt : -1)
+<a name="273"></a>    
+<a name="274"></a>    
+<a name="275"></a>    /* 
+<a name="276"></a>     *   This method is called on each active scene before any Doers and can be used to
+<a name="277"></a>     *   conditionally rule out the action (by using abort or exit), for example if the player is
+<a name="278"></a>     *   character is tied up or otherwise incapacitated during the Scene. The lst parameter
+<a name="279"></a>     *   contains a list in the form [action, dobj, iobj] (or just [action] for an IAction or just
+<a name="280"></a>     *   [action, dobj]) and should be used to determine what the proposed action is.
+<a name="281"></a>     */ 
+<a name="282"></a>    
+<a name="283"></a>    preAction(lst) { }
+<a name="284"></a>    
+<a name="285"></a>    /* 
+<a name="286"></a>     *   Service method usede internally on the library to ensure that preAction() is called only on
+<a name="287"></a>     *   currently active scenes.
+<a name="288"></a>     */
+<a name="289"></a>    tryPreAction(lst)
+<a name="290"></a>    {
+<a name="291"></a>        if(isHappening)
+<a name="292"></a>            preAction(lst);
+<a name="293"></a>    }
+<a name="294"></a>;
+<a name="295"></a>
 </pre>
-<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 13/06/2025 from adv3Lite version 2.2.1</div>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 20/10/2025 from adv3Lite version 2.2.1.1</div>
 </body>
 </html>

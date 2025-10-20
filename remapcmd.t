@@ -63,24 +63,34 @@
  */
 
 class RemapCmd: object
-    // the command text to be recognized (see above)
+    /* The command text to be recognized (see above) */
     cmd = ''
     
-    // the remapped (replacement) text (if provided)
+    /* 
+     *   The remapped (replacement) text (if provided). This should be in the form of a command the
+     *   parser can parse and exectute
+     */
     remappedCmd = nil
     
-    // if remapped command is NOT provided, then it is expected to run this
-    // you should override this in your instance to do SOMETHING!
+    /* 
+     *   If remapped command is NOT provided, game code should override this method to do
+     *   something (or display some text). 
+     */
     execute() {}
 
-    // where this can happen (nil if everywhere); can be Room/Region or list of
+    /* 
+     *   where this can happen (nil if everywhere); can be Room/Region or list of Rooms and/or
+     *   Regions.
+     */
     where = nil
     
-    // under what circumstances this can happen (true if always)
+    /* An expression defining under what circumstances this RemapCmd is matched. */
     when = true
     
-    // A scene that must be happening, or list one of scenes of which must be happening
-    // for this to happen (nil if no scene is required)
+    /* 
+     *   A scene that must be happening, or list one of scenes of which must be happening for
+     *   this to happen (nil if no scene is required)
+     */
     during = nil
     
     /* 
@@ -95,7 +105,7 @@ class RemapCmd: object
     // Internals
     //
         
-    /* Execute our custom method and then our turn sequence. */
+    /* Execute our custom method and then our turn sequence. For internal use only. */
     execute_()
     {       
         "<.p0>";
@@ -104,13 +114,25 @@ class RemapCmd: object
         turnSequence();
     }
     
+    /* 
+     *   If doInstead has been used in our execute() method, then call the standard turn sequence
+     *   routine to execute any Events and update the turn counter. For internal use only.
+     */
     turnSequence() { 
         if(doInsteadItems == nil)
             delegated Action;
     }
 
-    doInsteadItems = nil    // if a list, then doInstead was invoked
+    /* 
+     *   A list containing the actoin and objects defined by a call to doInstead in our execute
+     *   routine, or nil if doInstead() wasn't used. For internal use only
+     */
+    doInsteadItems = nil    
     
+    /* 
+     *   Populate our doInsteadItems from any call to doInstead() in our execute() routine. For
+     *   internal use only.
+     */
     doInstead(action,[args]) {
         /* get the optional items */
         local dobj = args.element(1);
@@ -140,8 +162,11 @@ class RemapCmd: object
         doInsteadItems = [action,dobj,iobj,aobj];
     }
     
-    cmdTerms = []   // the strings that are the command(s) to match
-    cmdTermHash = []    // the hash for these strings (faster compare later)
+    /* The strings that are the command(s) to match. For internal use only. */
+    cmdTerms = []   
+    
+    /* The hash for these strings (faster compare later). For internal use only. */
+    cmdTermHash = []    
 ;
 
 /* ------------------------------------------------------------------------ */
@@ -154,9 +179,10 @@ class RemapCmd: object
  */
 
 remapCmdDicts: PreinitObject
-    remapTbl = nil  // lookup table with hash and then list of objects that match it
+    /* Lookup table with hash and then list of objects that match it */
+    remapTbl = nil  
     
-    // the pre-init execution routine
+    /* The pre-init execution routine */
     execute() {
         remapTbl = new LookupTable(50,50);
         local scmp = new StringComparator(nil,true,nil);    // case-sensitive as lower anyway
@@ -199,7 +225,7 @@ remapCmdDicts: PreinitObject
         }
     }
     
-    // add to the remapTbl for hash lookup
+    /* add to the remapTbl for hash lookup */
     addHashMap(hash,obj) {
         if(remapTbl.isKeyPresent(hash)) {
             remapTbl[hash] = remapTbl[hash].append(obj);
@@ -208,12 +234,12 @@ remapCmdDicts: PreinitObject
         }
     }
     
-    // process a tokenized string: return new string, obj if deferred, or nil if no match
+    /* process a tokenized string: return new string, obj if deferred, or nil if no match */
     processCmd(toks,tokcnt) {
         local scmp = new StringComparator(nil,true,nil);    // everything is lower case
         local acmd = '', ahash, obj, v;    // the string and its hash
         
-        // build the command
+        /* build the command */
         if(tokcnt > 0)
             toks = toks.sublist(1,tokcnt);
         acmd = toks.mapAll({x:x[1]});
@@ -223,7 +249,7 @@ remapCmdDicts: PreinitObject
         if(!remapTbl.isKeyPresent(ahash))
             return nil;
         
-        // scan the items that fit
+        /* scan the items that fit */
         foreach(obj in remapTbl[ahash]) {
             // support list of locations???
             if(obj.where != nil && valToList(obj.where).indexWhich({x:gLocation.isOrIsIn(x)}) == nil ) continue; // ECSE mod
@@ -252,13 +278,14 @@ remapCmdDicts: PreinitObject
  *   and other lexical elements.
  *   
  */
-
 enum token tokOp;
 
+/* Exception to handle exceptions occurring in the remapCmd tokenizer */
 class EvalToksError: Exception
     displayException() { "Evaluate tokenizer exception -- unable to parse"; }
 ;
 
+/* Tokenizer for use with RemapCmd */
 remapCmdTokenizer: Tokenizer
     rules_ = static
     [
@@ -310,7 +337,7 @@ remapCmdTokenizer: Tokenizer
 //////////////////////////////////////////////////////////
 // Define the remapCmd grammar for the parser
 
-// the most basic left level grammar map
+/* The most basic left level grammar map */
 grammar remapCmdGrammar(lit): tokWord->txt_: Production
     lstval() {
         lst_ = [[txt_]];
@@ -318,8 +345,8 @@ grammar remapCmdGrammar(lit): tokWord->txt_: Production
     }
 ;
 
-// handle concatenation of two words into the list
-// note the use of badness to prioritize the correct conversions
+/* handle concatenation of two words into the list
+ note the use of badness to prioritize the correct conversions */
 grammar remapCmdGrammar(concat): [badness 50]
     remapCmdGrammar->pp_  remapCmdGrammar->pp2_ : Production
     lstval() {
@@ -377,6 +404,7 @@ remapCmdGrammarOr(lst,lstright) {
 
 /////////////////////////////////////////////////////////////////////////////////
 
+/* Modifications to the Parser to accommodate RemapCmd */
 modify Parser
 
     // return nil if an error; otherwise, return token list that could be empty
