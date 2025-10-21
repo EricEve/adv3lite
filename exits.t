@@ -27,6 +27,7 @@
 /* include the library header */
 #include "advlite.h"
 
+property listStatusExits;
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -352,15 +353,19 @@ ExitLister: Lister
         
         showListPrefixWide(1, nil, nil);
         
-        for(local obj in lst, local i = 1 ; ; ++i)
-        {
-            showListItem(obj, nil, nil, nil);
-            showListSeparator(nil, i, cnt);
-           
-        }
+        showListItems(lst, cnt);
         
         showListSuffixWide(cnt, nil, nil);
         
+    }
+    
+    showListItems(lst, cnt)
+    {
+        for(local obj in lst, local i = 1 ; ; ++i)
+        {
+            showListItem(obj, nil, nil, nil);
+            showListSeparator(nil, i, cnt);           
+        }
     }
     
     listerShowsDest = nil
@@ -372,7 +377,7 @@ ExitLister: Lister
 statuslineExitLister: ExitLister
     showListEmpty(pov, parent)
     {
-        "<<statusHTML(3)>><b><<exitsPrefix>></b> <<BMsg(status line noexits, '<i>None</i>')>>
+        "<<statusHTML(3)>><b><<exitsPrefix>></b> <<noExits()>>
         <<statusHTML(4)>>";
     }
     showListPrefixWide(cnt, pov, parent)
@@ -398,6 +403,15 @@ statuslineExitLister: ExitLister
         if (curItemNum != totalItems)
             " &nbsp; ";
     }
+    
+    showListItems(lst, cnt)
+    {
+        local loc = gRoom;
+        if(loc.propDefined(&listStatusExits) && loc.propType(&listStatusExits) == TypeCode)
+            loc.listStatusExits(lst, cnt);
+        else 
+            inherited(lst, cnt);
+    }
 
     /* this lister does not show destination names */
     listerShowsDest = nil
@@ -405,6 +419,15 @@ statuslineExitLister: ExitLister
     highlightUnvisitedExits = true
     
     unvisitedExitColour = 'green'
+    
+    noExits()
+    {
+        local loc = gRoom;
+        if(loc.propDefined(&noExits) && loc.propType(&noExits) is in (TypeSString, TypeCode))
+            return loc.noExits;
+        else
+            return BMsg(status line noexits, '<i>None</i>');           
+    }
 ;
 
 lookAroundExitLister: ExitLister

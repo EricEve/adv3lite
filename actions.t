@@ -930,10 +930,10 @@ Go: TravelAction
     }
     
     /* 
-     *   Our fallBack() method to use if our travelProp does not point to a non-nil property defined
+     *   Our fallback() method to use if our travelProp does not point to a non-nil property defined
      *   on the actor's currec location. By default we just display our noGoodHereMsg.
      */
-    fallBack(loc) { noGoodHereMsg; }
+    fallback(loc) { noGoodHereMsg; }
     
     
     /* 
