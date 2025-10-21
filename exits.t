@@ -28,6 +28,8 @@
 #include "advlite.h"
 
 property listStatusExits;
+property listExits;
+property exitListPrefix;
 
 /* ------------------------------------------------------------------------ */
 /*
@@ -344,6 +346,7 @@ ExitLister: Lister
     showListAll(lst, options, indent)
     {
         local cnt = lst.length;
+        local loc = gRoom;
         
         if(cnt == 0)
         {
@@ -351,9 +354,13 @@ ExitLister: Lister
             return;
         }
         
-        showListPrefixWide(1, nil, nil);
         
-        showListItems(lst, cnt);
+        showListPrefixWide(cnt, nil, nil);
+        
+        if(loc.propDefined(roomProp) && loc.propType(roomProp) == TypeCode)
+            loc.(roomProp)(lst, cnt);
+        else
+            showListItems(lst, cnt);
         
         showListSuffixWide(cnt, nil, nil);
         
@@ -370,7 +377,11 @@ ExitLister: Lister
     
     listerShowsDest = nil
     
-    exitsPrefix = BMsg(exits, 'Exits:');
+    exitsPrefix = BMsg(exits, 'Exits:')
+
+    roomProp = &listExits  
+    
+
 ;
 
 
@@ -404,14 +415,14 @@ statuslineExitLister: ExitLister
             " &nbsp; ";
     }
     
-    showListItems(lst, cnt)
-    {
-        local loc = gRoom;
-        if(loc.propDefined(&listStatusExits) && loc.propType(&listStatusExits) == TypeCode)
-            loc.listStatusExits(lst, cnt);
-        else 
-            inherited(lst, cnt);
-    }
+//    showListItems(lst, cnt)
+//    {
+//        local loc = gRoom;
+//        if(loc.propDefined(&listStatusExits) && loc.propType(&listStatusExits) == TypeCode)
+//            loc.listStatusExits(lst, cnt);
+//        else 
+//            inherited(lst, cnt);
+//    }
 
     /* this lister does not show destination names */
     listerShowsDest = nil
@@ -428,6 +439,8 @@ statuslineExitLister: ExitLister
         else
             return BMsg(status line noexits, '<i>None</i>');           
     }
+    
+    roomProp = &listStatusExits
 ;
 
 lookAroundExitLister: ExitLister
@@ -498,7 +511,12 @@ explicitExitLister: ExitLister
     
     showListPrefixWide(cnt, pov, parent)
     {
-        DMsg(exits from here, 'From {here} {i} could go ');
+        local loc = gRoom;
+        
+        if(loc.propDefined(&exitListPrefix) && loc.propType(&exitListPrefix) == TypeCode)
+            loc.exitListPrefix(cnt);
+        else               
+            DMsg(exits from here, 'From {here} {i} could go ');
     }
     showListSuffixWide(cnt, pov, parent)
     {
