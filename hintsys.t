@@ -265,7 +265,7 @@ class Goal: MenuTopicItem, HintMenuObject, HintOpener
      *   simple hint systems, this could simply be a top-level hint menu
      *   container; more typically, the hint system will be structured
      *   into a menu tree that organizes the hint topics into several
-     *   different submenus, for easier navigatino.  
+     *   different submenus, for easier navigation.  
      */
     location = nil
 

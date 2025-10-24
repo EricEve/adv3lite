@@ -27,6 +27,7 @@ source: events
 source: exits
 source: gadget
 source: menusys
+source: menucon
 source: hintsys
 source: remapcmd
 source: score

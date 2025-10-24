@@ -2283,6 +2283,15 @@ conversationManager: OutputFilter, PreinitObject
         libGlobal.setRevealed(tag, val);
     }
     
+    /* preinitialize */
+    execute()
+    {
+        
+        /*  Add ourselves to the list of output filters. */        
+        mainOutputStream.addOutputFilter(self);   
+        
+    }
+    
 ;
 
 class SkipSignal: Exception

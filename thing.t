@@ -675,35 +675,37 @@ class Mentionable: LMentionable
     filterResolveList(np, cmd, mode) { }
     
     /* 
-     *   Our original vocab string, if we've defined an altVocab that might replace our original
-     *   vocab. Tbis is should normally be left to the library to set at preinit.
+     *   Our original vocab string, if we've defined an altVocab that might replace our
+     *   original vocab. Tbis is should normally be left to the library to set at preinit.
      */
     originalVocab = nil
     
     /* 
-     *   An alternative vocab string to be used when useAltVocabWhen is true, or list of altenative
-     *   strings to be used under various conditions.
+     *   An alternative vocab string to be used when useAltVocabWhen is true, or list of
+     *   altenative strings to be used under various conditions.
      */
     altVocab = nil
     
     /* 
-     *   A condition that must be true for us to change (or maintain) our vocab to our altVocab. If
-     *   it returns nil we revert back to our original vocab. If we return -1 the change to altVocab
-     *   becomes permanent and our updateVocab methdd won't be executed any more.
+     *   A condition that must be true for us to change (or maintain) our vocab to our
+     *   altVocab. If it returns nil we revert back to our original vocab. If we return -1
+     *   the change to altVocab becomes permanent and our updateVocab methdd won't be
+     *   executed any more.
      *
-     *   But if altViocab is defined as a list, we return nil to return to our originalVocab, 0 to
-     *   return to our original vocab and keep it for the rest of the game, n (where n > 0) to
-     *   change our vocab to the nth item in our altVocab list or -n to change our vocab to the nth
-     *   item in our altVocab list and then keep it there for the remainder of the game (i.e. stop
-     *   checking or vocab updates).
+     *   But if altViocab is defined as a list, we return nil to return to our
+     *   originalVocab, 0 to return to our original vocab and keep it for the rest of the
+     *   game, n (where n > 0) to change our vocab to the nth item in our altVocab list or
+     *   -n to change our vocab to the nth item in our altVocab list and then keep it
+     *   there for the remainder of the game (i.e. stop checking or vocab updates).
      */
     useAltVocabWhen = nil
     
     /*  
-     *   A condition that when true means that the library will stop checking for switching vocab to
-     *   and from the altVocab (or between different vocabs). This could, for example, be set to
-     *   useAltVocabWhen when we only want to change vocab once, say when the player gets to learn
-     *   the name of an NPC or the true nature of an object is first revealed.
+     *   A condition that when true means that the library will stop checking for
+     *   switching vocab to and from the altVocab (or between different vocabs). This
+     *   could, for example, be set to useAltVocabWhen when we only want to change vocab
+     *   once, say when the player gets to learn the name of an NPC or the true nature of
+     *   an object is first revealed.
      */
     finalizeVocabWhen = nil
     
@@ -711,8 +713,8 @@ class Mentionable: LMentionable
     initAltVocab()    
     {
         /* 
-         *   Add ourselves to the list of Things whose vocab might change so we can be checked each
-         *   turn.
+         *   Add ourselves to the list of Things whose vocab might change so we can be
+         *   checked each turn.
          */
         libGlobal.altVocabLst += self;
         
@@ -721,11 +723,11 @@ class Mentionable: LMentionable
     }
     
     /* 
-     *   This is called every turn on every Thing listed in libGlobal.altVocabLst. By default it
-     *   carries out alternation between our original vocab and our altVocab according to the value
-     *   of useAltVocabWhen. Game code can override this methed to do something different, but must
-     *   give altVocab a non-nil value for this method to be invoked each turn, or each turn when
-     *   this Thing is in scope.
+     *   This is called every turn on every Thing listed in libGlobal.altVocabLst. By
+     *   default it carries out alternation between our original vocab and our altVocab
+     *   according to the value of useAltVocabWhen. Game code can override this methed to
+     *   do something different, but must give altVocab a non-nil value for this method to
+     *   be invoked each turn, or each turn when this Thing is in scope.
      *
      */
     updateVocab()
@@ -743,14 +745,15 @@ class Mentionable: LMentionable
                 replaceVocab(originalVocab);
             
             /* 
-             *   if altVocab is defined as a list we change vocab to the appropriate item in the
-             *   list.
+             *   if altVocab is defined as a list we change vocab to the appropriate item
+             *   in the list.
              */
             if(dataType(altVocab) == TypeList)
             {
                 /* 
-                 *   A return value of less that 1 means we want to change the vocab to the -uavw
-                 *   item in the list and keep it there for the rest of the game.
+                 *   A return value of less that 1 means we want to change the vocab to
+                 *   the -uavw item in the list and keep it there for the rest of the
+                 *   game.
                  */
                 if((uavw != nil && uavw < 1) || finalizeVocabWhen)
                 {
@@ -759,10 +762,10 @@ class Mentionable: LMentionable
                     uavw = -uavw;
                 }
                 /* 
-                 *   If uavw is in range and is different from the previous value, then we need to
-                 *   change the vocab to entry uavw in our altVocab list. A value of 0 means that we
-                 *   want to change the vocab to its original value and leave it there for the rest
-                 *   of the game.
+                 *   If uavw is in range and is different from the previous value, then we
+                 *   need to change the vocab to entry uavw in our altVocab list. A value
+                 *   of 0 means that we want to change the vocab to its original value and
+                 *   leave it there for the rest of the game.
                  */
                 if(uavw != uavwNum && (uavw == nil || uavw <= altVocab.length))
                 {
@@ -7048,11 +7051,11 @@ class Thing:  ReplaceRedirector, Mentionable
     actorNotOnMsg = BMsg(actor not on,'{I}{\'m} not on {the dobj}. ')
     
     /* 
-     *   We'll take REMOVE to mean DOFF when it's dobj is worn and TAKE otherwise. This handling
-     *   will be dealt with by removeDoer insteadof remap, since this form of remap has now been
-     *   discontinued. See english.t for removeDoer (which seems to be a language-specific
-     *   construct). If we want REMOVE to be treated as a separate action, set separateRemove to to
-     *   true.
+     *   We'll take REMOVE to mean DOFF when it's dobj is worn and TAKE otherwise. This
+     *   handling will be dealt with by removeDoer insteadof remap, since this form of
+     *   remap has now been discontinued. See english.t for removeDoer (which seems to be
+     *   a language-specific construct). If we want REMOVE to be treated as a separate
+     *   action, set separateRemove to to true.
      */    
     dobjFor(Remove)
     {
