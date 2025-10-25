@@ -357,9 +357,11 @@ ExitLister: Lister
         
         showListPrefixWide(cnt, nil, nil);
         
+        local showlist = true;
+        
         if(loc.propDefined(roomProp) && loc.propType(roomProp) == TypeCode)
-            loc.(roomProp)(lst, cnt);
-        else
+            showlist = loc.(roomProp)(lst, cnt);
+        if(showlist)
             showListItems(lst, cnt);
         
         showListSuffixWide(cnt, nil, nil);
