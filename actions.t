@@ -884,10 +884,10 @@ Go: TravelAction
          */
         switch(loc.propType(travelProp))
         {
-            /* If we're pointing to a travel connector, carry out travel via that connector. */
+            /* If we're pointing to an apparent travel connector, carry out travel via that connector. */
         case TypeObject:
             conn = loc.(travelProp);
-            if(conn.ofKind(TravelConnector))
+            if(conn.ofKind(TravelConnector) && conn.isConnectorApparent)
             {
                 getOutOfNested(conn);
                 conn.travelVia(gActor);

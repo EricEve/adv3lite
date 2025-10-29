@@ -1950,7 +1950,7 @@ class VarDest: object
     currentDest = nil
     
     /* 
-     *   The method or expression to calculate our corrent destination. User code must override as
+     *   The method or expression to calculate our current destination. User code must override as
      *   required for particular cases.
      */
     calcDest() { }
@@ -2011,7 +2011,12 @@ class UnlistedProxyConnector: TravelConnector
          *   If the connector is actually a TravelConnector, then execute travel via that connector.
          */
         if(objOfKind(conn,TravelConnector))            
-            conn.travelVia(traveler);
+        {
+            if(conn.isConnectorApparent)                
+               conn.travelVia(traveler);
+            else
+                traveler.getOutermostRoom.cannotGoThatWay(direction); 
+        }
         
         /* 
          *   Otherwise, the direction we're a proxy for points to something else that's not a
