@@ -1346,12 +1346,12 @@ class DSDoor: DSCon, Door
     /*
      *   Our lockability on the room1 side of the door. 
      */
-    room1Lockability = notLockable
+    room1Lockability = (keyList == nil ? notLockable : lockableWithKey)
     
     /*
      *   Our lockability on the room2 side of the door. 
      */    
-    room2Lockability = notLockable
+    room2Lockability = (keyList == nil ? notLockable : lockableWithKey)
     
 ;
 
@@ -2012,7 +2012,7 @@ class UnlistedProxyConnector: TravelConnector
          */
         if(objOfKind(conn,TravelConnector))            
         {
-            if(conn.isConnectorApparent)                
+            if(conn.isConnectorApparent && conn.isConnectorVisible)                
                conn.travelVia(traveler);
             else
                 traveler.getOutermostRoom.cannotGoThatWay(direction); 

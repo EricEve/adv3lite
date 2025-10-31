@@ -2400,7 +2400,7 @@ class Thing:  ReplaceRedirector, Mentionable
      *   if so how. The possible values are notLockable, lockableWithoutKey,
      *   lockableWithKey and indirectLockable.
      */    
-    lockability = keyList == nil ? notLockable : lockableWithKey
+    lockability = (keyList == nil) ? notLockable : lockableWithKey
     
     /* 
      *   Flag: is this object currently locked. By default we start out locked
