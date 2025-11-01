@@ -1312,7 +1312,7 @@ class TravelAction: Action
             stagLocs = [Room];
             
  
-        while(!gActor.location.ofKind(Room) && 
+        while(!gActor.location.ofKind(Room) && !gActor.location.isVehicle &&
               stagLocs.indexWhich({x: gActor.location.ofKind(x)}) == nil)
         {
             /* Note the actor's current location. */
