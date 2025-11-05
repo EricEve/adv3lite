@@ -2858,3 +2858,45 @@ nonTravel(loc, dir)
         
     }        
 }
+
+/* 
+ *   The ProxyExit class can be used to define MultiLoc Decorations that can be used in conjunction
+ *   with non-directional exit properties to stand in for paths, passages and the like that may be
+ *   mentioned in Room descriptions without the need to define multiple Passage, PathPassage and
+ *   other such objects.
+ */
+  
+class ProxyExit: MultiLoc, Decoration
+    /* The room exit property (e.g. &path or &passage) we're used in conjunction with. */
+    exitProp = nil
+    
+    /* 
+     *   The SpecialTravelAction (e.g. Path or PassageAction) that we trigger when a player tries to
+     *   travel through us. Note that such actions will normally also need to be user-desfined.
+     */
+    travelAction = nil 
+    
+    dobjFor(TravelVia)
+    {
+        verify() {}
+        action() { doInstead(travelAction); }
+    }
+     
+    /* 
+     *   The verious actions we want to trigger travel vis our associated exitAction. Instances may
+     *   need to add or change these depending on what type of object we're representing.
+     */
+    dobjFor(Enter) asDobjFor(TravelVia)
+    dobjFor(GoThrough) asDobjFor(TravelVia)
+    
+    /* 
+     *   The list of actions we want our ProxyExit to respond to. Particular instances may want to
+     *   add to or amend this list.
+     */
+    decorationActions = [TravelVia, Examine, Enter, GoThrough]
+        
+    /* Place an instance of this object in every Room that defines out exitProp */
+    initialLocationClass = Room
+    isInitiallyIn(obj) { return obj.propDefined(exitProp); }      
+    
+;

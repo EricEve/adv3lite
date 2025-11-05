@@ -42,20 +42,24 @@ source: thoughts
 source: facts
 source: extensions/brightness
 source: extensions/collective
+source: extensions/consultsuggs
 source: extensions/customBanner
 source: extensions/dynamicRegion
+source: extensions/eventListItem
 source: extensions/factrel
 source: extensions/footnote
 source: extensions/fueled
 source: extensions/lookDir
 source: extensions/mobileCollectiveGroup
-source: extensions/multimeth
+source: extensions/multimethtia
 source: extensions/postures
 source: extensions/relations
 source: extensions/roomparts
 source: extensions/rules
 source: extensions/sensory
 source: extensions/signals
+source: extensions/thoughtsuggs
+source: extensions/tiaaction
 source: extensions/viewport
 source: extensions/weight
 needmacro: LANGUAGE this selects the language the library uses in its messages and parsing; for English, use "english"

@@ -1639,8 +1639,9 @@ EventListItem template @myListObj? ~isReady? +minInterval? *maxFireCt? "invokeIt
 
 #define Sta(a, b, c) [a, b ## Stance, c]
 
-/* Template for SpecialVerbs */
+/* Templates for SpecialVerbs */
 SpecialVerb template 'specVerb' 'stdVerb' @matchObjs | [matchObjs];
+SpecialVerb template 'specVerb' @matchObjs | [matchObjs] 'stdVerb' ;
 
  /*----------------------------------------------------------------------------*/
 /*

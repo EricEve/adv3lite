@@ -246,6 +246,111 @@ lowCave: Room 'low cave'
 
 <p>Finally, finally, the library defines two non-travel actions responding to CLIMB and JUMP (as in the example immediately above). Where no <code>climb</code> or <code>jump</code> property is defined, these commands behave just as they would have done before: "You jump on the spot fruitlessly" or "What do you want to climb?" (in the latter case, the parser may automagically select a climbable object if it's the best bet).</p>   
 
+<h3 id='leveraging'>Leveraging Non-Directional Properties for Passages, Paths, and the Like</h3>
+<p>It may be that we're writing a game that frequently mention passages and/or paths and/or other such things leading off from various locations. These passages, paths and whatever may not be particularly important items in themselves, but it seems appropriate to mention them in our room descriptions. A potential problem is then that players may try to interact with these paths and passages (X PATH, GO THROUGH PASSAGE) and may find it disconcerting if they find our game claiming ignorance of them, but that having to implement a whole lot of PathPassage and Passage objects just to avoid this may feel like over-engineered overkill. Using non-directional travel properties can help here</p>
+
+<p>The first step is to define the relevant actions:</p>
+<pre><code>
+DefSpecialTravel(PassageAction, &amp;passage, 'passage');
+DefSpecialTravel(Path, &amp;path, 'path');
+</code></pre>
+
+<p>(Note that since Passage is the name of an existing class, we have to use a different name for our custom action). Then we can code Room objects like:</p>
+<pre><code>
+hall: Room 'Hall'
+   "This large hall has a front door leading out to the south and a passage leading 
+    north, with..."
+    
+    south = frontDoor
+    north = kitchen
+    passage = kitchen
+    out asExit(south)
+    ...
+;
+
+frontDoor: DSDoor 'front door' @hall @drive
+;
+
+drive: Room 'Drive'
+   "The front door of the big house lies directly to the north, while a narrow path 
+    leads round the side of the house to the east..."
+    
+    north = frontDoor
+    in asExit(north)
+    east = garden
+    path = garden
+    ....
+;
+</code></pre>
+
+<p>This will allow players to move by typing PATH or PASSAGE but what we really want is for them
+to get sensible responses to GO THROUGH PASSAGE or X PASSAGE or FOLLOW PATH. We can do that by
+defining some suitable MultiLoc Decorations:</p>
+
+<code><pre>
+MultiLoc, Decoration 'passage; narrow wide'
+    "Passages are just passages. "
+    notImportantMsg = 'You can type PASSAGE to go through it. '
+    initialLocationClass = Room
+    isInitiallyIn(obj) { return obj.propDefined(&amp;passage); }
+    dobjFor(Enter) 
+    {
+        verify() {}
+        action() { doInstead(PassageAction); }
+    }    
+    
+    dobjFor(GoThrough) asDobjFor(Enter)
+    dobjFor(GoAlong) asDobjFor(Enter)
+    decorationActions = [Examine, GoThrough, GoAlong, Enter]
+;   
+
+MultiLoc, Decoration 'path; narrow wide broad winding'
+    "Paths are just paths. "
+    notImportantMsg = 'You can type PATH to go along it. '
+    initialLocationClass = Room
+    isInitiallyIn(obj) { return obj.propDefined(&amp;path); }
+    dobjFor(Enter) 
+    {
+        verify() {}
+        action() { doInstead(Path); }
+    }    
+    
+    dobjFor(GoThrough) asDobjFor(Enter)
+    dobjFor(GoAlong) asDobjFor(Enter)
+    dobjFor(Follow) asDobjFor(Enter)
+    dobjFor(ClimbDown) asDobjFor(Enter)
+    dobjFor(ClimbUp) asDobjFor(Enter)
+    decorationActions = [Examine, GoThrough, GoAlong, Follow, ClimbDown, ClimbUp, Enter]
+;   
+</code></pre>
+<p>This will place the 'passage' decoration in every room that defines a <code>passage</code> property and the 'path' decoration
+in every room that defines a <code>path</code> property. It's fine to have multiple paths or passages leading from the same location
+provided we define the corresponding property accordingly, e.g.,
+
+<pre><code>
+    passage = "There are several passages leading from here. You'll have to say     
+      which way you want to go. "
+</code></pre>      
+
+<p id='proxy'>This should then handle commands involving paths and passages quite gracefully, without the need to define a whole
+load of Passage and PathPassage objects. If we prefer, we can use the built-in <b>ProxyExit</b> class to help with
+the definition of this kind of object, for example:</p>
+
+<pre><code>
+ProxyExit 'passage; narrow wide'
+    "Passages are just passages. "
+    exitProp = &amp;passage
+    travelAction = PassageAction
+    notImportantMsg = 'You can just type PASSAGE to go through it. '
+    dobjFor(GoAlong) asDobjFor(TravelVia)
+    dobjFor(Follow) asDobjFor(TravelVia)
+    dobjFor(ClimbDown) asDobjFor(TravelVia)
+    dobjFor(ClimbUp) asDobjFor(TravelVia)
+    decorationActions = inherited + [Follow, GoAlong, ClimbDown, ClimbUp]
+;
+</code></pre>
+<p>If we do this we must define the <b>exitProp</b> and <b>travelAction</b> properties (which refer to the room direction property and
+SpecialTravelAction we want associated with this ProxyExit), and it's advisabke to define the <code>notImportantMsg</code> to give a suitable response and expand the list of <code>decorationActions</code> to handle other phrasings players might use, such as (in this example), FOLLOW PASSAGE, GO ALONG PASSAGE, GO DOWN PASSSAGE and GO UP PASSAGE.</p>
 
 <br>
 <a name="otherroomprops"></a><h2>Other Room Properties and Methods</h2>
@@ -385,7 +490,7 @@ backGarden: Room 'Back Garden'
 <p>This example probably reaches the limit of how room-like an enterable container can be made to get. Note how almost everything to do with the shed has to be defined on or with reference to its <code>remapIn</code> property.</p>
 <br>
 
-<h2><a name="regions">Regions</a></h2>
+<h2 id ="regions">Regions</h2>
 
 <p>Regions in adv3Lite are simply a means of grouping Rooms together in any way you find useful (e.g. all downstairs rooms, all indoor rooms, all forest rooms, all riverside rooms, all outdoor rooms). You don't have to use Regions if you don't want to, but they are straightforward to use if you do. To include a Room in a Region, simply list that Region in the Room's region property and create a corresponding Region object, for example:</b>
 

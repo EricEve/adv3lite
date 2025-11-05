@@ -283,7 +283,7 @@ class TIAAction: TIAction
              *   that any pending implicit action reports are prepended to any
              *   action reports output at this stage.
              */
-            gOutStream.addOutputFilter(ImplicitActionFilter);
+//            gOutStream.addOutputFilter(ImplicitActionFilter);
             
             /* 
              *   Run the action routine on the current direct object and capture
@@ -336,7 +336,7 @@ class TIAAction: TIAction
         {
             /* Remove any implicit action announcement from the output stream */
             
-            gOutStream.removeOutputFilter(ImplicitActionFilter);
+//            gOutStream.removeOutputFilter(ImplicitActionFilter);
         }
         
         /* 
@@ -360,7 +360,7 @@ class TIAAction: TIAction
              *   Otherwise, if we're not an implicit action, clear out the
              *   implicit action reports which we should now have displayed.
              */
-            gCommand.implicitActionReports = [];              
+//            gCommand.implicitActionReports = [];              
         }
         
         
