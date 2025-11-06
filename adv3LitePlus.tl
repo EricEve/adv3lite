@@ -53,6 +53,7 @@ source: extensions/lookDir
 source: extensions/mobileCollectiveGroup
 source: extensions/multimethtia
 source: extensions/postures
+source: extensions/proxyExits
 source: extensions/relations
 source: extensions/roomparts
 source: extensions/rules
