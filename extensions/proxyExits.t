@@ -60,30 +60,28 @@ DefSpecialTravel(Pathway, &pathway, 'pathway' | 'path');
 
 /* 
  *   The pathwayProxy object places itself in every Room that defines the pathway property to handle
- *   commands aimed at generic paths/pathways mentioned in room descriptions. 
+ *   commands aimed at generic paths/pathways mentioned in room descriptions.
  */
 pathwayProxy: ProxyExit
     vocab = BMsg(pathway vocab, 'pathway;ordinary narrow wide broad straight windy crooked;path')
     desc = DMsg(pathway desc, 'A path is just an ordinary path. ')
     exitProp = &pathway
     travelAction = Pathway
-    decorationAction = inherited + [Take, Climb, ClimbUp, ClimbDown, GoAlong, Follow]
-    
-    
+    decorationActions = inherited + [Take, Climb, ClimbUp, ClimbDown, GoAlong, Follow]
     
     /* TAKE PATH is equivalent to GO ALONG PATH */
     dobjFor(Take)
     {
         verify()
         {
-            if(!gVerbWord == 'take')
+            if(gVerbWord != 'take')
                 illogical(cannotTakeMsg);           
         }
-        action() { doInstead(TravelVia); }
+        action() { doInstead(TravelVia, self); }
     }
     
     dobjFor(Climb) asDobjFor(TravelVia)
-     dobjFor(ClimbUp) asDobjFor(TravelVia)
+    dobjFor(ClimbUp) asDobjFor(TravelVia)
     dobjFor(ClimbDown) asDobjFor(TravelVia)
     dobjFor(Follow) asDobjFor(TravelVia)
     dobjFor(GoAlong) asDobjFor(TravelVia)
