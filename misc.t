@@ -2594,7 +2594,8 @@ matchCase(newTok, oldTok)
  *   basis for providing other arguments.  
  */
 libObjectInitializer: PreinitObject
-    execBeforeMe = []
+    /* The existence of a SymTab referred below is presupposed. */
+    execBeforeMe = [pronounPreinit]
     execute()
     {
         /* build the reverse symbol table (indexed by object value) */

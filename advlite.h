@@ -1369,6 +1369,9 @@ string template << exclude * >> makeMentioned;
 #define gCommandToks (gCommand == nil || gCommand.verbProd == nil ? [] \
     : gCommand.verbProd.tokenList.mapAll({t: getTokVal(t)}))
 
+/* Test for the presence of tok among the command tokens entered by the player. */
+#define gToksInclude(tok) gCommandToks.indexOf(tok)
+
 /* Get the command phrase for the current command. */
 #define gVerbPhrase (gCommand.getCommandPhrase())
 

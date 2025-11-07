@@ -43,7 +43,7 @@ DefSpecialTravel(Passageway, &passageway, 'passageway' | 'passage');
  *   handle commands aimed at generic passages mentioned in room descriptions.
  */
 passagewayProxy: ProxyExit 
-    vocab = BMsg(passageway vocab, 'passageway;ordinary wide narrow straight;passage')
+    vocab = BMsg(passageway vocab, 'passageway;ordinary wide long short narrow straight;passage')
     desc = DMsg(passageway desc, 'A passage is just an ordinary passage. ')
     exitProp = &passageway
     travelAction = Passageway
@@ -63,7 +63,8 @@ DefSpecialTravel(Pathway, &pathway, 'pathway' | 'path');
  *   commands aimed at generic paths/pathways mentioned in room descriptions.
  */
 pathwayProxy: ProxyExit
-    vocab = BMsg(pathway vocab, 'pathway;ordinary narrow wide broad straight windy crooked;path')
+    vocab = BMsg(pathway vocab, 'pathway;ordinary narrow wide broad long short straight windy 
+        crooked;path')
     desc = DMsg(pathway desc, 'A path is just an ordinary path. ')
     exitProp = &pathway
     travelAction = Pathway
@@ -97,7 +98,7 @@ DefSpecialTravel(Archway, &archway, 'archway' | 'arch');
  *   commands aimed at generic arches/archways mentioned in room descriptions. 
  */
 archwayProxy: ProxyExit 
-    vocab = BMsg(archway vocab, 'archway;ordinary; large small arch')
+    vocab = BMsg(archway vocab, 'archway;ordinary; large small big arch')
     desc = DMsg(archway desc, 'An archway is just an ordinary archway. ')
     exitProp = &archway
     travelAction = Archway    

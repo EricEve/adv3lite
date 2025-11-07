@@ -1,0 +1,115 @@
+<html>
+<!-- DERIVED FILE - DO NOT EDIT -->
+
+<head>
+<title>ProxyExits</title>
+
+<link rel="stylesheet" href="sysman.css" type="text/css">
+</head>
+<body>
+<div class="topbar"><img src="../../docs/manual/topbar.jpg" border=0></div>
+<div class="nav">
+<a class="nav" href="../../docs/manual/toc.htm">Table of Contents</a> | 
+<a class="nav" href="../../docs/manual/extensions.htm">Extensions</a> &gt; 
+ProxyExits
+<br><span class="navnp"><a class="nav" href="postures.htm"><i>Prev:</i> Postures</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="relations.htm"><i>Next:</i> Relations</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+<div class="main">
+
+<h1>ProxyExits</h1>
+<h2>Overview</h2>
+<p>The ProxyExits extension defines the four <a href='../../docs/room.htm#proxy'>ProxyExit</a> objects that might be most commonly useful, for doorways, passages, paths, and archways, together with their associated SpecialTravelActions. This allows game authors an easy way to allow basic interaction with such items when they're mentioned in room descriptions without having to define a whole load of individual Door, Passage and PathPassage objects that wouldn't otherwise be needed.</p>
+
+<p>For example, if a Room mentions a doorway, a passage and an archway, we can do somethingt like this:</p>
+
+<pre><code>
+hall: Room 'Hall'
+  "This large hall boasts an archway leading east and a long passage heading north. A door leads west. "
+  
+  east = lounge
+  north = kitchen
+  west = study
+  archway = east <span class='comment'>// or archway = lounge</span>
+  passageway = north <span class='comment'>// or passageway = kitchen</span>
+  doorway = west <span class='comment'>// or doorway = study</span>
+;
+</pre></code>
+
+<p>Players will then get generic response to commands like X PASSAGE, GO THROUGH ARCH or ENTER DOOR without the game author needing to define individual Door or Passage objects for doors, passages and archways that are otherwise intended to be unremarkable.</p>
+
+<p>To use the extension, we just need to include it in our build after the main library.</p>
+<br>
+
+<h2>Principal Details</h2>
+<ul>
+<li>Note that the properties to be defined on rooms using this extension all end in <i>way</i>: <b>doorway</b>, <b>passageway</b>, <b>pathway</b>. and <b>archway</b>. This is mainly to avoid name clashes that might arise from using the briefer names  door, passsage, path and arch.</li>
+<li>The corresponding ProxyExit objects are called <b>doorwayProxy</b>, <b>passagewayProxy</b>, <b>pathwayProxy</b> and <b>archwayProxy</b> respectively. Game code can modify these objects if required, although the defaults provided may often work perfectly well.</li>
+<li>The vocab for these objects includes the appropriate nouns with and without -way (e.g. 'path' and 'pathway') together with a selection of adjectives that might be used in room descriptions to refer to such objects (e.g. 'broad' or 'narrow').</li>
+<li>These ProxyExit objects are effectively MultiLoc decorations that place themselves in every Room that defines the corresponding property, so that, for example,  <code>doorwayProxy</code> will be present in every room that defines the <code>doorway</code> property.</li>
+<li>These ProxyExit objects will respond to EXAMINE with a bland response such as "Passages are just ordinary passages", which serves to acknowledge both their existence and their unremarkability. They will also respond to commands indicating an intention to travel via them, e.g. GO THROUGH DOOR, FOLLOW PATH, GO UP PASSSAGE, ENTER ARCHWAY (in which case what happens will depend on what's been defined on the corresponding Room property); <code>doorwayProxy</code> will additionally respond to OPEN and CLOSED with 'Not needed in this case'.</li>
+<li>These ProxyExit objects can coexist with 'real' objects of the same type in the same location (e.g. you can define a <code>doorway</code> property pointing in one direction and have a proper <code>Door</code> object lying in other direction in the same Room), but then the parser will tend to favour the 'real' object.</li>
+<li>The extension also defines the corresponding <a href='../../docs/manual/room.htm#nondir'>SpecialTravelActions</a>
+ so that, for example, the command DOOR will trigger travel via whatever's defined on the <code>doorway</code> property of the current Room.</li>
+<li>The <code>doorway</code>, <code>passageway</code>, <code>pathway</code> and <code>archway</code> properties otherwise behave like any other <a href='../../docs/manual/room.htm#nondir'>non-directional travel properties</a> and can be defined in just the same way.</li>
+</ul>
+
+<p>If we don't like the defaults provided by these four objects, we can modify them to our own taste by overriding their <code>vocab</code>, <code>desc</code> and <code>notImportantMsg</code> properties just as we would for any other Decoration, plus the <code>cannotOpenMsg</code> and <code>cannotCloseMsg</code> properties on <code>doorwayProxy</code>. The aim in every case should be to give a bare, generic response to the player's command that acknowledges its legitimacy while discouraging any further interraction (apart from travellin via) these objects.</p>
+
+<p>The example above suggested that we could define the related non-directional travel properties (such as <code>doorway</code> to be either the Room to which travelling via the ProxyExit (doorwayProxy or whatever) leads or to point to the directional exit property (e.g. west) the player would otherwise use to go there. The former is more direct, but the latter will be the better option whenever the directional exit property is defined as (or may later be changed to) anything other than a Room (i.e,. when we've defined a TravelConnector, method or string on that exit property). That way we can ensure that GO THROUGH DOOR (for example) will do just what WEST (or whatever the relevant direction is) would have done.</p>
+
+<h2>Handling Multiple Exits of the Same Type</h2>
+<p>A room description may often mention several exits of the same type leading from the same room, e.g.:</p>
+<pre><code>
+hall: Room 'Large Hall'
+  "This large hall has doorways leading off north, south, east and west. "
+  north = kitchen
+  south = drive
+  west = study
+  east = lounge
+  doorway = multiDoorMsg  
+;
+</code></pre>
+
+<p>Here it would be arbitrary to have GO THROUGH DOOR pick one of the directional exits arbitrarily. The best we can do is to point out to players that there are several doorways leading from the current room so they need to say which way they want to go. Rather than having to type this message each time, we can make use of the predefined Room properties <b>multiDoorMsg</b>, <b>multiPassageMsg</b>, <b>multiPathMsg</b> and <b>multiArchMsg</b> to do the job for us. If we don't like the wording this extension provides, we are, of course, free to override these properties to our taste.</p>
+
+<p>A potentially knottier problem occurs when our room description mentions more than one exit of the same type but gives them slightly different descriptions, for example:</p>
+
+<pre><code>
+largeHall: Room 'Large Hall'
+    "You are in a large hall. A doorway leads north. A narrow passage leads south
+    while a wide one leads west, while the front door is just to the east. "
+    north = anotherRoom
+    doorway = anotherRoom
+    
+    south tcMsg(kitchen, "You walk up the passage. ")
+    west = livingroom
+    east = frontDoor
+    passageway = ???
+;
+</code></pre>
+<p>How should we define the passageway property here? If define it as either <code>livingroom</code> or <code>south</code>, players will think there's something wrong when they type GO THROUGH NARROW PASSAGE in the first case or FOLLOW WIDE PASSAGE in the second. But if we define <code>passageway = multiPassageMsg</code> players may be equally disgruntled to be told they need to choose which way to go when their command was already quite specific enough. One solution would be to reword the room description to avoid describing either passage, another would be to abandon the use of ProxyExits here and just define a pair of Passage objects to do the job, but there is a third option that avoids both these expedients, and that is to check whether the player's input included the word 'narrow' or the word 'wide' and choose the appopriate exit accordingly:</p>
+
+<pre><code>
+    passageway 
+    {
+        if(gToksInclude('narrow') &amp;&amp; !gToksInclude('wide')) return south;
+        if(gToksInclude('wide') &amp;&amp; !gToksInclude('narrow')) return west;
+        multiPassageMsg;        
+        return nil;
+    }
+</code></pre>
+<p>Note that we provide for the player not mentioning either the wide passage or the narrow one (or specifying both at once) by falling back on the <code>multiPassageMag</code> if neither the token 'narrow' or the token 'wide' appears in their input without the other, but that otherwise our code will now choose the appropriate exit.</p>
+
+
+</div>
+<hr class="navb"><div class="navb">
+<i>Adv3Lite Manual</i><br>
+<a class="nav" href="../../docs/manual/toc.htm">Table of Contents</a> | 
+<a class="nav" href="../../docs/manual/extensions.htm">Extensions</a> &gt; 
+ProxyExits
+<br><span class="navnp"><a class="nav" href="postures.htm"><i>Prev:</i> Postures</a> &nbsp;&nbsp;&nbsp; <a class="nav" href="relations.htm"><i>Next:</i> Relations</a> &nbsp;&nbsp;&nbsp; </span>
+
+</div>
+</body>
+</html>

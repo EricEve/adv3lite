@@ -2402,6 +2402,7 @@ modify Pronoun
  */
 property prep;
 pronounPreinit: PreinitObject
+    execBeforeMe = []
     execute()
     {
         /* 
