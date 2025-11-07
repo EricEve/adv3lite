@@ -71,7 +71,7 @@ drive: Room 'Front Drive' 'front drive'
 <h2>Double Sided Doors</h2>
 <p>The <strong>DSDoor</strong> (double sided door) class allows you to define each door as a single object. Where both sides of a door are pretty much the same, this may be easier and simpler than having to define each side of the door as a separater object. The DSDoor class inherits from the Door class and shares many of its properties and methods, apart from the differences noted below.</p>
 
-<p>To create a DSDoor, set its <strong>room1</strong> and <strong>room2</strong> properties to each of the two rooms the door connects. Do not define its location property (either explicitly or via the Template or with the + notation, the reason being that a DSDoor is a <a href='multiloc.htm'>MultiLoc</a>), and do not define its otherSide property. For example, by using a DSDoor in place of two Door objects, we can rewrite the previous example thus:</p>
+<p>To create a DSDoor, set its <strong>room1</strong> and <strong>room2</strong> properties to each of the two rooms the door connects (but see <a href='#ent'>below</a> for another possibility). Do not define its location property (either explicitly or via the Template or with the + notation, the reason</a> being that a DSDoor is a <a href='multiloc.htm'>MultiLoc</a>), and do not define its otherSide property. For example, by using a DSDoor in place of two Door objects, we can rewrite the previous example thus:</p>
 
 <p><div class=code><pre>hall: Room 'Hall' 'hall'
    "The front door lies to the west. "
@@ -179,6 +179,55 @@ frontDoorState: State
 
 
 <p>Anything more complicated than these cases is probably best handled by implementing your door with two Door objects to represent the two different sides. The other possibility is to include the <a href="../../extensions/docs/symconn.htm">symconn</a> extension in your game and use the <a href="../../extensions/docs/symconn.htm#symdoor">SymDoor</a> class.
+
+<h3 id='ent'>DSDoors with Enterables</h3>
+<p>Occasionally, it may be convenient to locate one end of a DSDoor in something other than a Room, most typically an Enterable to which the DSDoor provides the entrance, e.g.:</p>
+
+<pre><code>
+drive: Room 'Grand Driveway'
+   "The mansion lies directly to the north. "
+   north = frontDoor
+;
+
++ mansion: Enterable 'mansion'
+   "It's huge! "
+   connector = frontDoor
+ ;
+ 
+ frontDoor: DSDoor 'front door' @hall @mansion
+ ;
+ 
+ hall: Room 'Hall'
+   "This grand hall...."
+   south = frontDoor
+   out asExit(south)
+   ...
+ ;
+</code></pre>
+
+<p>This will work absolutely fine, and may seem more logical since the front door belongs to the house rather than directly to the drive. Although in this case we could have used @drive in place of @mansion and the player probably wouldn't have seen much difference (except perhaps when issuing the command LOOK NORTH), in other cases we may need to keep the door with the Enterable, particularly if the Enterable represents the exterior of a vehicle that can move around, for example:</p>
+ <pre><code>
++ tardis: Enterable 'blue police box;;tardis'
+    "It looks just like an old-fashioned police box from post-war Britain. "
+    specialDesc = "A blue police box &lt;&lt;if getOutermostRoom.ofKind(OutdoorRoom)&gt;&gt; rests to one
+        side&lt;&lt;else&gt;&gt; sits in the corner&lt;&lt;end&gt;&gt;. "
+    connector = tardisDoor
+;
+
+tardisDoor: DSDoor 'tardis door' @tardis @insideTardis
+;
+   
+insideTardis: Room 'TARDIS control room'
+    "As ever, the Tardis is bigger on the inside than the outside. The control console
+    is situated at the centre of the control room. "
+    
+    out = tardisDoor
+ ;
+ </code></pre>
+<p>What will happen in this case is the tardisDoor will be located in the tardis object and move around with it, but that the tardisDoor's <code>room1</code> property will be converted to a method that returns whichever top-level Room the tardis object is located in at any given time, while the initial value of the tardisDoor's <code>room1</code> property (<code>tardis</code>) will now be stored in tardisDoor's <code>locn1</code> property (only created if <code>room1</code> is not initially a Room -- and likewise for <code>room2</code> and <code>locn2</code>). 
+
+
+
 
 </div>
 <hr class="navb"><div class="navb">

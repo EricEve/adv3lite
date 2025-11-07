@@ -13,6 +13,7 @@ property lastTravelInfo;
 property cannotGoShowExits;
 property pcArrivalTurn;
 property options;
+property locn1, locn2;
 
 /* 
  *   A Room is a top location in which the player character, other actors and
@@ -1295,6 +1296,37 @@ class DSCon: DSBase, MultiLoc
         return nil;
     }
     
+    /* 
+     *   Normally room1 & room2 will be specified as rooms, In csse they're not (because, for
+     *   example, we want to locate one end of a DSConn in an Enterable), we check whether they
+     *   after adding this DSConn to its two locations, If either location isn't a Room, we change
+     *   the room1/room2 to reflect the Outermost room (so that travel vis this DSConn still works
+     *   properly) while allowing the DSCcnn to remain in the non-room the game author defined.
+     */
+    addToLocations()
+    {
+        inherited();
+        
+        if(!room1.ofKind(Room))
+        {
+            /* Note the location we have actually been added to. */
+            locn1 = room1;
+            
+            /* 
+             *   Upate our roomX property to return the OutermostRoom of this location. Rather than
+             *   making this a static value we make it an expression in case the object we're
+             *   attached to moves.
+             */
+            setMethod(&room1, {: locn1.getOutermostRoom() });
+        }
+        
+        if(!room2.ofKind(Room))
+        {
+            locn2 = room2;
+            setMethod(&room2, {: locn2.getOutermostRoom() });
+            
+        }
+    }
     
 ;
 
