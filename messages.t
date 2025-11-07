@@ -157,6 +157,32 @@ buildMessage(id, txt, [args])
     /* if txt is a function pointer, retrieve the value it returns */
     if(dataType(txt) == TypeFuncPtr)
         txt = txt();
+    
+    /* 
+     *   if txt is a list (presumably from a CustomMessages object), take the first item in that
+     *   list to be the text proper and the remaining items to be our new arguments (this allows
+     *   CustomMessages to define their own set of positional parameter through {1}. {2} etc.)
+     */         
+    if(dataType(txt) == TypeList)
+    {
+        /* Get the tail of the txt list. */
+        local newArgs = txt.cdr(), tempArgs = [];
+        
+        /* Change txt to the first item in that list. */
+        txt = txt[1];
+        
+        /* Copy the other items to our args. */
+        foreach(local cur in newArgs)
+        {
+            /* If an item is a function pointer, evaluate it before copying */
+            if(dataTypeXlat(cur) == TypeFuncPtr)
+                cur = cur();
+            tempArgs += cur;            
+        }
+        
+        /* Update our args list */
+        args = tempArgs;
+    }
 
     /* set up a sentence context for the expansion */
     local ctx = new MessageCtx(args);
