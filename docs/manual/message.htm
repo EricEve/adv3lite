@@ -176,7 +176,8 @@ CustomMessages
 ;
 </pre></div>
 
-<p>Note that we can't <i>change</i> the parameters used by the message strings (the ones that {1} and the like refer to) but that we can continue to use the ones used in the original DMsg() and BMsg() macros we're replacing; in fact what the CustomMessages object does is effectively to substitute a different <i>msg</i> parameter into the DMsg/BMsg(key, msg, params...) set-up, leaving the original params in place.</p>
+<p>Note that we haven't <i>changed</i> the parameters used by the message strings (the ones that {1} and the like refer to) but that we can continue to use the ones used in the original DMsg() and BMsg() macros we're replacing; in fact what the CustomMessages object does here is effectively to substitute a different <i>msg</i> parameter into the DMsg/BMsg(key, msg, params...) set-up, leaving the original params in place. We'll see how we can change them <a href='#params'>below</a>.
+</p>
 
 <p>While we're on the subject of the numerical parameter substitutions ({1}, {2} and the like) and the parameters they can refer to, up until now all the examples we've shown of them have used single-quoted string 
 values in the <i>param</i> list, but the values can also be numbers (or numerical expressions) and objects (in which case the name property is used in the substitution). For example, the following is legal if not exactly useful:</p>
@@ -213,9 +214,35 @@ DMsg(two things, 'The {1} and the {2} are {3} separate objects. ', redBall, blue
 <p>In fact, the second parameter of any Msg(), BMsg() or DMsg() macro can always be an anonymous function that returns a single-quoted string instead of just a single-quoted string, but this is the kind of occasion on which this is most likely to be useful.</p>  
 
 <p>You can also define CustomMessages object via the relevant template, which saves you have to type <code>messages =</code>.</p>
-
 <p><code>CustomMessages template [messages] +priority?;</code>
 
+
+<p id='params'>We noted above that if we define an element of a CustomMessages object using positional parameters (like <code><i>{1}</i></code>, <code><i>{2}</i></code>, <code><i>{3}</i></code>) these numbered parameters will refer to the additional arguments defined with the original DMsg() or BMsg, (assuming there were any). Sometimes that may be fine, but sometimes (not least if we're using CustomMessages to translate messages into a different language), we may want to refer to a different set of parameters (or add ones that weren't there in the original BMsg/DMsg). We can do so like this:</p>
+
+<pre><code>
+CustomMessages
+    [
+        Msg(doorway desc, ['A doorway in {1} is like any other doorway. ', {:gRoom.theName}])       
+    ]
+;
+</code></pre>
+
+<p>This make <code>gRoom.theName</code> the first positional parameter in our redefined message (in a case where the original BMsg() had no positional arguments at all). Note how it works. We define each Msg as a two-element list. The first element is always the message ID, as here. The second element is normally just a single-quoted string containing the text of our custom message. But here we use a another (embedded) list in place of the string. The first element of that list is once again the text of our custom message, but any successive elements are the positional arguments we want our custom message to use.</p>
+
+<p>Note further that we define our argument as an anyonymous function <code>{:gRoom.theName}</code> rather then a straightforward expression such as <code>gRoom.theName</code>. If we had used <code>gRoom.theName</code> here our game would have compiled and run just fine, but we wouldn't get the custom message we almost certainly intended, the reason being the aforementioned way in which strings and lists are evaluated at preinit. If we just used <code>gRoom.theName</code>, this would be evaluated once at the start of the game (to the name of whatever room the player character starts out in) and then remain fixed thereafter. By using the the anyonymous function <code>{:gRoom.theName}</code> we ensure that our custom message will uswe the name of the room the player character is currently in (which is presumaby what we want here).
+
+<p>Finally, note that we could have achieved precisely the same result by defining our Custom Message as:</p>
+<pre><code>
+CustomMessages
+    [
+        Msg(doorway desc, {:'A doorway in &lt;&lt;gRoom.theName&gt;&gt; is like any other doorway. '})       
+    ]
+;
+</code></pre>
+<p>Though here, once again, we have to embed our message string in an anonymous function to ensure that our embedded espression evaluates to the current value of <code>gRoom.theName</code> rather than just its value at the start of the game.</p>
+
+<p>Which of these two ways you use to achieve what you're after is entirely up to you; it comes down to a matter of taste and perceived convenience.</p>
+
 
 <a name="findingmsg"></a><h2>Finding Message IDs</h2>
 

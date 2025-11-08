@@ -155,7 +155,7 @@ buildMessage(id, txt, [args])
         txt = cm.msgTab[id];
     
     /* if txt is a function pointer, retrieve the value it returns */
-    if(dataType(txt) == TypeFuncPtr)
+    if(dataTypeXlat(txt) == TypeFuncPtr)
         txt = txt();
     
     /* 
