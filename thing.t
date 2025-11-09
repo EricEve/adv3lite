@@ -1755,8 +1755,11 @@ class Thing:  ReplaceRedirector, Mentionable
         {
             obj.mentioned = nil;
             
-            /* If obj has any contents, unmention every item in is contents */
-            if(obj.contents.length > 0)
+            /* 
+             *   If obj has any contents, unmention every item in is contents, unless obj is a Floor
+             *   object (whose contents is only notional).
+             */
+            if(obj.contents.length > 0 && obj.ofKind(Floor))
                 unmention(obj.contents);
         }
     }
