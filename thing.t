@@ -10498,12 +10498,13 @@ class Floor: MultiLoc, Thing
     isInitiallyIn(obj) { return obj.floorObj == self; }
     
     /* 
-     *   The Floor object needs to appear to share the contents of the player
-     *   character's room (or other enclosing container) for certain purposes
-     *   (such as disambiguating by container or the TakeFrom command), but
-     *   nothing is really moved into or out of a Floor).
+     *   The Floor object needs to appear to share the contents of the player character's room (or
+     *   other enclosing container) for certain purposes (such as disambiguating by container or the
+     *   TakeFrom command), but nothing is really moved into or out of a Floor).
      */
-    contents = (gPlayerChar.outermostVisibleParent().contents - self)
+    
+    contents = (isIn(gPlayerChar.outermostVisibleParent)) ?         
+                  (gPlayerChar.outermostVisibleParent().contents - self) : []   
     
     /*   
      *   We can examine a Floor or take something from it, but other actions are
