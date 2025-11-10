@@ -10430,9 +10430,11 @@ class MultiLoc: object
          *   the actor can see and return that.
          */
         
-        foreach(rm in valToList(gActorRoom.visibleRooms))
+        local actor = gActor ?? gPlayerChar;
+        
+        foreach(local r in valToList(actor.visibleRooms))
         {
-            loc = locationList.valWhich({x: x.isOrIsIn(rm)});
+            loc = locationList.valWhich({x: x.isOrIsIn(r)});
             
             if(loc)
                 return loc;
