@@ -3590,7 +3590,7 @@ finishOptionsLister: Lister
  *   By default the last two items in the list are separated by 'and', but we
  *   can choose a different conjunction by supplying the conjunction parameter.
  */ 
-makeListStr(objList, nameProp = &aName, conjunction = 'and')
+makeListStr(objList, nameProp = &aName, conjunction = 'and', suppressStateInfo = nil)
 {
     local lst = [];
     local i = 0;
@@ -3617,8 +3617,11 @@ makeListStr(objList, nameProp = &aName, conjunction = 'and')
         local desc = obj.(nameProp);
         
         /* Add any state-specific information */
-        foreach(local state in obj.states)
-            desc += state.getAdditionalInfo(obj);
+        if(!suppressStateInfo)
+        {
+            foreach(local state in obj.states)
+                desc += state.getAdditionalInfo(obj);
+        }
         
         /* Add the expanded name to our list of strings. */
         lst += desc;

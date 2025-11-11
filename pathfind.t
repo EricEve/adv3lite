@@ -567,6 +567,38 @@ class AskConnector: TravelConnector
     execTravel(actor, traveler, conn)
     {
         /* 
+         *   An AskConnector is not really designed to work directly with Rooms in its list of
+         *   options. but should this occur we try to handle it gracefully.
+         */
+        if(options.indexWhich({x: x.ofKind(Room)}))
+        {   
+            /* 
+             *   We can't handle Rooms and non-Rooms in the same list of options, so if we encounter
+             *   this we need to report an error and give up.
+             */
+            if(options.indexWhich({x: !x.ofKind(Room)}))
+            {
+                "<b><FONT COLOR='RED'>ERROR:</FONT></b> You cannot mix Rooms and Non-Rooms in the
+                options property of an AskConnector\b
+                <<list of options>>";
+                exit;
+            }
+            /* 
+             *   Otherwise we need to change our travel action to GoTo and mark every room in our
+             *   options list as familiar and visited so that the GoTo command will work on it.
+             */
+            else if(travelAction != GoTo)
+            {
+                travelAction = GoTo;
+                foreach(local o in options)
+                {
+                    o.familiar = true;
+                    o.visited = true;
+                }
+            }           
+        }
+        
+        /* 
          *   If we have an options property, list the options it contains (e.g., 'that wat lies the
          *   red door and the blue door') and ask the player to specify which one to go through.
          */        
@@ -601,7 +633,8 @@ class AskConnector: TravelConnector
         }
         
         /* Otherwise ask the player which connector to use. */            
-        DMsg(multi destination, 'That way {plural}{lie} {1}. ',  makeListStr(options, &theName));
+        DMsg(multi destination, 'That way {plural}{lie} {1}. ',  
+             makeListStr(options, &theName, 'and', true));
         askForDobjX(travelAction);            
         return;        
     }
