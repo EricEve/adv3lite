@@ -643,10 +643,7 @@ class AskConnector: TravelConnector
      *   A LookUp table to cache which of our options' immediate destinations this AskConnector
      *   notionally leads to when we're on a path to any given to anu given target destination.
      */
-    destTab = nil
-    
-    
-    
+    destTab = nil   
 ;
 
 

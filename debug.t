@@ -595,18 +595,17 @@ DefineSystemAction(AssertPlayerRoomHasItem)
     {
         scopeList = scopeList.appendUnique(everything.lst());
     }
-
-	execAction(cmd)
-	{
-        if(gDobj.ofKind(Fixture) || gDobj.ofKind(Immovable) || gDobj.ofKind(Decoration)) {
-            allNewTests.fail('INVALID: Can never have item "<<gDobj>>"!<.p>');
-        }
-		else if (gActor.isPlayerChar && !gDobj.isIn(gActor.location)) {
+       
+    execAction(cmd)
+    {
+        if (gActor.isPlayerChar && !gDobj.isIn(gActor.getOutermostRoom)) 
+        {
             allNewTests.fail('Expected player\'s room to have item \"<<gDobj>>\" but does not!');
-		}
+        }
         else
             allNewTests.succeed();
-	}
+    }
+    
 ;
 
 VerbRule(AssertPlayerRoomHasItem)
@@ -626,19 +625,16 @@ DefineSystemAction(AssertPlayerRoomLacksItem)
     {
         scopeList = scopeList.appendUnique(everything.lst());
     }
-
-	execAction(cmd)
-	{       
-        if(gDobj.ofKind(Fixture) || gDobj.ofKind(Immovable) || gDobj.ofKind(Decoration)) {
-            allNewTests.fail('INVALID: Can never have item "<<gDobj>>"!');
-        }
-		else if (gActor.isPlayerChar && gDobj.isIn(gActor.location)) {
+        
+    execAction(cmd)
+    {
+        if (gActor.isPlayerChar && gDobj.isIn(gActor.getOutermostRoom)) {
             allNewTests.fail('Expected player\'s room not to have item \"<<gDobj>>\" but
                 it does!');
-		}
+        }
         else
             allNewTests.succeed();
-	}
+    }
 ;
 
 VerbRule(AssertPlayerRoomLacksItem)

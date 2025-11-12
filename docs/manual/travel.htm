@@ -143,8 +143,29 @@ galley: Room 'Galley Area'
 
 <p>Player Character pathfinding should work fine through an <code>AskConnector</code>. In particular, if a GOTO or CONTINUE command would take the player character through an <code>AskConnector</code>, the player won't be asked which option to choose; instead, the <code>AskConnector</code> will select whichever one leads to the desired destination. So, for example, if the player typed GO TO SHOWER CUBICLE (assuming that's where <code>showerDoorOutside</code> leads to), then the <code>AskConnector</code> will send the player character through the shower door without the player needing to intervene further.</p>
 
-<p>AskConnector is primarily designed to work with a list of physical connector objects such as doors, passages, patha and stairways. It can also work with a list of Rooms in the options property, but with certain limitations. First, you cannot mix Rooms with any other kind of object in the same <code>options</code>; an error will result if you try. Second, if an AskConnector's options property does contain a list of Rooms, then all those rooms will automatically be msrked as both <code>visited</code> and <code>familiar</code> the first time travel via that AskConnector is attempted, and the AskConnector's <code>travelAction</code> will be changed to <code>GoTo</code>; these steps are necessary to ensure that the AskConnector works as expected.</p>
+<p id='proxy'>AskConnector is primarily designed to work with a list of physical connector objects such as doors, passages, patha and stairways. It can also work with a list of Rooms in the options property, but with certain limitations. First, you cannot mix Rooms with any other kind of object in the same <code>options</code>; an error will result if you try. Second, if an AskConnector's options property does contain a list of Rooms, then all those rooms will automatically be msrked as both <code>visited</code> and <code>familiar</code> the first time travel via that AskConnector is attempted, and the AskConnector's <code>travelAction</code> will be changed to <code>GoTo</code>; these steps are necessary to ensure that the AskConnector works as expected.</p>
 
+<p>That said, we can create the <i>appearance</i> of mixing rooms and physical connector in the same options list by using an object of the <b>ProxyRoom</b> class in place of a Room, like so:</p>
+
+<pre><code>
+blueRoom: Room 'Blue Room'
+    "The way out is to the south. To the east lie a small closet and a red door. "
+    south = startroom
+    
+    east: AskConnector
+    {
+        options = [redDoor, proxyCloset]
+    }
+;
+
++ proxyCloset: ProxyRoom -&gt;smallCloset
+;
+
+redDoor: DSDoor 'red door' @redRoom @blueRoom
+;
+</code></pre>
+
+<p><code>ProxyRoom</code> is a special kind of Passage designed just for this purpose. The <code>-&gt;</code> in the ProxyRoom template points to the Room this Passage leads. The ProxyRoom will borrow its vocab from its destination room (and so acts as a proxy for it).</p>
 
 <p>Note that if you want to use an <code>AskConnector</code> in your game, the pathfind.t module must be included in your build. (<code>AskConnector</code> is defined in pathfind.t since most of the code on the AskConnector class is concerned with pathfinding).</p>
 

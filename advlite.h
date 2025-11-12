@@ -977,6 +977,10 @@ AgendaItem template @location;
 /* The ProxyActor template just specifies the location (i.e. the base Actor) */
 ProxyActor template @location;
 
+/* ProxyRoom templates - the only compulsory element is the destination. */
+ProxyRoom template 'vocab'? "desc"? ->destination;
+ProxyRoom template 'vocab'? ->destination "desc"?; 
+
 Doer template 'cmd';
 RemapCmd template 'cmd' @where? 'remappedCmd'?;
 

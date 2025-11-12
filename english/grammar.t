@@ -2669,7 +2669,7 @@ VerbRule(TravelVia)
     : VerbProduction
     action = TravelVia
     verbPhrase = 'use/using (what)'
-    missingQ = 'which do you want to use'
+    missingQ = 'which do you want to try'
     dobjReply = singleNoun
 ;
 

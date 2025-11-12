@@ -2932,3 +2932,5 @@ class ProxyExit: MultiLoc, Decoration
     isInitiallyIn(obj) { return obj.propDefined(exitProp); }      
     
 ;
+
+

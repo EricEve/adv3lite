@@ -1148,6 +1148,32 @@ class Enterable: ProxyDest, Fixture
 ;
 
 /* 
+ *   A ProxyRoom is a Passage that can stand in for that Room (or the way into that Room) from a
+ *   neighbouring location. If its destination property is defined as the room to which it leads,
+ *   then it will 'borrow' its vocab from that destination room, so the only property we *need* to
+ *   define is its destination, which we can do via its template, e.g.
+ *.
+ *.      proxyRedRoom: ProxyRoom -> redRoom;
+ *.
+ *   The ProxyRoom class is intended primarily for use with AskConnectors, but game authors may well
+ *   find other uses for it, not least to represent any neighbouring rooms mentioned in room
+ *   descriptions.
+ */     
+class ProxyRoom: ProxyDest, Passage    
+    desc = DMsg(proxy room desc, '{I} {can\'t} see much of it from {here}. ')    
+    
+    /* If we don't define our own vocab property, take it from our destination. */
+    initVocab()
+    {
+        if(vocab is in (nil, ''))
+           vocab = destination.vocab;
+        inherited();
+    }
+    
+    dobjFor(LookIn) asDobjFor(TravelVia)
+;
+
+/* 
  *   A SecretDoor is a Door that doesn't appear to be a door when it's closed,
  *   and which must be opened by some external mechanism (other than by an OPEN
  *   command)
