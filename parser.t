@@ -1381,8 +1381,8 @@ class Distinguisher: object
      *   string giving the distinguished name; the [objects] sub-sublist is
      *   a list of the objects known under that name.  
      */
-    getNames(objs, article)
-    {
+    getNames(objs, article, disambig = nil)
+    {        
         /* start with an empty result list */
         local names = new Vector(objs.length());
 
@@ -1392,6 +1392,12 @@ class Distinguisher: object
         /* apply each distinguisher to our objects, saving the results */
         foreach (local d in Distinguisher.all)
             dres.append(d.apply(objs));
+        
+        /* 
+         *   Note whether we're tryign to disambiguate by name in a context where we might want to
+         *   prioritise disambigNames
+         */
+        Distinguisher.disambiguating = disambig;
 
         /* find the distinguishing characteristics for each object */
         while (objs.length() != 0)
@@ -1525,6 +1531,8 @@ class Distinguisher: object
         /* return the name list */
         return names;
     }
+    
+    disambiguating = nil
 ;
 
 /*
@@ -1576,7 +1584,7 @@ class DistResult: object
  *   other.
  */
 nameDistinguisher: Distinguisher
-    sortOrder = 100
+    sortOrder = 100 
     equal(a, b) { return a.name.find(b.name) || b.name.find(a.name); }
 ;
 
@@ -1588,7 +1596,7 @@ nameDistinguisher: Distinguisher
  *   object in parsing.  
  */
 disambigNameDistinguisher: Distinguisher
-    sortOrder = 200
+    sortOrder = Distinguisher.disambiguating ? 50: 100 // EXPERIMENT to try prioritizing the disambigNameDistinguisher
     equal(a, b) { return a.disambigName == b.disambigName; }
 ;
 
@@ -2506,7 +2514,7 @@ class NounPhrase: object
          *   book?"  Generate the list of names.  
          */
         local nameList = Distinguisher.getNames(
-            matches.mapAll({ x: x.obj }), true);
+            matches.mapAll({ x: x.obj }), true , true);
 
         /* 
          *   Sort by disambigGroup and disambigOrder.  Note that it's

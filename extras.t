@@ -987,7 +987,7 @@ class Passage: TravelConnector, Thing
     dobjFor(Enter) asDobjFor(GoThrough)
     
      /* Going along a Passage is the same as going through it */
-    dobjFor(GoAlong) asDobjFor(GoThrough)
+    dobjFor(GoAlong) asDobjFor(GoThrough)  
     
     /* A Passage is usually something fixed in place. */
     isFixed = true

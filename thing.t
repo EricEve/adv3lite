@@ -3531,7 +3531,10 @@ class Thing:  ReplaceRedirector, Mentionable
     {
         vec.appendUnique(lst);
         foreach(local cur in lst)
-            addToAllContents(vec, cur.contents);
+        {
+            if(!cur.ofKind(Room))
+                addToAllContents(vec, cur.contents);
+        }
     }
     
 
