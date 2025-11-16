@@ -1351,6 +1351,7 @@ Fact template 'name' [topics]? 'desc' [initiallyKnownBy]?;
  *   String templates for room descriptions etc.
  */
 
+string template <<mention name * >> mentionObj;
 string template <<mention a * >> mentionA;
 string template <<mention an * >> mentionA;
 string template <<mention the * >> mentionThe;

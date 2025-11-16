@@ -79,6 +79,12 @@ class LMentionable: object
      *   second-person game, "I" for a first-person game).  
      */
     objName = (name)
+    
+    /*  
+     *   A special version of the name we can use with the <<mention name *>> template. By default
+     *   we just use the object's name
+     */
+    mentionName = (name)
 
     /*
      *   Get the possessive adjective-like form of the name.  This is the form of the name we use as
@@ -3694,6 +3700,26 @@ mentionThe(obj)
     /* Return the theName of our obj. */
     return obj.theName;
 }
+
+mentionObj(obj)
+{
+    /* Note that the object has been mentioned */
+    obj.mentioned = true;
+    
+    /* Note that the object has been seen */
+    obj.noteSeen();
+    
+    /* 
+     *   Set the plurality of the prevDummy_ object to the plurality of the
+     *   object we're mentioning (so that prevDummy_ can be used to secure
+     *   grammatical agreement with a subsequent verb).
+     */
+    prevDummy_.plural = obj.plural;
+    
+    /* Return the mentionName of our obj. */
+    return obj.mentionName;
+}
+
 
 /* 
  *   A version of makeListStr that uses only one parameter, for use by the
