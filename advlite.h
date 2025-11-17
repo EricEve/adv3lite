@@ -1576,6 +1576,11 @@ DSCon template 'vocab' @room1 @room2 "desc"?;
 DSTravelConnector template @room1 @room2;
 DSTravelConnector template ->room1 ->room2;
 
+/* Templates for Passage */
+Passage template ->destination 'vocab' "desc"?;
+Passage template 'vocab' ->destination "desc"?;
+Passage template 'vocab' "desc"? ->destination; 
+
 
 /*----------------------------------------------------------------------------*/
 /*

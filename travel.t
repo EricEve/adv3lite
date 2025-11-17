@@ -1036,15 +1036,30 @@ class Door: TravelConnector, Thing
          */        
         if(otherSide == nil)
         {
+            if(Door.doorList.length == 0)
+            {
+                local d, vec = new Vector();
+                
+                for(d = firstObj(Door); d != nil ; d = nextObj(d, Door))
+                {
+                    vec.append(d);
+                }
+                Door.doorList = vec.toList();
+            }
+                
+            local d = Door.doorList.valWhich({o: o.otherSide == self});
+            if(d)
+                otherSide = d;            
             /* 
-             *   If the otherSide hasn't been defined and we're compiling for
-             *   debugging, display a warning message.
+             *   If the otherSide hasn't been defined and we're compiling for debugging, display a
+             *   warning message.
              */
-            #ifdef __DEBUG
-            "WARNING!!! <<theName>> in << getOutermostRoom != nil ?
-              getOutermostRoom.name : 'nil'>> has no otherside.<.p>";           
+#ifdef __DEBUG
+            else
+                "WARNING!!! <<theName>> in << getOutermostRoom != nil ?
+                  getOutermostRoom.name : 'nil'>> has no otherSide.<.p>";           
             
-            #endif
+#endif
         }
         else
         {
@@ -1072,10 +1087,11 @@ class Door: TravelConnector, Thing
                 otherSide.isOpen = true;
             
             /*  Add the other side to our list of facets. */
-            getFacets += otherSide;
-            
+            getFacets += otherSide;            
         }       
     }
+    
+    doorList = []
     
     /*  The destination is the room to which this door leads. */
     destination()
