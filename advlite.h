@@ -854,6 +854,9 @@ Region template [rooms];
 
 Door template  'vocab' @location? "desc"? ->otherSide;
 Door template  ->otherSide 'vocab' @location? "desc"?;
+Door template  'vocab' @location? ->otherSide "desc"?;
+Door template  'vocab' ->otherSide @location? "desc"?;
+
 
 TravelConnector template 'vocab'? @location? "desc"? ->destination;
 TravelConnector template ->destination "travelDesc";
@@ -1576,11 +1579,18 @@ DSCon template 'vocab' @room1 @room2 "desc"?;
 DSTravelConnector template @room1 @room2;
 DSTravelConnector template ->room1 ->room2;
 
-/* Templates for Passage */
+/* Templates for Passage and Stairways */
 Passage template ->destination 'vocab' "desc"?;
 Passage template 'vocab' ->destination "desc"?;
 Passage template 'vocab' "desc"? ->destination; 
 
+StairwayUp template ->destination 'vocab' @location? "desc"?;
+StairwayUp template 'vocab' @location  ->destination "desc"?;
+StairwayUp template 'vocab' @location? "desc"? ->destination;
+
+StairwayDown template ->destination 'vocab'@location? "desc"?;
+StairwayDown template 'vocab' @location? ->destination "desc"?;
+StairwayDown template 'vocab' @location? "desc"? ->destination;
 
 /*----------------------------------------------------------------------------*/
 /*

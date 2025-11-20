@@ -777,9 +777,8 @@ split the text at the vertical bar (|).</p>
 </ol>
 <br>
 
-<h2><a name="remap">Remap</a></h2>
-
-<p>The Remap stage is used to replace the current object of an action with another object in the same role. For example, to remap putting things in a desk to putting them into its drawer we could simply write:</p>
+<h2 id='remap'>Remap</h2>
+<p>The remap stage can be used in two ways. The simpler is to replace the current object of an action with another object in the same role. For example, to remap putting things in a desk to putting them into its drawer we could simply write:</p>
 
 <p><div class=code><pre>
 desk: Thing 'desk'
@@ -788,7 +787,37 @@ desk: Thing 'desk'
 ;
 </pre></div></p>
 
-<p>Finally, there are situations when you what you want to do is not so much to remap one action to another (possibly involving different objects) but to have one action behave like another on the same object. For this purpose you can use the macros <b>asDobjFor(<i>action</i>)</b> and <b>asIobjFor(<i>action</i>)</b>, just as in the adv3 library. For example if we wanted pulling the drawer always to equate to opening it we'd write:</p>
+<p id = complexremap>The more complex version of remap can be used to translate one action into a different one. For this version, instead of defining the remap property as a single object we define it as a list, the first element of which is the new action and the subsequent elements the objects involved in the new action, in the order dobj, iobj (and, rarely, aobj). For example, if we have an actor called Fred who treats things being thrown to him as being given to him, we could write:</p>
+<pre><code>
+fred: Actor 'Fred;;man;him' @roundroom
+    "He looks just like he always does. "     
+    iobjFor(ThrowTo) 
+    {
+        remap = [GiveTo, gDobj, self]
+    } 
+    
+    specialDesc = "Fred is standing in the middle of the room. "
+;
+</code></pre>
+
+<p>Note that remap can also be defined as a method (or expression) that returns a list and/or single object (or a different list and/or object depending on circumstances). For example, if we have a door that is unlocked by inserting a card in a slot, we might want PUT CARD IN SLOT to do the same as UNLOCK DOOR WITH CARD. We could use remap to do it like this:</p>
+
+<pre><code>
++ slot: Fixture 'slot'
+    iobjFor(PutIn)
+    {
+        remap = (gDobj == card ? [UnlockWith, livingRoomDoor, card] : nil)
+    }
+    cannotPutInMsg = '{The subj dobj} won\'t fit in the slot. '
+;
+</code></pre>
+
+<p>Here, the remapping will only occur if the direct object is the card, otherwise PUT X IN SLOT will get the response The x won't fit in the slot." If remap evaluates to nil, no remapping takes place.</p>
+
+<p>We could achieve the same result by using a <a href='doer.htm'>Doer</a>, or for finer control you may want to use a multimethod (on which see <a href='#multimeth'>below</a>, but you may often find using remap more convenient; it will often come down to personal preference. There is, however, one more point to consider: if we write an expression or method like the one above, we must be careful to ensure that it won't cause a run-time error if gDobj or gIobj evaluates to nil (as it might, for example, if we were testing for <code>gDobj.isIn(gActor)</code>). If there is any risk of that happening, we should use <code>gVerifyDobj</code> or <code>gVerifyDobj</code> instead. It may also help the parser's choice of objects if we also do that if our expression/method does or may return a single object.</p>
+
+
+<p>There are situations when you what you want to do is not so much to remap one action to another (possibly involving different objects) but to have one action behave like another on the same object. For this purpose you can use the macros <b>asDobjFor(<i>action</i>)</b> and <b>asIobjFor(<i>action</i>)</b>, just as in the adv3 library. For example if we wanted pulling the drawer always to equate to opening it we'd write:</p>
 
 <p><div class=code><pre>
 drawer: Thing 'drawer'
@@ -813,9 +842,12 @@ class SimpleAttachable: Thing
     dobjFor(Unfasten) asDobjFor(Detach)  
 ;
 </pre></div></p>
+
+<p>Using <code>asDobjFor()</code> and/or <code>asIobjFor()</code> may look superficially similer to some versions of <code>remap</code>, but they are not the same thing: <code>as(D/I)objFor(Whatever)</code> keeps the same action but makes the handling of that action copy the action for Whatever on the direct or indirect object in question, whereas the list form of <code>remap</code> executes a differen action (via a call to <code>doInetead()</code> under the hood) and uses the new action's handling on <i>all</i> the objects involved in the command (e.g., the direct and indirect objects of a TIAction), which may be different objects from those involved in the original command. In some cases the outcome may look the same; in others it won't.</p>
+
 <br>
 
-<h2>TIActions and Multi-Methods</h2>
+<h2 id='multimeth'>TIActions and Multi-Methods</h2>
 <p>An alternative (or additional) way of handling the verify, check and action stages of TIActions is through 
 the use of Multi-Methods. These can allow us to write code like:</p>
 <p><div class=code><pre>

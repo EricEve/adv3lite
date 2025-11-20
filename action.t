@@ -412,7 +412,8 @@ class Action: ReplaceRedirector
      *   carry out any remapping needed. This needs to be defined on Action
      *   since there might be verification of the ActorRole.
      */
-    verify(obj, role)
+//    verify(obj, role)
+    verify(obj, role, scoring = nil) // experimental
     {
         local remapResult;
         local verifyProp;
@@ -459,12 +460,12 @@ class Action: ReplaceRedirector
         remapResult = obj.(remapProp);
         
         /* 
-         *   the object's remap routine can return an object or a list (if it
-         *   returns anything else we ignore it). If it returns an object use
-         *   that object in place of the one we were about to verify for the
-         *   remainder of this action. If it returns a list, the list should
-         *   contain the details of an action that is to replace the current
-         *   action, so run the remapped action instead.
+         *   The object's remap routine can return an object or a list (if it returns anything else
+         *   we ignore it). If it returns an object use that object in place of the one we were
+         *   about to verify for the remainder of this action. If it returns a list, the list should
+         *   contain the details of an action that is to replace the current action, so run the
+         *   remapped action instead, but not while we're using this routine to score the objects
+         *   for the purpose of resolving the command.
          */        
         switch(dataType(remapResult))
         {
@@ -475,14 +476,22 @@ class Action: ReplaceRedirector
             /* 
              *   If the remap result is a list, then we'll need to remap the
              *   action to another one, but we'll leave that until all the
-             *   objects have been resolved. For the purpose of verifying this
-             *   object we'll just return a standard logical verify result to
-             *   allow the remapping to proceed at a later stage.
-             */                  
-            DMsg(remap error, '<b>ERROR!</b> The long form of remap is no longer
-                available; please use a Doer instead. ');
-             
+             *   objects have been resolved. So if we're using this verify
+             *   routine to score objects for object resolution we'll leave
+             *   things be until the later stage when scoring has been completed.
+             */              
+            // experimentally, but it seems to work fine with the !scoring check
+            if(!scoring)
+            {
+                obj.doInstead(remapResult...);
+                exit;
+            }
+            
+//            DMsg(remap error, '<b>ERROR!</b> The long form of remap is no longer
+//                available; please use a Doer instead. ');
+ 
         default:
+//          
             break;
         }
         
@@ -868,7 +877,7 @@ class Action: ReplaceRedirector
              *   Get the verify result by running the verify routine on the
              *   current Command object's action for this object in this role.
              */
-            verResult = cmd.action.verify(obj, role);
+            verResult = cmd.action.verify(obj, role, true);
             
             /* 
              *   Compute the score as being the verify result's result rank
@@ -2596,9 +2605,9 @@ class LiteralTAction: TAction
      *   and FOO as the literal, even if the Parser thinks it needs to verify
      *   the Indirect Object to disambiguate BALL.
      */    
-    verify(obj, role)
+    verify(obj, role, scoring = nil)
     {
-        return inherited(obj, DirectObject);
+        return inherited(obj, DirectObject, scoring);
     }
     
     
@@ -2695,9 +2704,9 @@ class TopicTAction: TAction
      *   and FOO as the literal, even if the Parser thinks it needs to verify
      *   the Indirect Object to disambiguate BALL.
      */    
-    verify(obj, whichObj)
+    verify(obj, whichObj, scoring = nil)
     {
-        return inherited(obj, DirectObject);
+        return inherited(obj, DirectObject, scoring);
     }
     
     /* 
@@ -2750,9 +2759,9 @@ class NumericTAction: TAction
      *   and FOO as the literal, even if the Parser thinks it needs to verify
      *   the Indirect Object to disambiguate BALL.
      */    
-    verify(obj, role)
+    verify(obj, role, scoring = nil)
     {
-        return inherited(obj, DirectObject);
+        return inherited(obj, DirectObject, scoring);
     }
     
     
