@@ -598,7 +598,7 @@ moduleAdv3Lite: ModuleID
     byline = 'by Eric Eve'
     htmlByline = 'by <a href="mailto:eric.eve@hmc.ox.ac.uk">'
                  + 'Eric Eve</a>'
-    version = '2.2.1.2.5'
+    version = '2.2.1.2.6'
 
     /*
      *   We use a listing order of 50 so that, if all of the other credits

@@ -647,12 +647,34 @@ class Room: TravelConnector, Thing
                 if(conn && !conn.ofKind(UnlistedProxyConnector) 
                    &&  conn.getDestination(self) == dest)           
                     return dir;
-            }
-                
-        }
-        
-        
+            }                
+        }        
         return nil;
+    }
+    
+    /* 
+     *   The getConnectorTo method returns the TravelConnector by which one would need to travel
+     *   from this room to travel to dest not via an UnlistedProxy Connector (normally defined by
+     *   the asExit() macro. If none of the room's direction properties clearly leads to dest via a
+     *   TravelConnector including a Room) then return nil.
+     */    
+    getConnectorTo(dest)
+    {
+        for(local dir = firstObj(Direction); dir != nil; dir = nextObj(dir,
+            Direction))
+        {
+            local conn;
+            
+            if(propType(dir.dirProp) == TypeObject)
+            {                                
+                conn = self.(dir.dirProp);              
+                
+                if(conn && !conn.ofKind(UnlistedProxyConnector) 
+                   &&  conn.getDestination(self) == dest)           
+                    return conn;
+            }                
+        }        
+        return nil;        
     }
     
     
