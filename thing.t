@@ -1756,8 +1756,8 @@ class Thing:  ReplaceRedirector, Mentionable
             obj.mentioned = nil;
             
             /* 
-             *   If obj has any contents, unmention every item in is contents, unless obj is a Floor
-             *   object (whose contents is only notional).
+             *   If obj has any contents, unmention every item in its contents, unless obj is a
+             *   Floor object (whose contents is only notional).
              */
             if(obj.contents.length > 0 && !obj.ofKind(Floor))
                 unmention(obj.contents);
@@ -2933,7 +2933,7 @@ class Thing:  ReplaceRedirector, Mentionable
             location = location.(subLocation);
         
         /*   If we have a location, add ourselves to its contents list. */
-        if(location != nil)
+        if(propType(&location) == TypeObject)
             location.addToContents(self);
         
         /* if we have a global parameter name, add it to the global table */
@@ -10465,12 +10465,12 @@ class MultiLoc: object
      *   If we're a MultiLoc we don't want to carry out any of the normal
      *   preinitialization related to our location.
      */
-    preinitThing()
-    {
-        /* if we have a global parameter name, add it to the global table */
-        if (globalParamName != nil)
-            libGlobal.nameTable_[globalParamName] = self;
-    }
+//    preinitThing()
+//    {
+//        /* if we have a global parameter name, add it to the global table */
+//        if (globalParamName != nil)
+//            libGlobal.nameTable_[globalParamName] = self;
+//    }
 ;
 
 /*  

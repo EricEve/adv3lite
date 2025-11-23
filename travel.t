@@ -1399,10 +1399,10 @@ class DSDoor: DSCon, Door
     
         
     /*   
-     *   We need to use DSCon's preinitTbing() method rather than Door's, since Door's does a whole
+     *   We need to use Thing's preinitThing() method rather than Door's, since Door's does a whole
      *   lot with our otherSide property, which we don't need or want to use.
      */
-    preinitThing() { inherited DSCon(); }     
+    preinitThing() { inherited Thing(); }     
     
     /*
      *   The lockability of this Door (notLockable, lockableWithKey, lockableWithoutKey, or
@@ -1802,7 +1802,7 @@ class TravelConnector: object
              *   If travel is not permitted display a message explaining why and
              *   then return nil to cancel the travel.
              */
-            explainTravelBarrier(traveler, connector);
+            explainTravelBarrier(traveler, self);
             return nil;
         }
         
