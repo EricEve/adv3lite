@@ -1083,7 +1083,7 @@ class Door: TravelConnector, Thing
             
 #endif
         }
-        else
+        else if(otherSide != self)
         {
             /* 
              *   If our otherSide doesn't already point to us, make it do so.
@@ -1402,7 +1402,7 @@ class DSDoor: DSCon, Door
      *   We need to use Thing's preinitThing() method rather than Door's, since Door's does a whole
      *   lot with our otherSide property, which we don't need or want to use.
      */
-    preinitThing() { inherited Thing(); }     
+//    preinitThing() { inherited Thing(); }     
     
     /*
      *   The lockability of this Door (notLockable, lockableWithKey, lockableWithoutKey, or
@@ -1423,6 +1423,8 @@ class DSDoor: DSCon, Door
      */    
     room2Lockability = (keyList == nil ? notLockable : lockableWithKey)
     
+    /* A double-sided door is its own other side. */
+    otherSide = self    
 ;
 
 

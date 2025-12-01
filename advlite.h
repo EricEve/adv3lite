@@ -1580,12 +1580,12 @@ DSTravelConnector template @room1 @room2;
 DSTravelConnector template ->room1 ->room2;
 
 /* Templates for Passage and Stairways */
-Passage template ->destination 'vocab' "desc"?;
-Passage template 'vocab' ->destination "desc"?;
-Passage template 'vocab' "desc"? ->destination; 
+Passage template ->destination 'vocab' @location? "desc"?;
+Passage template 'vocab' @location? ->destination "desc"?;
+Passage template 'vocab' @location? "desc"? ->destination; 
 
 StairwayUp template ->destination 'vocab' @location? "desc"?;
-StairwayUp template 'vocab' @location  ->destination "desc"?;
+StairwayUp template 'vocab' @location?  ->destination "desc"?;
 StairwayUp template 'vocab' @location? "desc"? ->destination;
 
 StairwayDown template ->destination 'vocab'@location? "desc"?;

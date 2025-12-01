@@ -2933,7 +2933,8 @@ class Thing:  ReplaceRedirector, Mentionable
             location = location.(subLocation);
         
         /*   If we have a location, add ourselves to its contents list. */
-        if(propType(&location) == TypeObject)
+        if(propType(&location) == TypeObject 
+           || (propType(&location) == TypeCode && lexicalParent && location == lexicalParent))
             location.addToContents(self);
         
         /* if we have a global parameter name, add it to the global table */
@@ -10460,17 +10461,6 @@ class MultiLoc: object
           */         
         return locationList[1];
     }   
-    
-    /* 
-     *   If we're a MultiLoc we don't want to carry out any of the normal
-     *   preinitialization related to our location.
-     */
-//    preinitThing()
-//    {
-//        /* if we have a global parameter name, add it to the global table */
-//        if (globalParamName != nil)
-//            libGlobal.nameTable_[globalParamName] = self;
-//    }
 ;
 
 /*  
