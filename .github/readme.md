@@ -9,12 +9,12 @@ One area adv3Lite absolutely doesn't skimp on is the conversation system, which 
 
 In sum, adv3Lite is an alternative library that's easier to learn and easier to use that adv3, but doesn't compromise on the functionality most commonly needed to write interactive fiction. It exists entirely in source form (written in TADS 3, a C-like language designed for writing Interactive Fiction) for use by game authors.
 
-For more detailed information, please refer to the [online documentation](https://faroutscience.com/adv3lite_docs/index.htm) and/or the [Wiki](../../../wiki) assaociated with this site.
+For more detailed information, please refer to the [online documentation](https://faroutscience.com/adv3lite_docs/index.htm) and/or the [Wiki](../../../wiki) associated with this site.
 
 ## What is in this repository?
 This GitHub repository contains all the source files (.t, .tl and .h) files that make up the adv3Lite library along with most of the documentation files (a mix of htm and pdf files, which are located under the docs directory) which explain how to use adv3Lite. 
 
-The adv3Lite library files contained in this repository are those at the current state of development, which are likely to be ahead of the current release version. The current release version, version 2.2, can be found in a zip file [here](https://github.com/EricEve/adv3lite/archive/refs/tags/v.2.2.2.zip). For the changelog see 
+The adv3Lite library files contained in this repository are those at the current state of development, which are likely to be ahead of the current release version. The current release version, version 2.2, can be found in a zip file [here](https://github.com/EricEve/adv3lite/archive/refs/tags/v.2.2.2.zip). For the changelog see [here](https://github.com/EricEve/adv3lite/wiki/Change-Log).
 
 ## How is adv3Lite used?
 It would normally be installed under the extensions directory of your TADS 3 user files. Instructions for using it in a TADS 3 project are provided in the [adv3Lite documentation](https://github.com/EricEve/adv3lite/wiki/Learning-adv3Lite). 
