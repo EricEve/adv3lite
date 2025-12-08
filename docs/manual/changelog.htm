@@ -44,7 +44,7 @@ Change Log
 <li><a href="#v0.2">Version 0.2</a></li>
 </ul>
 
-<h2 id='v2-2-2'>Version 2.2.2 (tbd) </h2>
+<h2 id='v2-2-2'>Version 2.2.2 (08-December-2025)</h2>
 <p>The VERSION command can now be abbreviated to VER.
 <hr>
 <p>It is now possible to track the <a href='thing.htm#loctrack'><b>room location history</b></a> of a Thing. This is probably most useful on Actors but can be used on any Thing. To track a Thing's room location history set its <code>locationHistoryLength</code> to a number greater than zero (the default is <code>nil</code>. The method <code>getLocationHistory</code> can be used to retrieve a list containing the most recent rooms in which the Thing has been located, with the Thing's current Room at the end of the list. The method <code>getPreviousLocation</code> returns the previous room in which the Thing was located. If you want to track an object's location (i.e. it's immediate container) rather than its Room, you can set its <code>trackRoomsOnly</code> property to <code>nil</code>. For finer control still, you can override the <code>trackedLocation</code> property.</p>
@@ -226,9 +226,6 @@ DefineTAction(Foo)
 DefineTVerb(Foo, 'foo' singleDobj, 'foo', 'fooing');
 </code></pre>
 <p>Which expands to exactly the same code, but with a good deal less typing. <code>DefineIVerb(name, grem, inf, partc)</code> can be used ro define an IAction and its associated VerbRule together, <code>DefineTVerb(name, grem, inf, partc)</code> a TAction and its associated VerbRule, and <code>DefineTIVerb(name, grem, inf, partc, prep)</code> a TIAction and its associated VerbRule. In each case <i>name</i> is the name of the Action and the VerbRule tag, <i>gram</i> is the grammar (e.g. <code>'foo' singleDobj</code>) that matches the action, <i>inf</i> the infinitive form to be used in the verbPhrase (e.g. 'foo'), <i>partc</i> the participle form (e.g. 'fooing') and <i>prep</i> the preposition used in a TIAction (e.g., 'with' in a FooWith action).</p>
-   
-
-
 <hr>
 <p>In the MultiLoc <b>moveIntoAdd(loc)</b> and <code>moveInto(loc)</code> method, the <i>loc</i> parameter may now be supplied as a list of objects (Things, Rooms or Regions) as well as a single object.</p>
 <hr>
@@ -303,6 +300,16 @@ fred: Actor 'Fred;;man;him' @roundroom
 <p>This will cause THROW X AT FRED or THROW X TO FRED to be remapped to GIVE X TO FRED. Note that remap can also be defined as an expression or method that evaluates to/returns different objects and/or lists under different circumstances.</p>
 <hr>
 <p>Added a new <b>getConnectorTo(dest)</b> method to the Room class. This returns the travel connector by which one needs to travel from the Room to reach <i>dest</i>, assuming <i>dest</i> is a neighbouring Room. If no such connector exists, the method returns nil.</p>
+<hr>
+<p>The Passage, PathPassage, Door, StairwayUp and StairwayDown classes now define <code>location = lexicalParent</code>. This is to facilitate the defining of physical travel connectors of these classes as anonymous nested objects on room direction properties, for example:</p>
+<pre><code>
+hall: Room 'You are in the hall. A passage leads north. "
+   north: Passage 'passage' -&gt; kitchen "The pasage leads north. " {}
+:   
+</code></pre>
+<p>This could be done in user code, of course, by defining <code>location = lexicalParent</code> on each such anonymous nested travel connector object, but it is all too easy to forget to do this (leading to potentially obscure bugs) and in any cases defining this on the class may save game authors quite a bit of typing if they want to define many passage, stairway and/or door objects in this way.</p>
+<p>Note that this doesn't affect the DS (double-sided) versions of such objects, since these all use MultiLoc's definition of <code>location</code>. It also shouldn't affect any single-sided doors, passages or doorways defined as separate named objects, since user code should in any case define its own definition of the location of such objects.</p>
+
 <hr>
 <p>Fixed minor quirk in the preinitialization of Doors which could result in unncessary warnings about some Doors lacking an <code>otherSide</code> (when the game was compiled for debugging). The library automatically fixes this when one Door defines an <code>otherSide</code> and the other doesn't, so the warnings were spurious (but occurred when the Door without an <code>otherSide</code> was preinitialised before the one with).</p>
 <hr>

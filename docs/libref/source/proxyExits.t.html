@@ -1,0 +1,148 @@
+<html><head><link rel=stylesheet type="text/css" href="../libref.css"><title>proxyExits.t</title></head><body>
+<table class=ban><tr><td><h1>proxyExits.t</h1><td align=right><a href="../file/proxyExits.t.html">documentation</a></table><pre>
+<a name="1"></a>#charset "us-ascii"
+<a name="2"></a>
+<a name="3"></a>#include &lt;tads.h&gt;
+<a name="4"></a>#include "advlite.h"
+<a name="5"></a>
+<a name="6"></a>/* 
+<a name="7"></a> *   PROXYEXITS EXTENSION
+<a name="8"></a> *
+<a name="9"></a> *   Adds a number of predefined ProxyExit objects to adv3Lite, together with their associated
+<a name="10"></a> *   SpecialTravelActions
+<a name="11"></a> *
+<a name="12"></a> *   This extension provides the code for doorways, passageways, paths and archways that may be
+<a name="13"></a> *   mentioned in room descriptions but don't otherwise needs to be defined with separate objects
+<a name="14"></a> *   (Doors, Passages, or PathPassages). Instead you can just define a TravelConnector, Room, method
+<a name="15"></a> *   or string on the relevant non-directional property (doorway, passageway, pathway or archway) of
+<a name="16"></a> *   the room in question, or else use the multiXXXway property of the room to say there are
+<a name="17"></a> *   multiple such doors or whatever.
+<a name="18"></a> */
+<a name="19"></a>
+<a name="20"></a>DefSpecialTravel(Doorway, &amp;doorway, 'doorway' | 'door'); 
+<a name="21"></a>
+<a name="22"></a>/* 
+<a name="23"></a> *   The doorwayProxy object places itself in every Room that defines the doorway property to handle
+<a name="24"></a> *   commands aimed at generic doors/doorways mentioned in room descriptions. 
+<a name="25"></a> */
+<a name="26"></a>doorwayProxy: ProxyExit 
+<a name="27"></a>    vocab = BMsg(doorway vocab, 'doorway;ordinary;door')
+<a name="28"></a>    desc = DMsg(doorway desc, 'A doorway is just an ordinary doorway. ')
+<a name="29"></a>    exitProp = &amp;doorway
+<a name="30"></a>    travelAction = Doorway
+<a name="31"></a>    decorationActions = inherited + [Open, Close]
+<a name="32"></a>    cannotOpenMsg = BMsg(open doorway, 'No need in this case')
+<a name="33"></a>    cannotCloseMsg = BMsg(close doorway, 'No need in this case.')
+<a name="34"></a>    notImportantMsg = BMsg(door not important, 'There\'s no need to fiddle with such an ordinary door.
+<a name="35"></a>        ')
+<a name="36"></a>    
+<a name="37"></a>;
+<a name="38"></a>
+<a name="39"></a>DefSpecialTravel(Passageway, &amp;passageway, 'passageway' | 'passage'); 
+<a name="40"></a>
+<a name="41"></a>/* 
+<a name="42"></a> *   The passagewayProxy object places itself in every Room that defines the passageway property to
+<a name="43"></a> *   handle commands aimed at generic passages mentioned in room descriptions.
+<a name="44"></a> */
+<a name="45"></a>passagewayProxy: ProxyExit 
+<a name="46"></a>    vocab = BMsg(passageway vocab, 'passageway;ordinary wide long short narrow straight;passage')
+<a name="47"></a>    desc = DMsg(passageway desc, 'A passage is just an ordinary passage. ')
+<a name="48"></a>    exitProp = &amp;passageway
+<a name="49"></a>    travelAction = Passageway
+<a name="50"></a>    decorationActions = inherited + [ClimbUp, ClimbDown, GoAlong, Follow]
+<a name="51"></a>    dobjFor(ClimbUp) asDobjFor(TravelVia)
+<a name="52"></a>    dobjFor(ClimbDown) asDobjFor(TravelVia)
+<a name="53"></a>    dobjFor(Follow) asDobjFor(TravelVia)
+<a name="54"></a>    dobjFor(GoAlong) asDobjFor(TravelVia)
+<a name="55"></a>    notImportantMsg = BMsg(passage not important, 'There\'s no need to fiddle with such an ordinary
+<a name="56"></a>        passage. ')
+<a name="57"></a>;
+<a name="58"></a>
+<a name="59"></a>DefSpecialTravel(Pathway, &amp;pathway, 'pathway' | 'path'); 
+<a name="60"></a>
+<a name="61"></a>/* 
+<a name="62"></a> *   The pathwayProxy object places itself in every Room that defines the pathway property to handle
+<a name="63"></a> *   commands aimed at generic paths/pathways mentioned in room descriptions.
+<a name="64"></a> */
+<a name="65"></a>pathwayProxy: ProxyExit
+<a name="66"></a>    vocab = BMsg(pathway vocab, 'pathway;ordinary narrow wide broad long short straight windy 
+<a name="67"></a>        crooked;path')
+<a name="68"></a>    desc = DMsg(pathway desc, 'A path is just an ordinary path. ')
+<a name="69"></a>    exitProp = &amp;pathway
+<a name="70"></a>    travelAction = Pathway
+<a name="71"></a>    decorationActions = inherited + [Take, Climb, ClimbUp, ClimbDown, GoAlong, Follow]
+<a name="72"></a>    
+<a name="73"></a>    /* TAKE PATH is equivalent to GO ALONG PATH */
+<a name="74"></a>    dobjFor(Take)
+<a name="75"></a>    {
+<a name="76"></a>        verify()
+<a name="77"></a>        {
+<a name="78"></a>            if(gVerbWord != 'take')
+<a name="79"></a>                illogical(cannotTakeMsg);           
+<a name="80"></a>        }
+<a name="81"></a>        action() { doInstead(TravelVia, self); }
+<a name="82"></a>    }
+<a name="83"></a>    
+<a name="84"></a>    dobjFor(Climb) asDobjFor(TravelVia)
+<a name="85"></a>    dobjFor(ClimbUp) asDobjFor(TravelVia)
+<a name="86"></a>    dobjFor(ClimbDown) asDobjFor(TravelVia)
+<a name="87"></a>    dobjFor(Follow) asDobjFor(TravelVia)
+<a name="88"></a>    dobjFor(GoAlong) asDobjFor(TravelVia)
+<a name="89"></a>    
+<a name="90"></a>    notImportantMsg = BMsg(path not important, 'There\'s no need to fiddle with such an ordinary
+<a name="91"></a>        path. ')
+<a name="92"></a>;
+<a name="93"></a>
+<a name="94"></a>DefSpecialTravel(Archway, &amp;archway, 'archway' | 'arch'); 
+<a name="95"></a>
+<a name="96"></a>/* 
+<a name="97"></a> *   The archwayProxy object places itself in every Room that defines the archway property to handle
+<a name="98"></a> *   commands aimed at generic arches/archways mentioned in room descriptions. 
+<a name="99"></a> */
+<a name="100"></a>archwayProxy: ProxyExit 
+<a name="101"></a>    vocab = BMsg(archway vocab, 'archway;ordinary; large small big arch')
+<a name="102"></a>    desc = DMsg(archway desc, 'An archway is just an ordinary archway. ')
+<a name="103"></a>    exitProp = &amp;archway
+<a name="104"></a>    travelAction = Archway    
+<a name="105"></a>    notImportantMsg = BMsg(arch not important, 'There\'s no need to fiddle with such an ordinary
+<a name="106"></a>        archway. ')
+<a name="107"></a>;
+<a name="108"></a>
+<a name="109"></a>
+<a name="110"></a>/* 
+<a name="111"></a> *   The following multiXXXMsgs can be defined on the relevant properties of rooms that have more
+<a name="112"></a> *   than one doorway/pasaage/path and/or archway mentioned in their room description.
+<a name="113"></a> */
+<a name="114"></a>modify Room
+<a name="115"></a>    /* 
+<a name="116"></a>     *   This can be attached to the doorway property of a Room with multiple doors to explain that
+<a name="117"></a>     *   the player has to choose which way to go.
+<a name="118"></a>     */
+<a name="119"></a>    multiDoorMsg = DMsg(multi door, 'More than one doorway leads off from here; you\'ll have to say
+<a name="120"></a>        which way you want to go. ')
+<a name="121"></a>    
+<a name="122"></a>    /* 
+<a name="123"></a>     *   This can be attached to the pasageway property of a Room with multiple pasaages to explain
+<a name="124"></a>     *   that the player has to choose which way to go.
+<a name="125"></a>     */
+<a name="126"></a>    multiPassageMsg = DMsg(multi passage, 'More than one pasageway leads off from here; you\'ll have
+<a name="127"></a>        to say which way you want to go. ')
+<a name="128"></a>    
+<a name="129"></a>    /* 
+<a name="130"></a>     *   This can be attached to the pathway property of a Room with multiple paths to explain that
+<a name="131"></a>     *   the player has to choose which way to go.
+<a name="132"></a>     */
+<a name="133"></a>    multiPathMsg = DMsg(multi path, 'More than one path leads off from here; you\'ll have to say
+<a name="134"></a>        which way you want to go. ')
+<a name="135"></a>    
+<a name="136"></a>    /* 
+<a name="137"></a>     *   This can be attached to the archway property of a Room with multiple archways to explain
+<a name="138"></a>     *   that the player has to choose which way to go.
+<a name="139"></a>     */
+<a name="140"></a>    multiArchMsg = DMsg(multi arch, 'More than one archway leads off from here; you\'ll have to say
+<a name="141"></a>        which way you want to go. ')   
+<a name="142"></a>;
+</pre>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 08/12/2025 from adv3Lite version 2.2.2</div>
+</body>
+</html>

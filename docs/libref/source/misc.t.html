@@ -2596,638 +2596,639 @@
 <a name="2594"></a> *   basis for providing other arguments.  
 <a name="2595"></a> */
 <a name="2596"></a>libObjectInitializer: PreinitObject
-<a name="2597"></a>    execBeforeMe = []
-<a name="2598"></a>    execute()
-<a name="2599"></a>    {
-<a name="2600"></a>        /* build the reverse symbol table (indexed by object value) */
-<a name="2601"></a>        local gtab = t3GetGlobalSymbols();
-<a name="2602"></a>        local otab = new LookupTable(128, 256);
-<a name="2603"></a>        gtab.forEachAssoc({ key, val: otab[val] = key });
-<a name="2604"></a>
-<a name="2605"></a>        /* save it in the PreinitObject class */
-<a name="2606"></a>        PreinitObject.reverseGlobalSymbols = otab;
-<a name="2607"></a>
-<a name="2608"></a>        /* create a lookup table tracking which objects we've initialized */
-<a name="2609"></a>        _initedTab = new LookupTable(256, 1024);
-<a name="2610"></a>
-<a name="2611"></a>        /* call classInit() on all classes */
-<a name="2612"></a>        for (local o = firstObj(TadsObject, ObjClasses) ; o != nil ;
-<a name="2613"></a>             o = nextObj(o, TadsObject, ObjClasses))
-<a name="2614"></a>        {
-<a name="2615"></a>            /* if this class directly defines a classInit() method, call it */
-<a name="2616"></a>            if (o.propDefined(&amp;classInit, PropDefGetClass) == o)
-<a name="2617"></a>                callConstructor(o, &amp;classInit, &amp;classInitFirst);
-<a name="2618"></a>        }
-<a name="2619"></a>
-<a name="2620"></a>        /* call construct() or constructStatic() on all object instances */
-<a name="2621"></a>        for (local o = firstObj(TadsObject, ObjInstances) ; o != nil ;
-<a name="2622"></a>             o = nextObj(o, TadsObject, ObjInstances))
-<a name="2623"></a>        {
-<a name="2624"></a>            /* 
-<a name="2625"></a>             *   Only call static objects - these will all have
-<a name="2626"></a>             *   sourceTextOrder properties assigned by the compiler.
-<a name="2627"></a>             *   
-<a name="2628"></a>             *   Note that modified objects will inherit sourceTextOrder
-<a name="2629"></a>             *   from a class - they're the only objects that do this,
-<a name="2630"></a>             *   since the compiler only assigns sourceTextOrder initially
-<a name="2631"></a>             *   to ordinary objects, but then class-ifies the base object
-<a name="2632"></a>             *   when modifying it.  The only way that an object can
-<a name="2633"></a>             *   inherit sourceTextOrder from a class is that the class is
-<a name="2634"></a>             *   the original modified object, and the instance is the
-<a name="2635"></a>             *   modifier.  
-<a name="2636"></a>             */
-<a name="2637"></a>            local cl = o.propDefined(&amp;sourceTextOrder, PropDefGetClass);
-<a name="2638"></a>            if (cl == o || cl != nil &amp;&amp; cl.isClass())
-<a name="2639"></a>            {
-<a name="2640"></a>                /* 
-<a name="2641"></a>                 *   It's a static object.  If it has a constructStatic()
-<a name="2642"></a>                 *   method, call that.  Otherwise, if it has a construct()
-<a name="2643"></a>                 *   method, call that.
-<a name="2644"></a>                 */
-<a name="2645"></a>                if (o.propDefined(&amp;constructStatic))
-<a name="2646"></a>                {
-<a name="2647"></a>                    /* it has constructStatic() */
-<a name="2648"></a>                    callConstructor(o, &amp;constructStatic, &amp;constructFirst);
-<a name="2649"></a>                }
-<a name="2650"></a>                else if (o.propDefined(&amp;construct))
-<a name="2651"></a>                {
-<a name="2652"></a>                    /* call construct() */
-<a name="2653"></a>                    callConstructor(o, &amp;construct, &amp;constructFirst);
-<a name="2654"></a>                }
-<a name="2655"></a>            }
-<a name="2656"></a>        }
-<a name="2657"></a>
-<a name="2658"></a>        /* 
-<a name="2659"></a>         *   done with the lookup table - explicitly remove it so that it
-<a name="2660"></a>         *   doesn't take up space in the final compiled image 
-<a name="2661"></a>         */
-<a name="2662"></a>        _initedTab = nil;
-<a name="2663"></a>
-<a name="2664"></a>        /* likewise the reverse global symbol table */
-<a name="2665"></a>        reverseGlobalSymbols = otab;
-<a name="2666"></a>    }
-<a name="2667"></a>
-<a name="2668"></a>    /* call the given object's constructor */
-<a name="2669"></a>    callConstructor(obj, conProp, preProp)
-<a name="2670"></a>    {
-<a name="2671"></a>        /* if obj has already been initialized, skip it */
-<a name="2672"></a>        if (_initedTab[obj])
-<a name="2673"></a>            return;
-<a name="2674"></a>
-<a name="2675"></a>        /* 
-<a name="2676"></a>         *   mark this object as visited (do this first, before handling
-<a name="2677"></a>         *   prerequisites, to break circular dependencies: if a
-<a name="2678"></a>         *   prerequisite of ours lists us as a prerequisite, we'll see
-<a name="2679"></a>         *   that we've already been initialized and stop the loop) 
-<a name="2680"></a>         */
-<a name="2681"></a>        _initedTab[obj] = true;
-<a name="2682"></a>
-<a name="2683"></a>        /* call constructors on any prerequisites */
-<a name="2684"></a>        if (obj.propDefined(preProp))
-<a name="2685"></a>        {
-<a name="2686"></a>            foreach (local p in obj.(preProp))
-<a name="2687"></a>                callConstructor(p, conProp, preProp);
-<a name="2688"></a>        }
-<a name="2689"></a>
-<a name="2690"></a>        /* 
-<a name="2691"></a>         *   if the given constructor is zero-argument constructor, call it
-<a name="2692"></a>         *   directly; otherwise, look for an inherited constructor 
-<a name="2693"></a>         */
-<a name="2694"></a>        if (obj.getPropParams(conProp) == [0, 0, nil])
-<a name="2695"></a>        {
-<a name="2696"></a>            /* call the constructor */
-<a name="2697"></a>            obj.(conProp)();
-<a name="2698"></a>        }
-<a name="2699"></a>        else
-<a name="2700"></a>        {
-<a name="2701"></a>            /* 
-<a name="2702"></a>             *   Search the class tree for an inherited version of the
-<a name="2703"></a>             *   constructor that takes zero arguments.  
-<a name="2704"></a>             */
-<a name="2705"></a>            for (local cl = obj.propDefined(conProp, PropDefGetClass) ;
-<a name="2706"></a>                 cl != nil ;
-<a name="2707"></a>                 cl = obj.propInherited(conProp, obj, cl, PropDefGetClass))
-<a name="2708"></a>            {
-<a name="2709"></a>                /* if this is a zero-argument version, call it */
-<a name="2710"></a>                if (cl.getPropParams(conProp) == [0, 0, nil])
-<a name="2711"></a>                {
-<a name="2712"></a>                    /* invoke it */
-<a name="2713"></a>                    obj.callInherited(cl, conProp);
-<a name="2714"></a>
-<a name="2715"></a>                    /* we're done looking */
-<a name="2716"></a>                    break;
-<a name="2717"></a>                }
-<a name="2718"></a>            }
-<a name="2719"></a>        }
-<a name="2720"></a>    }
-<a name="2721"></a>
-<a name="2722"></a>    /* table of objects we've already initialized */
-<a name="2723"></a>    _initedTab = nil
-<a name="2724"></a>;
-<a name="2725"></a>
-<a name="2726"></a>/*
-<a name="2727"></a> *   Our static object and class initializer should generally run before
-<a name="2728"></a> *   any other initializers.  
-<a name="2729"></a> */
-<a name="2730"></a>modify PreinitObject
-<a name="2731"></a>    /* execute the basic library initializer before any other initializers */
-<a name="2732"></a>    execBeforeMe = [libObjectInitializer]
-<a name="2733"></a>
-<a name="2734"></a>    /* 
-<a name="2735"></a>     *   class property: reverse lookup symbol table (a version of the
-<a name="2736"></a>     *   global symbol table keyed by value, yielding the name of each
-<a name="2737"></a>     *   global object, function, etc) 
-<a name="2738"></a>     */
-<a name="2739"></a>    reverseGlobalSymbols = nil
-<a name="2740"></a>;
-<a name="2741"></a>
-<a name="2742"></a>emumTabInitializer: PreinitObject
-<a name="2743"></a>    execute()
-<a name="2744"></a>    {
-<a name="2745"></a>        local gTab = t3GetGlobalSymbols();
-<a name="2746"></a>            
-<a name="2747"></a>        local lst=gTab.keysToList();
-<a name="2748"></a>        
-<a name="2749"></a>        foreach(local key in lst)
-<a name="2750"></a>        {
-<a name="2751"></a>            local value = gTab[key];
-<a name="2752"></a>            if(dataType(value) == TypeEnum &amp;&amp; enumTabObj.enumTab[value] == nil)
-<a name="2753"></a>                enumTabObj.enumTab[value] = key;
-<a name="2754"></a>        }
-<a name="2755"></a>    }   
-<a name="2756"></a>;
-<a name="2757"></a>
-<a name="2758"></a>/* 
-<a name="2759"></a> *   Service function primarily intended for use with the symcomm extension to facilitate the use of
-<a name="2760"></a> *   a string template, defined in advlite.h, allowing a string to vary by room. The arg parameter
-<a name="2761"></a> *   should be supplied as a list of strings (symcomm expects a list of two, bur other uses could do
-<a name="2762"></a> *   something different).
-<a name="2763"></a> *
-<a name="2764"></a> *   We need the function because a string template can't directly be defined in relation to a
-<a name="2765"></a> *   method, so the byRoomFunc() function calls the byRoom() method on the object that invokes it.
-<a name="2766"></a> */
-<a name="2767"></a> byRoomFunc(arg)
-<a name="2768"></a>{
-<a name="2769"></a>    /* 
-<a name="2770"></a>     *   We meed to get at the effective self object by using the stack frame. First obtain the
-<a name="2771"></a>     *   stack frame one level back from us.
-<a name="2772"></a>     */
-<a name="2773"></a>    local frame = t3GetStackTrace(2, T3GetStackDesc).frameDesc_;
-<a name="2774"></a>    
-<a name="2775"></a>    /* Then get the self object in that stack frame. */
-<a name="2776"></a>    local obj = frame.getSelf();
-<a name="2777"></a>    
-<a name="2778"></a>    /* Then call and return the byRoom() method on that object. */
-<a name="2779"></a>    return obj.byRoom(arg);
-<a name="2780"></a>}
-<a name="2781"></a>
+<a name="2597"></a>    /* The existence of a SymTab referred below is presupposed. */
+<a name="2598"></a>    execBeforeMe = [pronounPreinit]
+<a name="2599"></a>    execute()
+<a name="2600"></a>    {
+<a name="2601"></a>        /* build the reverse symbol table (indexed by object value) */
+<a name="2602"></a>        local gtab = t3GetGlobalSymbols();
+<a name="2603"></a>        local otab = new LookupTable(128, 256);
+<a name="2604"></a>        gtab.forEachAssoc({ key, val: otab[val] = key });
+<a name="2605"></a>
+<a name="2606"></a>        /* save it in the PreinitObject class */
+<a name="2607"></a>        PreinitObject.reverseGlobalSymbols = otab;
+<a name="2608"></a>
+<a name="2609"></a>        /* create a lookup table tracking which objects we've initialized */
+<a name="2610"></a>        _initedTab = new LookupTable(256, 1024);
+<a name="2611"></a>
+<a name="2612"></a>        /* call classInit() on all classes */
+<a name="2613"></a>        for (local o = firstObj(TadsObject, ObjClasses) ; o != nil ;
+<a name="2614"></a>             o = nextObj(o, TadsObject, ObjClasses))
+<a name="2615"></a>        {
+<a name="2616"></a>            /* if this class directly defines a classInit() method, call it */
+<a name="2617"></a>            if (o.propDefined(&amp;classInit, PropDefGetClass) == o)
+<a name="2618"></a>                callConstructor(o, &amp;classInit, &amp;classInitFirst);
+<a name="2619"></a>        }
+<a name="2620"></a>
+<a name="2621"></a>        /* call construct() or constructStatic() on all object instances */
+<a name="2622"></a>        for (local o = firstObj(TadsObject, ObjInstances) ; o != nil ;
+<a name="2623"></a>             o = nextObj(o, TadsObject, ObjInstances))
+<a name="2624"></a>        {
+<a name="2625"></a>            /* 
+<a name="2626"></a>             *   Only call static objects - these will all have
+<a name="2627"></a>             *   sourceTextOrder properties assigned by the compiler.
+<a name="2628"></a>             *   
+<a name="2629"></a>             *   Note that modified objects will inherit sourceTextOrder
+<a name="2630"></a>             *   from a class - they're the only objects that do this,
+<a name="2631"></a>             *   since the compiler only assigns sourceTextOrder initially
+<a name="2632"></a>             *   to ordinary objects, but then class-ifies the base object
+<a name="2633"></a>             *   when modifying it.  The only way that an object can
+<a name="2634"></a>             *   inherit sourceTextOrder from a class is that the class is
+<a name="2635"></a>             *   the original modified object, and the instance is the
+<a name="2636"></a>             *   modifier.  
+<a name="2637"></a>             */
+<a name="2638"></a>            local cl = o.propDefined(&amp;sourceTextOrder, PropDefGetClass);
+<a name="2639"></a>            if (cl == o || cl != nil &amp;&amp; cl.isClass())
+<a name="2640"></a>            {
+<a name="2641"></a>                /* 
+<a name="2642"></a>                 *   It's a static object.  If it has a constructStatic()
+<a name="2643"></a>                 *   method, call that.  Otherwise, if it has a construct()
+<a name="2644"></a>                 *   method, call that.
+<a name="2645"></a>                 */
+<a name="2646"></a>                if (o.propDefined(&amp;constructStatic))
+<a name="2647"></a>                {
+<a name="2648"></a>                    /* it has constructStatic() */
+<a name="2649"></a>                    callConstructor(o, &amp;constructStatic, &amp;constructFirst);
+<a name="2650"></a>                }
+<a name="2651"></a>                else if (o.propDefined(&amp;construct))
+<a name="2652"></a>                {
+<a name="2653"></a>                    /* call construct() */
+<a name="2654"></a>                    callConstructor(o, &amp;construct, &amp;constructFirst);
+<a name="2655"></a>                }
+<a name="2656"></a>            }
+<a name="2657"></a>        }
+<a name="2658"></a>
+<a name="2659"></a>        /* 
+<a name="2660"></a>         *   done with the lookup table - explicitly remove it so that it
+<a name="2661"></a>         *   doesn't take up space in the final compiled image 
+<a name="2662"></a>         */
+<a name="2663"></a>        _initedTab = nil;
+<a name="2664"></a>
+<a name="2665"></a>        /* likewise the reverse global symbol table */
+<a name="2666"></a>        reverseGlobalSymbols = otab;
+<a name="2667"></a>    }
+<a name="2668"></a>
+<a name="2669"></a>    /* call the given object's constructor */
+<a name="2670"></a>    callConstructor(obj, conProp, preProp)
+<a name="2671"></a>    {
+<a name="2672"></a>        /* if obj has already been initialized, skip it */
+<a name="2673"></a>        if (_initedTab[obj])
+<a name="2674"></a>            return;
+<a name="2675"></a>
+<a name="2676"></a>        /* 
+<a name="2677"></a>         *   mark this object as visited (do this first, before handling
+<a name="2678"></a>         *   prerequisites, to break circular dependencies: if a
+<a name="2679"></a>         *   prerequisite of ours lists us as a prerequisite, we'll see
+<a name="2680"></a>         *   that we've already been initialized and stop the loop) 
+<a name="2681"></a>         */
+<a name="2682"></a>        _initedTab[obj] = true;
+<a name="2683"></a>
+<a name="2684"></a>        /* call constructors on any prerequisites */
+<a name="2685"></a>        if (obj.propDefined(preProp))
+<a name="2686"></a>        {
+<a name="2687"></a>            foreach (local p in obj.(preProp))
+<a name="2688"></a>                callConstructor(p, conProp, preProp);
+<a name="2689"></a>        }
+<a name="2690"></a>
+<a name="2691"></a>        /* 
+<a name="2692"></a>         *   if the given constructor is zero-argument constructor, call it
+<a name="2693"></a>         *   directly; otherwise, look for an inherited constructor 
+<a name="2694"></a>         */
+<a name="2695"></a>        if (obj.getPropParams(conProp) == [0, 0, nil])
+<a name="2696"></a>        {
+<a name="2697"></a>            /* call the constructor */
+<a name="2698"></a>            obj.(conProp)();
+<a name="2699"></a>        }
+<a name="2700"></a>        else
+<a name="2701"></a>        {
+<a name="2702"></a>            /* 
+<a name="2703"></a>             *   Search the class tree for an inherited version of the
+<a name="2704"></a>             *   constructor that takes zero arguments.  
+<a name="2705"></a>             */
+<a name="2706"></a>            for (local cl = obj.propDefined(conProp, PropDefGetClass) ;
+<a name="2707"></a>                 cl != nil ;
+<a name="2708"></a>                 cl = obj.propInherited(conProp, obj, cl, PropDefGetClass))
+<a name="2709"></a>            {
+<a name="2710"></a>                /* if this is a zero-argument version, call it */
+<a name="2711"></a>                if (cl.getPropParams(conProp) == [0, 0, nil])
+<a name="2712"></a>                {
+<a name="2713"></a>                    /* invoke it */
+<a name="2714"></a>                    obj.callInherited(cl, conProp);
+<a name="2715"></a>
+<a name="2716"></a>                    /* we're done looking */
+<a name="2717"></a>                    break;
+<a name="2718"></a>                }
+<a name="2719"></a>            }
+<a name="2720"></a>        }
+<a name="2721"></a>    }
+<a name="2722"></a>
+<a name="2723"></a>    /* table of objects we've already initialized */
+<a name="2724"></a>    _initedTab = nil
+<a name="2725"></a>;
+<a name="2726"></a>
+<a name="2727"></a>/*
+<a name="2728"></a> *   Our static object and class initializer should generally run before
+<a name="2729"></a> *   any other initializers.  
+<a name="2730"></a> */
+<a name="2731"></a>modify PreinitObject
+<a name="2732"></a>    /* execute the basic library initializer before any other initializers */
+<a name="2733"></a>    execBeforeMe = [libObjectInitializer]
+<a name="2734"></a>
+<a name="2735"></a>    /* 
+<a name="2736"></a>     *   class property: reverse lookup symbol table (a version of the
+<a name="2737"></a>     *   global symbol table keyed by value, yielding the name of each
+<a name="2738"></a>     *   global object, function, etc) 
+<a name="2739"></a>     */
+<a name="2740"></a>    reverseGlobalSymbols = nil
+<a name="2741"></a>;
+<a name="2742"></a>
+<a name="2743"></a>emumTabInitializer: PreinitObject
+<a name="2744"></a>    execute()
+<a name="2745"></a>    {
+<a name="2746"></a>        local gTab = t3GetGlobalSymbols();
+<a name="2747"></a>            
+<a name="2748"></a>        local lst=gTab.keysToList();
+<a name="2749"></a>        
+<a name="2750"></a>        foreach(local key in lst)
+<a name="2751"></a>        {
+<a name="2752"></a>            local value = gTab[key];
+<a name="2753"></a>            if(dataType(value) == TypeEnum &amp;&amp; enumTabObj.enumTab[value] == nil)
+<a name="2754"></a>                enumTabObj.enumTab[value] = key;
+<a name="2755"></a>        }
+<a name="2756"></a>    }   
+<a name="2757"></a>;
+<a name="2758"></a>
+<a name="2759"></a>/* 
+<a name="2760"></a> *   Service function primarily intended for use with the symcomm extension to facilitate the use of
+<a name="2761"></a> *   a string template, defined in advlite.h, allowing a string to vary by room. The arg parameter
+<a name="2762"></a> *   should be supplied as a list of strings (symcomm expects a list of two, bur other uses could do
+<a name="2763"></a> *   something different).
+<a name="2764"></a> *
+<a name="2765"></a> *   We need the function because a string template can't directly be defined in relation to a
+<a name="2766"></a> *   method, so the byRoomFunc() function calls the byRoom() method on the object that invokes it.
+<a name="2767"></a> */
+<a name="2768"></a> byRoomFunc(arg)
+<a name="2769"></a>{
+<a name="2770"></a>    /* 
+<a name="2771"></a>     *   We meed to get at the effective self object by using the stack frame. First obtain the
+<a name="2772"></a>     *   stack frame one level back from us.
+<a name="2773"></a>     */
+<a name="2774"></a>    local frame = t3GetStackTrace(2, T3GetStackDesc).frameDesc_;
+<a name="2775"></a>    
+<a name="2776"></a>    /* Then get the self object in that stack frame. */
+<a name="2777"></a>    local obj = frame.getSelf();
+<a name="2778"></a>    
+<a name="2779"></a>    /* Then call and return the byRoom() method on that object. */
+<a name="2780"></a>    return obj.byRoom(arg);
+<a name="2781"></a>}
 <a name="2782"></a>
-<a name="2783"></a>/* Service function to determine whether obj is ofKind cls when obj might not be an object. */
-<a name="2784"></a>objOfKind(obj, cls) { return dataTypeXlat(obj) == TypeObject &amp;&amp; obj.ofKind(cls); }
-<a name="2785"></a>
+<a name="2783"></a>
+<a name="2784"></a>/* Service function to determine whether obj is ofKind cls when obj might not be an object. */
+<a name="2785"></a>objOfKind(obj, cls) { return dataTypeXlat(obj) == TypeObject &amp;&amp; obj.ofKind(cls); }
 <a name="2786"></a>
-<a name="2787"></a>/* Failsafe Function to get the player character object */
-<a name="2788"></a>getPlayerChar()
-<a name="2789"></a>{
-<a name="2790"></a>    /* 
-<a name="2791"></a>     *   If gPleyarChar is not nil, return gPlayerChar, otherwise if gameMain.initialPlayerChar is
-<a name="2792"></a>     *   not nil, return gameMain.initialPlayerChar, otherwise call the findPlayerChar() function
-<a name="2793"></a>     *   and return whatever that comes up with.
-<a name="2794"></a>     */    
-<a name="2795"></a>    return (gameMain.initialPlayerChar) ?? findPlayerChar();
-<a name="2796"></a>}
-<a name="2797"></a>
-<a name="2798"></a>/* 
-<a name="2799"></a> *   The findPlayerChar() function is intended for internal library use only, to be called by
-<a name="2800"></a> *   getPlayerChar() nothing else has yet defined the player character. The findPlayerChar()
-<a name="2801"></a> *   function first iterates through every Thing defined in the game until it finds one that defines
-<a name="2802"></a> *   isInitialPlayChar =  true. If it finds one it sets gPlayerChar to this value and returns the
-<a name="2803"></a> *   player char object. Otherwise it creaates a new Player object, moves it into the first room it
-<a name="2804"></a> *   finds, sets gPlayerChar to the new Player object, issues a warning to the game author that no
-<a name="2805"></a> *   player char object has been explicitly defined in game code, and returns the new Player object.
-<a name="2806"></a> *   This enaures that the calling function, getPlsyerChar(), will always be able to return a
-<a name="2807"></a> *   non-nil object.
-<a name="2808"></a> */     
-<a name="2809"></a>findPlayerChar()    
-<a name="2810"></a>{   
-<a name="2811"></a>    /* Start by looking at objects of the Player class, and if that fails, look through Things. */
-<a name="2812"></a>    for(local cls in [Player, Actor, Thing])
-<a name="2813"></a>    {
-<a name="2814"></a>        /* loop over every Thing till we find the one that defines isInitialPlayerChar = true */
-<a name="2815"></a>        for (local obj = firstObj(cls) ; obj != nil ; obj = nextObj(obj, cls))
-<a name="2816"></a>        {
-<a name="2817"></a>            /* If we've found the initial player character */
-<a name="2818"></a>            if(obj.isInitialPlayerChar)
-<a name="2819"></a>            {
-<a name="2820"></a>                /* Store the PC's identity in gameMain */
-<a name="2821"></a>                gameMain.initialPlayerChar = obj;
-<a name="2822"></a>                
-<a name="2823"></a>                /* Set the player char to the objec we've found. */
-<a name="2824"></a>//                gPlayerChar = obj;
-<a name="2825"></a>                
-<a name="2826"></a>                /* Return our player char object. */
-<a name="2827"></a>                return obj;
-<a name="2828"></a>            }
-<a name="2829"></a>        }
-<a name="2830"></a>    }
-<a name="2831"></a>    
-<a name="2832"></a>    /* If all else fails, create a new player character object */    
-<a name="2833"></a>    local pc = new Player;
-<a name="2834"></a>    
-<a name="2835"></a>    /* Find a room */
-<a name="2836"></a>    local loc = firstObj(Room);
-<a name="2837"></a>    
-<a name="2838"></a>    /* But not the dummy locations unknownDsst_ and varDest_ defined in the library. */
-<a name="2839"></a>    while(loc is in (unknownDest_, varDest_))
-<a name="2840"></a>        loc = nextObj(loc, Room);
-<a name="2841"></a>    
-<a name="2842"></a>    /* Move our new player character into that room */
-<a name="2843"></a>    pc.moveInto(loc);
-<a name="2844"></a>    
-<a name="2845"></a>    /* Set gPlayerChar to our new player character. */
-<a name="2846"></a>//    gPlayerChar = pc;
-<a name="2847"></a>    
-<a name="2848"></a>#ifdef __DEBUG 
-<a name="2849"></a>    say('&lt;.p&gt;&lt;FONT COLOR=RED&gt;&lt;b&gt;WARNING!&lt;/b&gt;&lt;/FONT&gt; No Player Character Defined.&lt;.p&gt;
-<a name="2850"></a>        The library has defined a Player Character object and placed it in &lt;&lt;loc.roomTitle&gt;&gt;.&lt;.p&gt;');
-<a name="2851"></a>#endif  
-<a name="2852"></a>    
+<a name="2787"></a>
+<a name="2788"></a>/* Failsafe Function to get the player character object */
+<a name="2789"></a>getPlayerChar()
+<a name="2790"></a>{
+<a name="2791"></a>    /* 
+<a name="2792"></a>     *   If gPleyarChar is not nil, return gPlayerChar, otherwise if gameMain.initialPlayerChar is
+<a name="2793"></a>     *   not nil, return gameMain.initialPlayerChar, otherwise call the findPlayerChar() function
+<a name="2794"></a>     *   and return whatever that comes up with.
+<a name="2795"></a>     */    
+<a name="2796"></a>    return (gameMain.initialPlayerChar) ?? findPlayerChar();
+<a name="2797"></a>}
+<a name="2798"></a>
+<a name="2799"></a>/* 
+<a name="2800"></a> *   The findPlayerChar() function is intended for internal library use only, to be called by
+<a name="2801"></a> *   getPlayerChar() nothing else has yet defined the player character. The findPlayerChar()
+<a name="2802"></a> *   function first iterates through every Thing defined in the game until it finds one that defines
+<a name="2803"></a> *   isInitialPlayChar =  true. If it finds one it sets gPlayerChar to this value and returns the
+<a name="2804"></a> *   player char object. Otherwise it creaates a new Player object, moves it into the first room it
+<a name="2805"></a> *   finds, sets gPlayerChar to the new Player object, issues a warning to the game author that no
+<a name="2806"></a> *   player char object has been explicitly defined in game code, and returns the new Player object.
+<a name="2807"></a> *   This enaures that the calling function, getPlsyerChar(), will always be able to return a
+<a name="2808"></a> *   non-nil object.
+<a name="2809"></a> */     
+<a name="2810"></a>findPlayerChar()    
+<a name="2811"></a>{   
+<a name="2812"></a>    /* Start by looking at objects of the Player class, and if that fails, look through Things. */
+<a name="2813"></a>    for(local cls in [Player, Actor, Thing])
+<a name="2814"></a>    {
+<a name="2815"></a>        /* loop over every Thing till we find the one that defines isInitialPlayerChar = true */
+<a name="2816"></a>        for (local obj = firstObj(cls) ; obj != nil ; obj = nextObj(obj, cls))
+<a name="2817"></a>        {
+<a name="2818"></a>            /* If we've found the initial player character */
+<a name="2819"></a>            if(obj.isInitialPlayerChar)
+<a name="2820"></a>            {
+<a name="2821"></a>                /* Store the PC's identity in gameMain */
+<a name="2822"></a>                gameMain.initialPlayerChar = obj;
+<a name="2823"></a>                
+<a name="2824"></a>                /* Set the player char to the objec we've found. */
+<a name="2825"></a>//                gPlayerChar = obj;
+<a name="2826"></a>                
+<a name="2827"></a>                /* Return our player char object. */
+<a name="2828"></a>                return obj;
+<a name="2829"></a>            }
+<a name="2830"></a>        }
+<a name="2831"></a>    }
+<a name="2832"></a>    
+<a name="2833"></a>    /* If all else fails, create a new player character object */    
+<a name="2834"></a>    local pc = new Player;
+<a name="2835"></a>    
+<a name="2836"></a>    /* Find a room */
+<a name="2837"></a>    local loc = firstObj(Room);
+<a name="2838"></a>    
+<a name="2839"></a>    /* But not the dummy locations unknownDsst_ and varDest_ defined in the library. */
+<a name="2840"></a>    while(loc is in (unknownDest_, varDest_))
+<a name="2841"></a>        loc = nextObj(loc, Room);
+<a name="2842"></a>    
+<a name="2843"></a>    /* Move our new player character into that room */
+<a name="2844"></a>    pc.moveInto(loc);
+<a name="2845"></a>    
+<a name="2846"></a>    /* Set gPlayerChar to our new player character. */
+<a name="2847"></a>//    gPlayerChar = pc;
+<a name="2848"></a>    
+<a name="2849"></a>#ifdef __DEBUG 
+<a name="2850"></a>    say('&lt;.p&gt;&lt;FONT COLOR=RED&gt;&lt;b&gt;WARNING!&lt;/b&gt;&lt;/FONT&gt; No Player Character Defined.&lt;.p&gt;
+<a name="2851"></a>        The library has defined a Player Character object and placed it in &lt;&lt;loc.roomTitle&gt;&gt;.&lt;.p&gt;');
+<a name="2852"></a>#endif  
 <a name="2853"></a>    
-<a name="2854"></a>    /* Return our new player character */
-<a name="2855"></a>    return pc;
-<a name="2856"></a>}
-<a name="2857"></a>
-<a name="2858"></a>/* Determine whether str is a valid identifier */
-<a name="2859"></a>isValidIdentifierName(str)
-<a name="2860"></a>{
-<a name="2861"></a>    /* 
-<a name="2862"></a>     *   First, strip out any underscores, since these can appear anywhere in valid identifier name.
-<a name="2863"></a>     */
-<a name="2864"></a>    str = str.findReplace('_', '');
-<a name="2865"></a>    
-<a name="2866"></a>    /* 
-<a name="2867"></a>     *   If there are any non-alphanumeric characters in what's left, str is not a valid identifier
-<a name="2868"></a>     *   name.
-<a name="2869"></a>     */
-<a name="2870"></a>    if(str.find(R'&lt;^AlphaNum&gt;'))
-<a name="2871"></a>        return nil;
-<a name="2872"></a>    
-<a name="2873"></a>    /* If str starts with a digit, it's not a valid identifier name */
-<a name="2874"></a>    if('1234567890'.find(str.substr(1,1)))
-<a name="2875"></a>       return nil;
-<a name="2876"></a>    
-<a name="2877"></a>    /* If we reach this far, str has passed all the tests for being a valid identifier name. */
-<a name="2878"></a>    return true;
-<a name="2879"></a>}
-<a name="2880"></a>
+<a name="2854"></a>    
+<a name="2855"></a>    /* Return our new player character */
+<a name="2856"></a>    return pc;
+<a name="2857"></a>}
+<a name="2858"></a>
+<a name="2859"></a>/* Determine whether str is a valid identifier */
+<a name="2860"></a>isValidIdentifierName(str)
+<a name="2861"></a>{
+<a name="2862"></a>    /* 
+<a name="2863"></a>     *   First, strip out any underscores, since these can appear anywhere in valid identifier name.
+<a name="2864"></a>     */
+<a name="2865"></a>    str = str.findReplace('_', '');
+<a name="2866"></a>    
+<a name="2867"></a>    /* 
+<a name="2868"></a>     *   If there are any non-alphanumeric characters in what's left, str is not a valid identifier
+<a name="2869"></a>     *   name.
+<a name="2870"></a>     */
+<a name="2871"></a>    if(str.find(R'&lt;^AlphaNum&gt;'))
+<a name="2872"></a>        return nil;
+<a name="2873"></a>    
+<a name="2874"></a>    /* If str starts with a digit, it's not a valid identifier name */
+<a name="2875"></a>    if('1234567890'.find(str.substr(1,1)))
+<a name="2876"></a>       return nil;
+<a name="2877"></a>    
+<a name="2878"></a>    /* If we reach this far, str has passed all the tests for being a valid identifier name. */
+<a name="2879"></a>    return true;
+<a name="2880"></a>}
 <a name="2881"></a>
-<a name="2882"></a>/* 
-<a name="2883"></a> *   Function to return a string to display an integer (val) as a decimal number to decimalPlaces
-<a name="2884"></a> *   decimal places, e.g. decimalStr(123, 2) -&gt; '1.23'. This provides a way of presenting integer
-<a name="2885"></a> *   values, such as currency, as ones including decimal fractions. For example, we could use an
-<a name="2886"></a> *   integer property (balance, say) in cents or pence but display it in dollars or pounds via
-<a name="2887"></a> *   "$&lt;&lt;decimalStr(balance, 2)&gt;&gt;" or "�&lt;&lt;decimalStr(balance)&gt;&gt; (since decimalPlaced deftults to 2).
-<a name="2888"></a> */
-<a name="2889"></a>decimalStr(val, decimalPlaces = 2)
-<a name="2890"></a>{
-<a name="2891"></a>    /* First convert val to a string. */
-<a name="2892"></a>    local dv = toString(val);
-<a name="2893"></a>    
-<a name="2894"></a>    /* check whether val is negative (so that dv starts with a minus sign) */
-<a name="2895"></a>    local negative = val &lt; 0;
-<a name="2896"></a>    
-<a name="2897"></a>    /* 
-<a name="2898"></a>     *   If dv is negative, remove the leading minus sign to simplify the manipulations that follow.
-<a name="2899"></a>     */
-<a name="2900"></a>    if(negative)
-<a name="2901"></a>        dv = dv.substr(2);
-<a name="2902"></a>    
+<a name="2882"></a>
+<a name="2883"></a>/* 
+<a name="2884"></a> *   Function to return a string to display an integer (val) as a decimal number to decimalPlaces
+<a name="2885"></a> *   decimal places, e.g. decimalStr(123, 2) -&gt; '1.23'. This provides a way of presenting integer
+<a name="2886"></a> *   values, such as currency, as ones including decimal fractions. For example, we could use an
+<a name="2887"></a> *   integer property (balance, say) in cents or pence but display it in dollars or pounds via
+<a name="2888"></a> *   "$&lt;&lt;decimalStr(balance, 2)&gt;&gt;" or "�&lt;&lt;decimalStr(balance)&gt;&gt; (since decimalPlaced deftults to 2).
+<a name="2889"></a> */
+<a name="2890"></a>decimalStr(val, decimalPlaces = 2)
+<a name="2891"></a>{
+<a name="2892"></a>    /* First convert val to a string. */
+<a name="2893"></a>    local dv = toString(val);
+<a name="2894"></a>    
+<a name="2895"></a>    /* check whether val is negative (so that dv starts with a minus sign) */
+<a name="2896"></a>    local negative = val &lt; 0;
+<a name="2897"></a>    
+<a name="2898"></a>    /* 
+<a name="2899"></a>     *   If dv is negative, remove the leading minus sign to simplify the manipulations that follow.
+<a name="2900"></a>     */
+<a name="2901"></a>    if(negative)
+<a name="2902"></a>        dv = dv.substr(2);
 <a name="2903"></a>    
-<a name="2904"></a>    /* 
-<a name="2905"></a>     *   If the dv string is shorter than the number of decimal places we want to display, allowing
-<a name="2906"></a>     *   for the presence of a leading mminue sign if val is negative, then prepend a leading
-<a name="2907"></a>     *   pre-decimal point zero plus as many zeros as we need after the decimal point.
-<a name="2908"></a>     */
-<a name="2909"></a>    if(dv.length &lt;= decimalPlaces)        
-<a name="2910"></a>        dv = '0.' + makeString ('0', decimalPlaces - dv.length) + dv;        
-<a name="2911"></a>    
-<a name="2912"></a>    /* Otherwise insert a decimal point before the final decimalPlaces characters. */
-<a name="2913"></a>    else
-<a name="2914"></a>        dv = dv.substr(1, dv.length - decimalPlaces) + '.' + dv.substr(dv.length -
-<a name="2915"></a>            decimalPlaces + 1);
-<a name="2916"></a>    
-<a name="2917"></a>    /* Return the resulting string, prependsing a minus sign if dv was negative. */
-<a name="2918"></a>    return (negative ? '-' : '') + dv;       
-<a name="2919"></a>}
-<a name="2920"></a>
-<a name="2921"></a>class Tip: object
-<a name="2922"></a>    /* 
-<a name="2923"></a>     *   Our description, in other words the text of the tip we'll display. This can be a a
-<a name="2924"></a>     *   double-quoted string, as single-quoted string, or a method.
-<a name="2925"></a>     */
-<a name="2926"></a>    desc = nil
-<a name="2927"></a>    
-<a name="2928"></a>    /* Show this tip. */
-<a name="2929"></a>    showTip() 
-<a name="2930"></a>    {
-<a name="2931"></a>        /* If we should show this tip, show it and mark it as shown. */
-<a name="2932"></a>        if(shouldShow())
-<a name="2933"></a>        {
-<a name="2934"></a>            showTipDesc();
-<a name="2935"></a>            makeShown();
-<a name="2936"></a>        }
-<a name="2937"></a>    }
-<a name="2938"></a>    
-<a name="2939"></a>    /* 
-<a name="2940"></a>     *   Mark this tip as having been shown. If for any reason we need to make a previously shown
-<a name="2941"></a>     *   tipa act as if it had not been shown, we can call makeShown(nil).
-<a name="2942"></a>     */
-<a name="2943"></a>    makeShown(stat = true)  {  isShown = stat; }
-<a name="2944"></a>    
-<a name="2945"></a>    /* 
-<a name="2946"></a>     *   Show the description of this Tip. By prepend and append the &lt;.tip&gt; and &lt;./tip&gt; style tags
-<a name="2947"></a>     *   and then display our desc.
-<a name="2948"></a>     */
-<a name="2949"></a>    showTipDesc()
-<a name="2950"></a>    {        
-<a name="2951"></a>        "&lt;.p&gt;&lt;.tip&gt;";
-<a name="2952"></a>        display(&amp;desc);
-<a name="2953"></a>        "&lt;./tip&gt;";
-<a name="2954"></a>    }
-<a name="2955"></a>    /* This tip should be shown if and only if it hasn't yet been shown and tipMode.isOn is true. */
-<a name="2956"></a>    shouldShow = (!isShown &amp;&amp; tipMode.isOn)
-<a name="2957"></a>    
+<a name="2904"></a>    
+<a name="2905"></a>    /* 
+<a name="2906"></a>     *   If the dv string is shorter than the number of decimal places we want to display, allowing
+<a name="2907"></a>     *   for the presence of a leading mminue sign if val is negative, then prepend a leading
+<a name="2908"></a>     *   pre-decimal point zero plus as many zeros as we need after the decimal point.
+<a name="2909"></a>     */
+<a name="2910"></a>    if(dv.length &lt;= decimalPlaces)        
+<a name="2911"></a>        dv = '0.' + makeString ('0', decimalPlaces - dv.length) + dv;        
+<a name="2912"></a>    
+<a name="2913"></a>    /* Otherwise insert a decimal point before the final decimalPlaces characters. */
+<a name="2914"></a>    else
+<a name="2915"></a>        dv = dv.substr(1, dv.length - decimalPlaces) + '.' + dv.substr(dv.length -
+<a name="2916"></a>            decimalPlaces + 1);
+<a name="2917"></a>    
+<a name="2918"></a>    /* Return the resulting string, prependsing a minus sign if dv was negative. */
+<a name="2919"></a>    return (negative ? '-' : '') + dv;       
+<a name="2920"></a>}
+<a name="2921"></a>
+<a name="2922"></a>class Tip: object
+<a name="2923"></a>    /* 
+<a name="2924"></a>     *   Our description, in other words the text of the tip we'll display. This can be a a
+<a name="2925"></a>     *   double-quoted string, as single-quoted string, or a method.
+<a name="2926"></a>     */
+<a name="2927"></a>    desc = nil
+<a name="2928"></a>    
+<a name="2929"></a>    /* Show this tip. */
+<a name="2930"></a>    showTip() 
+<a name="2931"></a>    {
+<a name="2932"></a>        /* If we should show this tip, show it and mark it as shown. */
+<a name="2933"></a>        if(shouldShow())
+<a name="2934"></a>        {
+<a name="2935"></a>            showTipDesc();
+<a name="2936"></a>            makeShown();
+<a name="2937"></a>        }
+<a name="2938"></a>    }
+<a name="2939"></a>    
+<a name="2940"></a>    /* 
+<a name="2941"></a>     *   Mark this tip as having been shown. If for any reason we need to make a previously shown
+<a name="2942"></a>     *   tipa act as if it had not been shown, we can call makeShown(nil).
+<a name="2943"></a>     */
+<a name="2944"></a>    makeShown(stat = true)  {  isShown = stat; }
+<a name="2945"></a>    
+<a name="2946"></a>    /* 
+<a name="2947"></a>     *   Show the description of this Tip. By prepend and append the &lt;.tip&gt; and &lt;./tip&gt; style tags
+<a name="2948"></a>     *   and then display our desc.
+<a name="2949"></a>     */
+<a name="2950"></a>    showTipDesc()
+<a name="2951"></a>    {        
+<a name="2952"></a>        "&lt;.p&gt;&lt;.tip&gt;";
+<a name="2953"></a>        display(&amp;desc);
+<a name="2954"></a>        "&lt;./tip&gt;";
+<a name="2955"></a>    }
+<a name="2956"></a>    /* This tip should be shown if and only if it hasn't yet been shown and tipMode.isOn is true. */
+<a name="2957"></a>    shouldShow = (!isShown &amp;&amp; tipMode.isOn)
 <a name="2958"></a>    
-<a name="2959"></a>    /* Has this Tip been shown? */
-<a name="2960"></a>    isShown = nil;
-<a name="2961"></a>;
-<a name="2962"></a>
-<a name="2963"></a>/* Object to keep track of whether or not we want tips to be shown in this game. */
-<a name="2964"></a>tipMode: object
-<a name="2965"></a>    /* Tips will be shown if isOn is true and suppressed it it's nil. */
-<a name="2966"></a>    isOn = true
-<a name="2967"></a>;
-<a name="2968"></a>
-<a name="2969"></a>undoTip: Tip
-<a name="2970"></a>    desc() { DMsg(undo tip, 'If this didn\'t turn out quite as intended, note that you can
-<a name="2971"></a>        always take back one or more commands by typing 
-<a name="2972"></a>        &lt;&lt;aHref('undo', 'UNDO', 'Take back the most recent command')&gt;&gt;.');  }     
-<a name="2973"></a>;
-<a name="2974"></a>
-<a name="2975"></a>oopsTip:Tip 
-<a name="2976"></a>    desc() { DMsg(oops tip, '''If this was an accidental misspelling, you can correct
-<a name="2977"></a>        it by typing OOPS followed by the corrected word now. Any time the story points out an
-<a name="2978"></a>        unknown word, you can correct a misspelling using OOPS as your next command.''');
-<a name="2979"></a>    }      
-<a name="2980"></a>    
-<a name="2981"></a>;
-<a name="2982"></a>
+<a name="2959"></a>    
+<a name="2960"></a>    /* Has this Tip been shown? */
+<a name="2961"></a>    isShown = nil;
+<a name="2962"></a>;
+<a name="2963"></a>
+<a name="2964"></a>/* Object to keep track of whether or not we want tips to be shown in this game. */
+<a name="2965"></a>tipMode: object
+<a name="2966"></a>    /* Tips will be shown if isOn is true and suppressed it it's nil. */
+<a name="2967"></a>    isOn = true
+<a name="2968"></a>;
+<a name="2969"></a>
+<a name="2970"></a>undoTip: Tip
+<a name="2971"></a>    desc() { DMsg(undo tip, 'If this didn\'t turn out quite as intended, note that you can
+<a name="2972"></a>        always take back one or more commands by typing 
+<a name="2973"></a>        &lt;&lt;aHref('undo', 'UNDO', 'Take back the most recent command')&gt;&gt;.');  }     
+<a name="2974"></a>;
+<a name="2975"></a>
+<a name="2976"></a>oopsTip:Tip 
+<a name="2977"></a>    desc() { DMsg(oops tip, '''If this was an accidental misspelling, you can correct
+<a name="2978"></a>        it by typing OOPS followed by the corrected word now. Any time the story points out an
+<a name="2979"></a>        unknown word, you can correct a misspelling using OOPS as your next command.''');
+<a name="2980"></a>    }      
+<a name="2981"></a>    
+<a name="2982"></a>;
 <a name="2983"></a>
-<a name="2984"></a>/* ------------------------------------------------------------------------ */
-<a name="2985"></a>/*
-<a name="2986"></a> *   LocType objects are used for Thing.locType property values to specify
-<a name="2987"></a> *   the relationship between an object and its container.
-<a name="2988"></a> *   
-<a name="2989"></a> *   The language module must set appropriate vocabulary properties for
-<a name="2990"></a> *   each LocType object during pre-initialization.  The exact vocabulary
-<a name="2991"></a> *   needed is up to the language to define.  For the English module, we
-<a name="2992"></a> *   set the 'prep' property to a suitable preposition for constructing
-<a name="2993"></a> *   locational phrases ("the book *on* the table", etc).  
-<a name="2994"></a> */
-<a name="2995"></a>class LocType: object
-<a name="2996"></a>    
-<a name="2997"></a>    listOrder = 100
-<a name="2998"></a>;
-<a name="2999"></a>
-<a name="3000"></a>/*
-<a name="3001"></a> *   An IntLocType is an interior location type.  These represent objects
-<a name="3002"></a> *   on the inside of an enclosed space. 
-<a name="3003"></a> */
-<a name="3004"></a>IntLocType: LocType
-<a name="3005"></a>    
-<a name="3006"></a>;
-<a name="3007"></a>
-<a name="3008"></a>/*
-<a name="3009"></a> *   An ExtLocType is an exterior location type.  These represent objects
-<a name="3010"></a> *   on the outside of an object, such as atop it or attached to it. 
-<a name="3011"></a> */
-<a name="3012"></a>ExtLocType: LocType
-<a name="3013"></a>;
-<a name="3014"></a>
-<a name="3015"></a>/* 
-<a name="3016"></a> *   "In" location type - specifies that an object is contained within its
-<a name="3017"></a> *   location; its location encloses it.
-<a name="3018"></a> */
-<a name="3019"></a>In: IntLocType
-<a name="3020"></a>    listOrder = 10
-<a name="3021"></a>;
-<a name="3022"></a>
-<a name="3023"></a>/*
-<a name="3024"></a> *   "Outside" location type - specifies that an object is situated
-<a name="3025"></a> *   somewhere on the exterior of the object.  This can be used for
-<a name="3026"></a> *   components, attachments, things stuck to an object, things nailed to
-<a name="3027"></a> *   it, messages painted on it, etc.  
-<a name="3028"></a> */
-<a name="3029"></a>Outside: ExtLocType
-<a name="3030"></a>;
-<a name="3031"></a>
-<a name="3032"></a>/*
-<a name="3033"></a> *   "On" location type - specifies that an object is sitting on the top
-<a name="3034"></a> *   surface of its container.  
-<a name="3035"></a> */
-<a name="3036"></a>On: ExtLocType
-<a name="3037"></a>    listOrder = 20
-<a name="3038"></a>;
-<a name="3039"></a>
-<a name="3040"></a>/*
-<a name="3041"></a> *   "Under" location type - specifies that an object is situated
-<a name="3042"></a> *   underneath its container. 
-<a name="3043"></a> */
-<a name="3044"></a>Under: ExtLocType
-<a name="3045"></a>    listOrder = 30
-<a name="3046"></a>;
-<a name="3047"></a>
-<a name="3048"></a>/*
-<a name="3049"></a> *   "Behind" location type - specifies that an object is situated behind
-<a name="3050"></a> *   its container. 
-<a name="3051"></a> */
-<a name="3052"></a>Behind: ExtLocType
-<a name="3053"></a>    listOrder = 40
-<a name="3054"></a>;
-<a name="3055"></a>
-<a name="3056"></a>/*
-<a name="3057"></a> *   "Held" location type - specifies that an object is being held by its
-<a name="3058"></a> *   container, in the sense of a person holding an object in her hands.
-<a name="3059"></a> *   An object being held is exterior to the holder, not enclosed.  
-<a name="3060"></a> */
-<a name="3061"></a>Held: ExtLocType
-<a name="3062"></a>;
-<a name="3063"></a>
-<a name="3064"></a>/*
-<a name="3065"></a> *   "Worn" location type - specifies that an object is being worn by its
-<a name="3066"></a> *   container, in the sense of a person wearing a coat. 
-<a name="3067"></a> */
-<a name="3068"></a>Worn: ExtLocType
-<a name="3069"></a>;
-<a name="3070"></a>
-<a name="3071"></a>/*  
-<a name="3072"></a> *   "Attached" location type - specifies that an object is attached to its
-<a name="3073"></a> *   container.
-<a name="3074"></a> */
-<a name="3075"></a>Attached: ExtLocType
-<a name="3076"></a>;
-<a name="3077"></a>    
-<a name="3078"></a>/* 
-<a name="3079"></a> *   "PartOf" location type - specifies that an object is part of -- a component
-<a name="3080"></a> *   of -- its container.
-<a name="3081"></a> */
-<a name="3082"></a>PartOf: ExtLocType
-<a name="3083"></a>;
-<a name="3084"></a>
-<a name="3085"></a>/*  
-<a name="3086"></a> *   "Carrier" location type - specifies that the object is being carried by its
-<a name="3087"></a> *   container (which will then normally be the actor holding this object). Any
-<a name="3088"></a> *   actor-type object should define Carrier as its contType.
-<a name="3089"></a> */
-<a name="3090"></a>Carrier: ExtLocType
-<a name="3091"></a>;
-<a name="3092"></a>
-<a name="3093"></a>/* 
-<a name="3094"></a> *   A ViaType is an object used to define the preposition to use to describe
-<a name="3095"></a> *   various kinds of PushTravel. The language-specific part of the libary needs
-<a name="3096"></a> *   to override the various ViaType objects to give the names of the
-<a name="3097"></a> *   prepositions in the target language.
-<a name="3098"></a> */
-<a name="3099"></a>class ViaType: object
-<a name="3100"></a>    prep = ''
-<a name="3101"></a>;
-<a name="3102"></a>
-<a name="3103"></a>Into: ViaType;
-<a name="3104"></a>OutOf: ViaType;
-<a name="3105"></a>Down: ViaType;
-<a name="3106"></a>Up: ViaType;
-<a name="3107"></a>Through: ViaType;
-<a name="3108"></a>
-<a name="3109"></a>/* 
-<a name="3110"></a> *   The displayProbe object is used to store the result of capturing text in
-<a name="3111"></a> *   Thing.checkDisplay() before undoing the trial display of the string. By
-<a name="3112"></a> *   making displayProbe transient we preserve the value of its displayed
-<a name="3113"></a> *   property across the undo.
-<a name="3114"></a> */
-<a name="3115"></a>transient displayProbe: object
-<a name="3116"></a>    displayed = nil
-<a name="3117"></a>;
-<a name="3118"></a>
+<a name="2984"></a>
+<a name="2985"></a>/* ------------------------------------------------------------------------ */
+<a name="2986"></a>/*
+<a name="2987"></a> *   LocType objects are used for Thing.locType property values to specify
+<a name="2988"></a> *   the relationship between an object and its container.
+<a name="2989"></a> *   
+<a name="2990"></a> *   The language module must set appropriate vocabulary properties for
+<a name="2991"></a> *   each LocType object during pre-initialization.  The exact vocabulary
+<a name="2992"></a> *   needed is up to the language to define.  For the English module, we
+<a name="2993"></a> *   set the 'prep' property to a suitable preposition for constructing
+<a name="2994"></a> *   locational phrases ("the book *on* the table", etc).  
+<a name="2995"></a> */
+<a name="2996"></a>class LocType: object
+<a name="2997"></a>    
+<a name="2998"></a>    listOrder = 100
+<a name="2999"></a>;
+<a name="3000"></a>
+<a name="3001"></a>/*
+<a name="3002"></a> *   An IntLocType is an interior location type.  These represent objects
+<a name="3003"></a> *   on the inside of an enclosed space. 
+<a name="3004"></a> */
+<a name="3005"></a>IntLocType: LocType
+<a name="3006"></a>    
+<a name="3007"></a>;
+<a name="3008"></a>
+<a name="3009"></a>/*
+<a name="3010"></a> *   An ExtLocType is an exterior location type.  These represent objects
+<a name="3011"></a> *   on the outside of an object, such as atop it or attached to it. 
+<a name="3012"></a> */
+<a name="3013"></a>ExtLocType: LocType
+<a name="3014"></a>;
+<a name="3015"></a>
+<a name="3016"></a>/* 
+<a name="3017"></a> *   "In" location type - specifies that an object is contained within its
+<a name="3018"></a> *   location; its location encloses it.
+<a name="3019"></a> */
+<a name="3020"></a>In: IntLocType
+<a name="3021"></a>    listOrder = 10
+<a name="3022"></a>;
+<a name="3023"></a>
+<a name="3024"></a>/*
+<a name="3025"></a> *   "Outside" location type - specifies that an object is situated
+<a name="3026"></a> *   somewhere on the exterior of the object.  This can be used for
+<a name="3027"></a> *   components, attachments, things stuck to an object, things nailed to
+<a name="3028"></a> *   it, messages painted on it, etc.  
+<a name="3029"></a> */
+<a name="3030"></a>Outside: ExtLocType
+<a name="3031"></a>;
+<a name="3032"></a>
+<a name="3033"></a>/*
+<a name="3034"></a> *   "On" location type - specifies that an object is sitting on the top
+<a name="3035"></a> *   surface of its container.  
+<a name="3036"></a> */
+<a name="3037"></a>On: ExtLocType
+<a name="3038"></a>    listOrder = 20
+<a name="3039"></a>;
+<a name="3040"></a>
+<a name="3041"></a>/*
+<a name="3042"></a> *   "Under" location type - specifies that an object is situated
+<a name="3043"></a> *   underneath its container. 
+<a name="3044"></a> */
+<a name="3045"></a>Under: ExtLocType
+<a name="3046"></a>    listOrder = 30
+<a name="3047"></a>;
+<a name="3048"></a>
+<a name="3049"></a>/*
+<a name="3050"></a> *   "Behind" location type - specifies that an object is situated behind
+<a name="3051"></a> *   its container. 
+<a name="3052"></a> */
+<a name="3053"></a>Behind: ExtLocType
+<a name="3054"></a>    listOrder = 40
+<a name="3055"></a>;
+<a name="3056"></a>
+<a name="3057"></a>/*
+<a name="3058"></a> *   "Held" location type - specifies that an object is being held by its
+<a name="3059"></a> *   container, in the sense of a person holding an object in her hands.
+<a name="3060"></a> *   An object being held is exterior to the holder, not enclosed.  
+<a name="3061"></a> */
+<a name="3062"></a>Held: ExtLocType
+<a name="3063"></a>;
+<a name="3064"></a>
+<a name="3065"></a>/*
+<a name="3066"></a> *   "Worn" location type - specifies that an object is being worn by its
+<a name="3067"></a> *   container, in the sense of a person wearing a coat. 
+<a name="3068"></a> */
+<a name="3069"></a>Worn: ExtLocType
+<a name="3070"></a>;
+<a name="3071"></a>
+<a name="3072"></a>/*  
+<a name="3073"></a> *   "Attached" location type - specifies that an object is attached to its
+<a name="3074"></a> *   container.
+<a name="3075"></a> */
+<a name="3076"></a>Attached: ExtLocType
+<a name="3077"></a>;
+<a name="3078"></a>    
+<a name="3079"></a>/* 
+<a name="3080"></a> *   "PartOf" location type - specifies that an object is part of -- a component
+<a name="3081"></a> *   of -- its container.
+<a name="3082"></a> */
+<a name="3083"></a>PartOf: ExtLocType
+<a name="3084"></a>;
+<a name="3085"></a>
+<a name="3086"></a>/*  
+<a name="3087"></a> *   "Carrier" location type - specifies that the object is being carried by its
+<a name="3088"></a> *   container (which will then normally be the actor holding this object). Any
+<a name="3089"></a> *   actor-type object should define Carrier as its contType.
+<a name="3090"></a> */
+<a name="3091"></a>Carrier: ExtLocType
+<a name="3092"></a>;
+<a name="3093"></a>
+<a name="3094"></a>/* 
+<a name="3095"></a> *   A ViaType is an object used to define the preposition to use to describe
+<a name="3096"></a> *   various kinds of PushTravel. The language-specific part of the libary needs
+<a name="3097"></a> *   to override the various ViaType objects to give the names of the
+<a name="3098"></a> *   prepositions in the target language.
+<a name="3099"></a> */
+<a name="3100"></a>class ViaType: object
+<a name="3101"></a>    prep = ''
+<a name="3102"></a>;
+<a name="3103"></a>
+<a name="3104"></a>Into: ViaType;
+<a name="3105"></a>OutOf: ViaType;
+<a name="3106"></a>Down: ViaType;
+<a name="3107"></a>Up: ViaType;
+<a name="3108"></a>Through: ViaType;
+<a name="3109"></a>
+<a name="3110"></a>/* 
+<a name="3111"></a> *   The displayProbe object is used to store the result of capturing text in
+<a name="3112"></a> *   Thing.checkDisplay() before undoing the trial display of the string. By
+<a name="3113"></a> *   making displayProbe transient we preserve the value of its displayed
+<a name="3114"></a> *   property across the undo.
+<a name="3115"></a> */
+<a name="3116"></a>transient displayProbe: object
+<a name="3117"></a>    displayed = nil
+<a name="3118"></a>;
 <a name="3119"></a>
-<a name="3120"></a>/*  
-<a name="3121"></a> *   The failVerifyObj is intended for internal library use only as a fallback value for gVerifyIobj
-<a name="3122"></a> *   or gVerifyDobj when these might otherwise evailuate to nil and potentially cause nil object
-<a name="3123"></a> *   reference runtime errors. Since this is never intended to be a valid verify result,
-<a name="3124"></a> *   failVerifyObj is designed to fail the verify stage of any action.
-<a name="3125"></a> */
-<a name="3126"></a>
-<a name="3127"></a>failVerifyObj: Thing
-<a name="3128"></a>    dobjFor(Default) { verify {inaccessible(inaccessibleMsg);}}
-<a name="3129"></a>    iobjFor(Default) { verify {inaccessible(inaccessibleMsg);}}    
-<a name="3130"></a>    aobjFor(Default) { verify {inaccessible(inaccessibleMsg);}}   
-<a name="3131"></a>    
-<a name="3132"></a>    inaccessibleMsg = BMsg(dummy object inaccessible, 'The dummy failVerifyObj is not a valid object
-<a name="3133"></a>        of a command. ')
-<a name="3134"></a>;
-<a name="3135"></a>
-<a name="3136"></a>/* We define Mood and Stance in thing.t so english.t can define the built-in moods and stances */
-<a name="3137"></a>
-<a name="3138"></a>/* A Mood object can be used to represent the mood of an actor (happy, sad, bored, etc.) */
-<a name="3139"></a>class Mood: object
-<a name="3140"></a>    /* 
-<a name="3141"></a>     *   A single-quoted string giving the name of this Mood, which will normally correspond to the
-<a name="3142"></a>     *   name of the Mood object; e.g. happyMood.name = 'happy'
-<a name="3143"></a>     */
-<a name="3144"></a>    name = nil
-<a name="3145"></a>    
-<a name="3146"></a>    objToString() { return name; }
-<a name="3147"></a>;
-<a name="3148"></a>
+<a name="3120"></a>
+<a name="3121"></a>/*  
+<a name="3122"></a> *   The failVerifyObj is intended for internal library use only as a fallback value for gVerifyIobj
+<a name="3123"></a> *   or gVerifyDobj when these might otherwise evailuate to nil and potentially cause nil object
+<a name="3124"></a> *   reference runtime errors. Since this is never intended to be a valid verify result,
+<a name="3125"></a> *   failVerifyObj is designed to fail the verify stage of any action.
+<a name="3126"></a> */
+<a name="3127"></a>
+<a name="3128"></a>failVerifyObj: Thing
+<a name="3129"></a>    dobjFor(Default) { verify {inaccessible(inaccessibleMsg);}}
+<a name="3130"></a>    iobjFor(Default) { verify {inaccessible(inaccessibleMsg);}}    
+<a name="3131"></a>    aobjFor(Default) { verify {inaccessible(inaccessibleMsg);}}   
+<a name="3132"></a>    
+<a name="3133"></a>    inaccessibleMsg = BMsg(dummy object inaccessible, 'The dummy failVerifyObj is not a valid object
+<a name="3134"></a>        of a command. ')
+<a name="3135"></a>;
+<a name="3136"></a>
+<a name="3137"></a>/* We define Mood and Stance in thing.t so english.t can define the built-in moods and stances */
+<a name="3138"></a>
+<a name="3139"></a>/* A Mood object can be used to represent the mood of an actor (happy, sad, bored, etc.) */
+<a name="3140"></a>class Mood: object
+<a name="3141"></a>    /* 
+<a name="3142"></a>     *   A single-quoted string giving the name of this Mood, which will normally correspond to the
+<a name="3143"></a>     *   name of the Mood object; e.g. happyMood.name = 'happy'
+<a name="3144"></a>     */
+<a name="3145"></a>    name = nil
+<a name="3146"></a>    
+<a name="3147"></a>    objToString() { return name; }
+<a name="3148"></a>;
 <a name="3149"></a>
-<a name="3150"></a>/* 
-<a name="3151"></a> *   A Stance object can be used to represent the stance of an actor towards the player character
-<a name="3152"></a> *   (neutral, friendly, hostile, etc.).
-<a name="3153"></a> */
-<a name="3154"></a>class Stance: object
-<a name="3155"></a>    /* 
-<a name="3156"></a>     *   A single-quoted string giving the name of this Stance which will normally correspond to the
-<a name="3157"></a>     *   name of the Mood object; e.g. friendlyStance.name = 'friendly'
-<a name="3158"></a>     */
-<a name="3159"></a>    name = nil
-<a name="3160"></a>    
-<a name="3161"></a>    /* 
-<a name="3162"></a>     *   The score is a measure of how positive or negative an actor with this stance is towards the
-<a name="3163"></a>     *   player character. Each Stance object defines its own score.
-<a name="3164"></a>     */
-<a name="3165"></a>    score = 0
-<a name="3166"></a>    
-<a name="3167"></a>    operator &gt;&gt; (x) { return self.score &gt; x.score;  }
-<a name="3168"></a>    operator &lt;&lt; (x) { return self.score &lt; x.score; }
-<a name="3169"></a>    operator &gt;&gt;&gt; (x) { return self.score &gt;= x.score;  }
-<a name="3170"></a>    operator []= (x, y) { x.setStanceToward(y, self); }
-<a name="3171"></a>    operator - (x) {return self.score - x.score; }
-<a name="3172"></a>    
-<a name="3173"></a>    /* Get a list of actors who have this stance towards x */
-<a name="3174"></a>    operator * (x)
-<a name="3175"></a>    {
-<a name="3176"></a>        local vec = new Vector;
-<a name="3177"></a>        for(local a = firstObj(Actor); a != nil; a = nextObj(a, Actor))
-<a name="3178"></a>        {
-<a name="3179"></a>            if(a.stanceToward(x) == self)
-<a name="3180"></a>                vec.append(a);
-<a name="3181"></a>        }
-<a name="3182"></a>        
-<a name="3183"></a>        return vec.toList();
-<a name="3184"></a>    }
-<a name="3185"></a>    
-<a name="3186"></a>    /* Get a list of actors x holds this stance towards */
-<a name="3187"></a>    operator [](x)
-<a name="3188"></a>    {
-<a name="3189"></a>        local vec = new Vector;
-<a name="3190"></a>        for(local a = firstObj(Actor); a != nil; a = nextObj(a, Actor))
-<a name="3191"></a>        {
-<a name="3192"></a>            if(x.stanceToward(a) == self)
-<a name="3193"></a>                vec.append(a);
-<a name="3194"></a>        }
-<a name="3195"></a>        
-<a name="3196"></a>        return vec.toList();
-<a name="3197"></a>    }
-<a name="3198"></a>    
-<a name="3199"></a>    objToString() { return name; }
-<a name="3200"></a>;
-<a name="3201"></a>
-<a name="3202"></a>/* 
-<a name="3203"></a> *   Default multimethods for action handling. We make them match Mentionable dobj and iobj so that
-<a name="3204"></a> *   if game code wants to define a Multimethod matching Thing and Thing it will take precedence.
-<a name="3205"></a> *   The library action multikmethods all do nothing at all but need to exist so the action handling
-<a name="3206"></a> *   for ITActions libary actions can call them.
-<a name="3207"></a> *
-<a name="3208"></a> *   User-defined action multimethods should return nil if they want to add their behaviour to the
-<a name="3209"></a> *   library's behavious or true if they want to replace the library methods.
-<a name="3210"></a> */     
-<a name="3211"></a>//verifyPutIn(Mentionable dobj, Mentionable iobj) { }
-<a name="3212"></a>//checkPutIn(Object dobj, Object iobj) { }
-<a name="3213"></a>//actionPutIn(Mentionable dobj, Mentionable iobj) { }
-<a name="3214"></a>//
-<a name="3215"></a>//verifyPutOn(Mentionable dobj, Mentionable iobj) { }
-<a name="3216"></a>//checkPutOn(Mentionable dobj, Mentionable iobj) { }
-<a name="3217"></a>//actionPutOn(Mentionable dobj, Mentionable iobj) { }
-<a name="3218"></a>//
-<a name="3219"></a>//verifyPutBehind(Mentionable dobj, Mentionable iobj) { }
-<a name="3220"></a>//checkPutBehind(Mentionable dobj, Mentionable iobj) { }
-<a name="3221"></a>//actionPutBehind(Mentionable dobj, Mentionable iobj) { }
-<a name="3222"></a>//
-<a name="3223"></a>//verifyPutUnder(Mentionable dobj, Mentionable iobj) { }
-<a name="3224"></a>//checkPutUnder(Mentionable dobj, Mentionable iobj) { }
-<a name="3225"></a>//actionPutUnder(Mentionable dobj, Mentionable iobj) { }
-<a name="3226"></a>
+<a name="3150"></a>
+<a name="3151"></a>/* 
+<a name="3152"></a> *   A Stance object can be used to represent the stance of an actor towards the player character
+<a name="3153"></a> *   (neutral, friendly, hostile, etc.).
+<a name="3154"></a> */
+<a name="3155"></a>class Stance: object
+<a name="3156"></a>    /* 
+<a name="3157"></a>     *   A single-quoted string giving the name of this Stance which will normally correspond to the
+<a name="3158"></a>     *   name of the Mood object; e.g. friendlyStance.name = 'friendly'
+<a name="3159"></a>     */
+<a name="3160"></a>    name = nil
+<a name="3161"></a>    
+<a name="3162"></a>    /* 
+<a name="3163"></a>     *   The score is a measure of how positive or negative an actor with this stance is towards the
+<a name="3164"></a>     *   player character. Each Stance object defines its own score.
+<a name="3165"></a>     */
+<a name="3166"></a>    score = 0
+<a name="3167"></a>    
+<a name="3168"></a>    operator &gt;&gt; (x) { return self.score &gt; x.score;  }
+<a name="3169"></a>    operator &lt;&lt; (x) { return self.score &lt; x.score; }
+<a name="3170"></a>    operator &gt;&gt;&gt; (x) { return self.score &gt;= x.score;  }
+<a name="3171"></a>    operator []= (x, y) { x.setStanceToward(y, self); }
+<a name="3172"></a>    operator - (x) {return self.score - x.score; }
+<a name="3173"></a>    
+<a name="3174"></a>    /* Get a list of actors who have this stance towards x */
+<a name="3175"></a>    operator * (x)
+<a name="3176"></a>    {
+<a name="3177"></a>        local vec = new Vector;
+<a name="3178"></a>        for(local a = firstObj(Actor); a != nil; a = nextObj(a, Actor))
+<a name="3179"></a>        {
+<a name="3180"></a>            if(a.stanceToward(x) == self)
+<a name="3181"></a>                vec.append(a);
+<a name="3182"></a>        }
+<a name="3183"></a>        
+<a name="3184"></a>        return vec.toList();
+<a name="3185"></a>    }
+<a name="3186"></a>    
+<a name="3187"></a>    /* Get a list of actors x holds this stance towards */
+<a name="3188"></a>    operator [](x)
+<a name="3189"></a>    {
+<a name="3190"></a>        local vec = new Vector;
+<a name="3191"></a>        for(local a = firstObj(Actor); a != nil; a = nextObj(a, Actor))
+<a name="3192"></a>        {
+<a name="3193"></a>            if(x.stanceToward(a) == self)
+<a name="3194"></a>                vec.append(a);
+<a name="3195"></a>        }
+<a name="3196"></a>        
+<a name="3197"></a>        return vec.toList();
+<a name="3198"></a>    }
+<a name="3199"></a>    
+<a name="3200"></a>    objToString() { return name; }
+<a name="3201"></a>;
+<a name="3202"></a>
+<a name="3203"></a>/* 
+<a name="3204"></a> *   Default multimethods for action handling. We make them match Mentionable dobj and iobj so that
+<a name="3205"></a> *   if game code wants to define a Multimethod matching Thing and Thing it will take precedence.
+<a name="3206"></a> *   The library action multikmethods all do nothing at all but need to exist so the action handling
+<a name="3207"></a> *   for ITActions libary actions can call them.
+<a name="3208"></a> *
+<a name="3209"></a> *   User-defined action multimethods should return nil if they want to add their behaviour to the
+<a name="3210"></a> *   library's behavious or true if they want to replace the library methods.
+<a name="3211"></a> */     
+<a name="3212"></a>//verifyPutIn(Mentionable dobj, Mentionable iobj) { }
+<a name="3213"></a>//checkPutIn(Object dobj, Object iobj) { }
+<a name="3214"></a>//actionPutIn(Mentionable dobj, Mentionable iobj) { }
+<a name="3215"></a>//
+<a name="3216"></a>//verifyPutOn(Mentionable dobj, Mentionable iobj) { }
+<a name="3217"></a>//checkPutOn(Mentionable dobj, Mentionable iobj) { }
+<a name="3218"></a>//actionPutOn(Mentionable dobj, Mentionable iobj) { }
+<a name="3219"></a>//
+<a name="3220"></a>//verifyPutBehind(Mentionable dobj, Mentionable iobj) { }
+<a name="3221"></a>//checkPutBehind(Mentionable dobj, Mentionable iobj) { }
+<a name="3222"></a>//actionPutBehind(Mentionable dobj, Mentionable iobj) { }
+<a name="3223"></a>//
+<a name="3224"></a>//verifyPutUnder(Mentionable dobj, Mentionable iobj) { }
+<a name="3225"></a>//checkPutUnder(Mentionable dobj, Mentionable iobj) { }
+<a name="3226"></a>//actionPutUnder(Mentionable dobj, Mentionable iobj) { }
 <a name="3227"></a>
+<a name="3228"></a>
 </pre>
-<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 20/10/2025 from adv3Lite version 2.2.1.1</div>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 08/12/2025 from adv3Lite version 2.2.2</div>
 </body>
 </html>

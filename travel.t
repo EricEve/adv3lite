@@ -1175,6 +1175,13 @@ class Door: TravelConnector, Thing
     }
     
     traversalMsg = BMsg(traverse door, 'through {1}', theName)
+    
+    /* 
+     *   Facilitate defining a Door as a nested anonymous object on a direction property of a
+     *   room. This will normally be overridden when defining a standalone Door object with a
+     *   user-defined location, or on a DSDoor which will use MultiLoc's definition of location.
+     */
+    location = lexicalParent
 ;
 
 /* Base mix-in class for defining various types of double-sided (two-way) travel connectors */

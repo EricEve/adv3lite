@@ -55,7 +55,7 @@ class Odor: SensoryEmanation
     
     /*   Treat Smelling an Odor as equivalent to Examining it. */
     dobjFor(SmellSomething) asDobjFor(Examine)   
-    
+        
     dobjFor(Examine) { preCond = [objSmellable] }
     
     /* 
@@ -95,7 +95,7 @@ class Noise: SensoryEmanation
     
     /*   Treat Listening to a Noise as equivalent to Examining it. */
     dobjFor(ListenTo) asDobjFor(Examine)    
-    
+       
     dobjFor(Examine) { preCond = [objAudible] }
     
     /* 
@@ -699,6 +699,13 @@ class StairwayUp: TravelConnector, Thing
     }
     
     traversalMsg = BMsg(traverse stairway up, 'up {1}', theName)
+    
+    /* 
+     *   Facilitate defining a StairwayUp as a nested anonymous object on a direction property of a
+     *   room. This will normally be overridden when defining a standalone Stairway object with a
+     *   user-defined location.
+     */
+    location = lexicalParent
 ;
 
 
@@ -757,6 +764,13 @@ class StairwayDown: TravelConnector, Thing
     
     cannotClimbMsg = BMsg(cannot climb stairway down, '{I} {can\'t} climb {the
         dobj}, but {i} could go down {him dobj}. ')
+    
+    /* 
+     *   Facilitate defining a StairwayDown as a nested anonymous object on a direction property of a
+     *   room. This will normally be overridden when defining a standalone Stairway object with a
+     *   user-defined location.
+     */
+    location = lexicalParent
 ;
 
 /* A double sided (aks two-way) Stairway */
@@ -1000,6 +1014,13 @@ class Passage: TravelConnector, Thing
      *   through a Passage.
      */
     PushTravelVia = PushTravelThrough
+    
+    /* 
+     *   Facilitate defining a Passage as a nested anonymous object on a direction property of a
+     *   room. This will normally be overridden when defining a standalone Passage object with a
+     *   user-defined location.
+     */
+    location = lexicalParent
 ;
 
 
@@ -1160,7 +1181,7 @@ class Enterable: ProxyDest, Fixture
  *   descriptions.
  */     
 class ProxyRoom: ProxyDest, Passage    
-    desc = DMsg(proxy room desc, '{I} {can\'t} see much of it from {here}. ')    
+    desc = DMsg(proxy room desc, '{I} {can\'t} see much of {him dobj} from {here}. ')    
     
     /* If we don't define our own vocab property, take it from our destination. */
     initVocab()

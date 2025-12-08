@@ -65,1046 +65,1074 @@
 <a name="63"></a> */
 <a name="64"></a>
 <a name="65"></a>class RemapCmd: object
-<a name="66"></a>    // the command text to be recognized (see above)
+<a name="66"></a>    /* The command text to be recognized (see above) */
 <a name="67"></a>    cmd = ''
 <a name="68"></a>    
-<a name="69"></a>    // the remapped (replacement) text (if provided)
-<a name="70"></a>    remappedCmd = nil
-<a name="71"></a>    
-<a name="72"></a>    // if remapped command is NOT provided, then it is expected to run this
-<a name="73"></a>    // you should override this in your instance to do SOMETHING!
-<a name="74"></a>    execute() {}
-<a name="75"></a>
-<a name="76"></a>    // where this can happen (nil if everywhere); can be Room/Region or list of
-<a name="77"></a>    where = nil
-<a name="78"></a>    
-<a name="79"></a>    // under what circumstances this can happen (true if always)
-<a name="80"></a>    when = true
-<a name="81"></a>    
-<a name="82"></a>    // A scene that must be happening, or list one of scenes of which must be happening
-<a name="83"></a>    // for this to happen (nil if no scene is required)
-<a name="84"></a>    during = nil
-<a name="85"></a>    
-<a name="86"></a>    /* 
-<a name="87"></a>     *   By default, you generally want any non-system command to take a turn.
-<a name="88"></a>     *   However, there may also be other circumstances where a turn should not be
-<a name="89"></a>     *   consumed.  Change to 0 if we want execute() to NOT count as a turn.
-<a name="90"></a>     *   This property is ignored if doInstead(...) is called within execute()
-<a name="91"></a>     */
-<a name="92"></a>    turnsTaken = 1
-<a name="93"></a>    
-<a name="94"></a>    //////////////////////////////////////////
-<a name="95"></a>    // Internals
-<a name="96"></a>    //
-<a name="97"></a>        
-<a name="98"></a>    /* Execute our custom method and then our turn sequence. */
-<a name="99"></a>    execute_()
-<a name="100"></a>    {       
-<a name="101"></a>        "&lt;.p0&gt;";
-<a name="102"></a>        execute();
-<a name="103"></a>        
-<a name="104"></a>        turnSequence();
-<a name="105"></a>    }
-<a name="106"></a>    
-<a name="107"></a>    turnSequence() { 
-<a name="108"></a>        if(doInsteadItems == nil)
-<a name="109"></a>            delegated Action;
-<a name="110"></a>    }
-<a name="111"></a>
-<a name="112"></a>    doInsteadItems = nil    // if a list, then doInstead was invoked
-<a name="113"></a>    
-<a name="114"></a>    doInstead(action,[args]) {
-<a name="115"></a>        /* get the optional items */
-<a name="116"></a>        local dobj = args.element(1);
-<a name="117"></a>        local iobj = args.element(2);    
-<a name="118"></a>        local aobj = args.element(3);
-<a name="119"></a>        
-<a name="120"></a>        local deftext = '';
-<a name="121"></a>        local len = args.length();
-<a name="122"></a>
-<a name="123"></a>        if(doInsteadItems != nil) {
-<a name="124"></a>            "ERROR in doInstead(...) for remapCmd:\nYou cannot have more than one
-<a name="125"></a>            doInstead\b";
-<a name="126"></a>            abort;
-<a name="127"></a>        }
-<a name="128"></a>        if(action == nil)
-<a name="129"></a>            deftext += 'action is undefined!\n';
-<a name="130"></a>        if(dobj == nil &amp;&amp; len &gt; 0)
-<a name="131"></a>            deftext += 'direct object is set, but not defined/understood!\n';
-<a name="132"></a>        if(iobj == nil &amp;&amp; len &gt; 1)
-<a name="133"></a>            deftext += 'indirect object is set, but not defined/understood!\n';
-<a name="134"></a>        if(aobj == nil &amp;&amp; len &gt; 2)
-<a name="135"></a>            deftext += 'auxiliary object is set, but not defined/understood!\n';
-<a name="136"></a>        if(deftext != '') {
-<a name="137"></a>            "ERROR in doInstead(...) for remapCmd:\n&lt;&lt;deftext&gt;&gt;\b";
-<a name="138"></a>            abort;
-<a name="139"></a>        }
-<a name="140"></a>        doInsteadItems = [action,dobj,iobj,aobj];
-<a name="141"></a>    }
-<a name="142"></a>    
-<a name="143"></a>    cmdTerms = []   // the strings that are the command(s) to match
-<a name="144"></a>    cmdTermHash = []    // the hash for these strings (faster compare later)
-<a name="145"></a>;
-<a name="146"></a>
-<a name="147"></a>/* ------------------------------------------------------------------------ */
-<a name="148"></a>/*
-<a name="149"></a> *   This gathers up all of the RemapCmd items and gets them ready for execution in the
-<a name="150"></a> *   actual game
-<a name="151"></a> *
-<a name="152"></a> *  This is persistent and there should only be one of these
-<a name="153"></a> *
-<a name="154"></a> */
-<a name="155"></a>
-<a name="156"></a>remapCmdDicts: PreinitObject
-<a name="157"></a>    remapTbl = nil  // lookup table with hash and then list of objects that match it
-<a name="158"></a>    
-<a name="159"></a>    // the pre-init execution routine
-<a name="160"></a>    execute() {
-<a name="161"></a>        remapTbl = new LookupTable(50,50);
-<a name="162"></a>        local scmp = new StringComparator(nil,true,nil);    // case-sensitive as lower anyway
-<a name="163"></a>        
-<a name="164"></a>        for(local obj = firstObj(RemapCmd); obj != nil; obj = nextObj(obj,RemapCmd)) {
-<a name="165"></a>            // process the command
-<a name="166"></a>            local res, toks;
-<a name="167"></a>            local lst = [];
-<a name="168"></a>            foreach(local str in obj.cmd.split(';')) {
-<a name="169"></a>                try {
-<a name="170"></a>                    toks = remapCmdTokenizer.tokenize(str);
-<a name="171"></a>                    match = remapCmdGrammar.parseTokens(toks,nil);
-<a name="172"></a>                    if(match.length &gt; 0) {
-<a name="173"></a>                        res = match[1].lstval();
-<a name="174"></a>                        lst = remapCmdGrammarOr(lst,res);
-<a name="175"></a>                    } else
-<a name="176"></a>                        throw new EvalToksError(toks);
-<a name="177"></a>                }
-<a name="178"></a>                catch (TokErrorNoMatch err)
-<a name="179"></a>                {
-<a name="180"></a>                    "Unrecognized punctuation: &lt;&lt;err.remainingStr_.substr(1, 1)&gt;&gt;";
-<a name="181"></a>                    break;
-<a name="182"></a>                }
-<a name="183"></a>                catch (EvalToksError err)                
-<a name="184"></a>                {
-<a name="185"></a>                    "Command phrase cannot be processed: &lt;&lt;str&gt;&gt;";
-<a name="186"></a>                    break;
-<a name="187"></a>                }
-<a name="188"></a>            }
-<a name="189"></a>            // have the parsed up items -- now join them up into individual possible commands
-<a name="190"></a>            foreach(toks in lst) {
-<a name="191"></a>                // always only allow ONE space between words
-<a name="192"></a>                res = toks.join(' ').findReplace(R'&lt;Space&gt;&lt;Space&gt;+',' ',ReplaceAll);
-<a name="193"></a>                res = res.findReplace(R'(^&lt;Space&gt;+)|(&lt;Space&gt;+$)','',ReplaceAll);
-<a name="194"></a>                obj.cmdTerms = obj.cmdTerms.append(res);
-<a name="195"></a>                res = scmp.calcHash(res);
-<a name="196"></a>                obj.cmdTermHash = obj.cmdTermHash.append(res);
-<a name="197"></a>                addHashMap(res,obj);
-<a name="198"></a>            }
-<a name="199"></a>        }
-<a name="200"></a>    }
-<a name="201"></a>    
-<a name="202"></a>    // add to the remapTbl for hash lookup
-<a name="203"></a>    addHashMap(hash,obj) {
-<a name="204"></a>        if(remapTbl.isKeyPresent(hash)) {
-<a name="205"></a>            remapTbl[hash] = remapTbl[hash].append(obj);
-<a name="206"></a>        } else {
-<a name="207"></a>            remapTbl[hash] = [obj];
-<a name="208"></a>        }
-<a name="209"></a>    }
-<a name="210"></a>    
-<a name="211"></a>    // process a tokenized string: return new string, obj if deferred, or nil if no match
-<a name="212"></a>    processCmd(toks,tokcnt) {
-<a name="213"></a>        local scmp = new StringComparator(nil,true,nil);    // everything is lower case
-<a name="214"></a>        local acmd = '', ahash, obj, v;    // the string and its hash
-<a name="215"></a>        
-<a name="216"></a>        // build the command
-<a name="217"></a>        if(tokcnt &gt; 0)
-<a name="218"></a>            toks = toks.sublist(1,tokcnt);
-<a name="219"></a>        acmd = toks.mapAll({x:x[1]});
-<a name="220"></a>        acmd = acmd.join(' ');
-<a name="221"></a>        ahash = scmp.calcHash(acmd);
-<a name="222"></a>        
-<a name="223"></a>        if(!remapTbl.isKeyPresent(ahash))
-<a name="224"></a>            return nil;
-<a name="225"></a>        
-<a name="226"></a>        // scan the items that fit
-<a name="227"></a>        foreach(obj in remapTbl[ahash]) {
-<a name="228"></a>            // support list of locations???
-<a name="229"></a>            if(obj.where != nil &amp;&amp; valToList(obj.where).indexWhich({x:gLocation.isOrIsIn(x)}) == nil ) continue; // ECSE mod
-<a name="230"></a>            if(!obj.when) continue; // ECSE mod
-<a name="231"></a>            if(obj.during != nil &amp;&amp; valToList(obj.during).indexWhich({s:s.isHappening}) == nil) continue; // ECSE mod
-<a name="232"></a>            for(v = 1; v &lt;= obj.cmdTermHash.length(); ++v) {
-<a name="233"></a>                if(obj.cmdTermHash[v] == ahash &amp;&amp; 
-<a name="234"></a>                   scmp.matchValues(obj.cmdTerms[v],acmd) != 0) {
-<a name="235"></a>                    // found it!
-<a name="236"></a>                    obj.doInsteadItems = nil;  // clear it out before we move on
-<a name="237"></a>                    if(obj.remappedCmd != nil)
-<a name="238"></a>                        return obj.remappedCmd;
-<a name="239"></a>                    return obj;
-<a name="240"></a>                }
-<a name="241"></a>            }
-<a name="242"></a>        }
-<a name="243"></a>        return nil;
-<a name="244"></a>    }
-<a name="245"></a>;
-<a name="246"></a>
-<a name="247"></a>
-<a name="248"></a>/* ------------------------------------------------------------------------ */
-<a name="249"></a>/*
-<a name="250"></a> *   remapCmd tokenizer for US English.  Other language modules should
-<a name="251"></a> *   provide their own tokenizers to allow for differences in punctuation
-<a name="252"></a> *   and other lexical elements.
-<a name="253"></a> *   
-<a name="254"></a> */
-<a name="255"></a>
-<a name="256"></a>enum token tokOp;
-<a name="257"></a>
-<a name="258"></a>class EvalToksError: Exception
-<a name="259"></a>    displayException() { "Evaluate tokenizer exception -- unable to parse"; }
-<a name="260"></a>;
-<a name="261"></a>
-<a name="262"></a>remapCmdTokenizer: Tokenizer
-<a name="263"></a>    rules_ = static
-<a name="264"></a>    [
-<a name="265"></a>        /* skip whitespace */
-<a name="266"></a>        ['whitespace', R'&lt;Space&gt;+', nil, &amp;tokCvtSkip, nil],
-<a name="267"></a>
-<a name="268"></a>        /* 
-<a name="269"></a>         *   Words - note that we convert everything to lower-case.  A
-<a name="270"></a>         *   word can start with any letter or number and then
-<a name="271"></a>         *   alphabetics, digits, hyphens, and apostrophes after that. (tokWord,tokString)
-<a name="272"></a>         */
-<a name="273"></a>        ['word', R'&lt;AlphaNum&gt;(&lt;AlphaNum&gt;|[-\'])*', tokWord, &amp;tokCvtLower, nil],
-<a name="274"></a>        
-<a name="275"></a>        // handle , as a separate item for conversations
-<a name="276"></a>        ['comma', ',', tokWord, nil, nil],
-<a name="277"></a>        
-<a name="278"></a>        /* 
-<a name="279"></a>         *   Single-quoted strings also allowed and only way to get empty string
-<a name="280"></a>         */
-<a name="281"></a>        ['string', R'\\?\'(&lt;AlphaNum&gt;|[-\'])*\\?\'', tokWord, &amp;tokCvtStripSingle, nil],
+<a name="69"></a>    /* 
+<a name="70"></a>     *   The remapped (replacement) text (if provided). This should be in the form of a command the
+<a name="71"></a>     *   parser can parse and exectute
+<a name="72"></a>     */
+<a name="73"></a>    remappedCmd = nil
+<a name="74"></a>    
+<a name="75"></a>    /* 
+<a name="76"></a>     *   If remapped command is NOT provided, game code should override this method to do
+<a name="77"></a>     *   something (or display some text). 
+<a name="78"></a>     */
+<a name="79"></a>    execute() {}
+<a name="80"></a>
+<a name="81"></a>    /* 
+<a name="82"></a>     *   where this can happen (nil if everywhere); can be Room/Region or list of Rooms and/or
+<a name="83"></a>     *   Regions.
+<a name="84"></a>     */
+<a name="85"></a>    where = nil
+<a name="86"></a>    
+<a name="87"></a>    /* An expression defining under what circumstances this RemapCmd is matched. */
+<a name="88"></a>    when = true
+<a name="89"></a>    
+<a name="90"></a>    /* 
+<a name="91"></a>     *   A scene that must be happening, or list one of scenes of which must be happening for
+<a name="92"></a>     *   this to happen (nil if no scene is required)
+<a name="93"></a>     */
+<a name="94"></a>    during = nil
+<a name="95"></a>    
+<a name="96"></a>    /* 
+<a name="97"></a>     *   By default, you generally want any non-system command to take a turn.
+<a name="98"></a>     *   However, there may also be other circumstances where a turn should not be
+<a name="99"></a>     *   consumed.  Change to 0 if we want execute() to NOT count as a turn.
+<a name="100"></a>     *   This property is ignored if doInstead(...) is called within execute()
+<a name="101"></a>     */
+<a name="102"></a>    turnsTaken = 1
+<a name="103"></a>    
+<a name="104"></a>    //////////////////////////////////////////
+<a name="105"></a>    // Internals
+<a name="106"></a>    //
+<a name="107"></a>        
+<a name="108"></a>    /* Execute our custom method and then our turn sequence. For internal use only. */
+<a name="109"></a>    execute_()
+<a name="110"></a>    {       
+<a name="111"></a>        "&lt;.p0&gt;";
+<a name="112"></a>        execute();
+<a name="113"></a>        
+<a name="114"></a>        turnSequence();
+<a name="115"></a>    }
+<a name="116"></a>    
+<a name="117"></a>    /* 
+<a name="118"></a>     *   If doInstead has been used in our execute() method, then call the standard turn sequence
+<a name="119"></a>     *   routine to execute any Events and update the turn counter. For internal use only.
+<a name="120"></a>     */
+<a name="121"></a>    turnSequence() { 
+<a name="122"></a>        if(doInsteadItems == nil)
+<a name="123"></a>            delegated Action;
+<a name="124"></a>    }
+<a name="125"></a>
+<a name="126"></a>    /* 
+<a name="127"></a>     *   A list containing the actoin and objects defined by a call to doInstead in our execute
+<a name="128"></a>     *   routine, or nil if doInstead() wasn't used. For internal use only
+<a name="129"></a>     */
+<a name="130"></a>    doInsteadItems = nil    
+<a name="131"></a>    
+<a name="132"></a>    /* 
+<a name="133"></a>     *   Populate our doInsteadItems from any call to doInstead() in our execute() routine. For
+<a name="134"></a>     *   internal use only.
+<a name="135"></a>     */
+<a name="136"></a>    doInstead(action,[args]) {
+<a name="137"></a>        /* get the optional items */
+<a name="138"></a>        local dobj = args.element(1);
+<a name="139"></a>        local iobj = args.element(2);    
+<a name="140"></a>        local aobj = args.element(3);
+<a name="141"></a>        
+<a name="142"></a>        local deftext = '';
+<a name="143"></a>        local len = args.length();
+<a name="144"></a>
+<a name="145"></a>        if(doInsteadItems != nil) {
+<a name="146"></a>            "ERROR in doInstead(...) for remapCmd:\nYou cannot have more than one
+<a name="147"></a>            doInstead\b";
+<a name="148"></a>            abort;
+<a name="149"></a>        }
+<a name="150"></a>        if(action == nil)
+<a name="151"></a>            deftext += 'action is undefined!\n';
+<a name="152"></a>        if(dobj == nil &amp;&amp; len &gt; 0)
+<a name="153"></a>            deftext += 'direct object is set, but not defined/understood!\n';
+<a name="154"></a>        if(iobj == nil &amp;&amp; len &gt; 1)
+<a name="155"></a>            deftext += 'indirect object is set, but not defined/understood!\n';
+<a name="156"></a>        if(aobj == nil &amp;&amp; len &gt; 2)
+<a name="157"></a>            deftext += 'auxiliary object is set, but not defined/understood!\n';
+<a name="158"></a>        if(deftext != '') {
+<a name="159"></a>            "ERROR in doInstead(...) for remapCmd:\n&lt;&lt;deftext&gt;&gt;\b";
+<a name="160"></a>            abort;
+<a name="161"></a>        }
+<a name="162"></a>        doInsteadItems = [action,dobj,iobj,aobj];
+<a name="163"></a>    }
+<a name="164"></a>    
+<a name="165"></a>    /* The strings that are the command(s) to match. For internal use only. */
+<a name="166"></a>    cmdTerms = []   
+<a name="167"></a>    
+<a name="168"></a>    /* The hash for these strings (faster compare later). For internal use only. */
+<a name="169"></a>    cmdTermHash = []    
+<a name="170"></a>;
+<a name="171"></a>
+<a name="172"></a>/* ------------------------------------------------------------------------ */
+<a name="173"></a>/*
+<a name="174"></a> *   This gathers up all of the RemapCmd items and gets them ready for execution in the
+<a name="175"></a> *   actual game
+<a name="176"></a> *
+<a name="177"></a> *  This is persistent and there should only be one of these
+<a name="178"></a> *
+<a name="179"></a> */
+<a name="180"></a>
+<a name="181"></a>remapCmdDicts: PreinitObject
+<a name="182"></a>    /* Lookup table with hash and then list of objects that match it */
+<a name="183"></a>    remapTbl = nil  
+<a name="184"></a>    
+<a name="185"></a>    /* The pre-init execution routine */
+<a name="186"></a>    execute() {
+<a name="187"></a>        remapTbl = new LookupTable(50,50);
+<a name="188"></a>        local scmp = new StringComparator(nil,true,nil);    // case-sensitive as lower anyway
+<a name="189"></a>        
+<a name="190"></a>        for(local obj = firstObj(RemapCmd); obj != nil; obj = nextObj(obj,RemapCmd)) {
+<a name="191"></a>            // process the command
+<a name="192"></a>            local res, toks;
+<a name="193"></a>            local lst = [];
+<a name="194"></a>            foreach(local str in obj.cmd.split(';')) {
+<a name="195"></a>                try {
+<a name="196"></a>                    toks = remapCmdTokenizer.tokenize(str);
+<a name="197"></a>                    match = remapCmdGrammar.parseTokens(toks,nil);
+<a name="198"></a>                    if(match.length &gt; 0) {
+<a name="199"></a>                        res = match[1].lstval();
+<a name="200"></a>                        lst = remapCmdGrammarOr(lst,res);
+<a name="201"></a>                    } else
+<a name="202"></a>                        throw new EvalToksError(toks);
+<a name="203"></a>                }
+<a name="204"></a>                catch (TokErrorNoMatch err)
+<a name="205"></a>                {
+<a name="206"></a>                    "Unrecognized punctuation: &lt;&lt;err.remainingStr_.substr(1, 1)&gt;&gt;";
+<a name="207"></a>                    break;
+<a name="208"></a>                }
+<a name="209"></a>                catch (EvalToksError err)                
+<a name="210"></a>                {
+<a name="211"></a>                    "Command phrase cannot be processed: &lt;&lt;str&gt;&gt;";
+<a name="212"></a>                    break;
+<a name="213"></a>                }
+<a name="214"></a>            }
+<a name="215"></a>            // have the parsed up items -- now join them up into individual possible commands
+<a name="216"></a>            foreach(toks in lst) {
+<a name="217"></a>                // always only allow ONE space between words
+<a name="218"></a>                res = toks.join(' ').findReplace(R'&lt;Space&gt;&lt;Space&gt;+',' ',ReplaceAll);
+<a name="219"></a>                res = res.findReplace(R'(^&lt;Space&gt;+)|(&lt;Space&gt;+$)','',ReplaceAll);
+<a name="220"></a>                obj.cmdTerms = obj.cmdTerms.append(res);
+<a name="221"></a>                res = scmp.calcHash(res);
+<a name="222"></a>                obj.cmdTermHash = obj.cmdTermHash.append(res);
+<a name="223"></a>                addHashMap(res,obj);
+<a name="224"></a>            }
+<a name="225"></a>        }
+<a name="226"></a>    }
+<a name="227"></a>    
+<a name="228"></a>    /* add to the remapTbl for hash lookup */
+<a name="229"></a>    addHashMap(hash,obj) {
+<a name="230"></a>        if(remapTbl.isKeyPresent(hash)) {
+<a name="231"></a>            remapTbl[hash] = remapTbl[hash].append(obj);
+<a name="232"></a>        } else {
+<a name="233"></a>            remapTbl[hash] = [obj];
+<a name="234"></a>        }
+<a name="235"></a>    }
+<a name="236"></a>    
+<a name="237"></a>    /* process a tokenized string: return new string, obj if deferred, or nil if no match */
+<a name="238"></a>    processCmd(toks,tokcnt) {
+<a name="239"></a>        local scmp = new StringComparator(nil,true,nil);    // everything is lower case
+<a name="240"></a>        local acmd = '', ahash, obj, v;    // the string and its hash
+<a name="241"></a>        
+<a name="242"></a>        /* build the command */
+<a name="243"></a>        if(tokcnt &gt; 0)
+<a name="244"></a>            toks = toks.sublist(1,tokcnt);
+<a name="245"></a>        acmd = toks.mapAll({x:x[1]});
+<a name="246"></a>        acmd = acmd.join(' ');
+<a name="247"></a>        ahash = scmp.calcHash(acmd);
+<a name="248"></a>        
+<a name="249"></a>        if(!remapTbl.isKeyPresent(ahash))
+<a name="250"></a>            return nil;
+<a name="251"></a>        
+<a name="252"></a>        /* scan the items that fit */
+<a name="253"></a>        foreach(obj in remapTbl[ahash]) {
+<a name="254"></a>            // support list of locations???
+<a name="255"></a>            if(obj.where != nil &amp;&amp; valToList(obj.where).indexWhich({x:gLocation.isOrIsIn(x)}) == nil ) continue; // ECSE mod
+<a name="256"></a>            if(!obj.when) continue; // ECSE mod
+<a name="257"></a>            if(obj.during != nil &amp;&amp; valToList(obj.during).indexWhich({s:s.isHappening}) == nil) continue; // ECSE mod
+<a name="258"></a>            for(v = 1; v &lt;= obj.cmdTermHash.length(); ++v) {
+<a name="259"></a>                if(obj.cmdTermHash[v] == ahash &amp;&amp; 
+<a name="260"></a>                   scmp.matchValues(obj.cmdTerms[v],acmd) != 0) {
+<a name="261"></a>                    // found it!
+<a name="262"></a>                    obj.doInsteadItems = nil;  // clear it out before we move on
+<a name="263"></a>                    if(obj.remappedCmd != nil)
+<a name="264"></a>                        return obj.remappedCmd;
+<a name="265"></a>                    return obj;
+<a name="266"></a>                }
+<a name="267"></a>            }
+<a name="268"></a>        }
+<a name="269"></a>        return nil;
+<a name="270"></a>    }
+<a name="271"></a>;
+<a name="272"></a>
+<a name="273"></a>
+<a name="274"></a>/* ------------------------------------------------------------------------ */
+<a name="275"></a>/*
+<a name="276"></a> *   remapCmd tokenizer for US English.  Other language modules should
+<a name="277"></a> *   provide their own tokenizers to allow for differences in punctuation
+<a name="278"></a> *   and other lexical elements.
+<a name="279"></a> *   
+<a name="280"></a> */
+<a name="281"></a>enum token tokOp;
 <a name="282"></a>
-<a name="283"></a>        // operators
-<a name="284"></a>        ['emptystring',R'(&lt;vbar&gt;&lt;Space&gt;*&lt;rparen&gt;)|(&lt;lparen&gt;&lt;Space&gt;*&lt;vbar&gt;)', tokOp, &amp;tokDoEmptyString, nil],
-<a name="285"></a>        ['operator', R'[|()]', tokOp, nil, nil]
-<a name="286"></a>    ]
-<a name="287"></a>    
-<a name="288"></a>    
-<a name="289"></a>    /* strip the leading and trailing single-quote -- and then push to lower-case */
-<a name="290"></a>    tokCvtStripSingle(txt, typ, toks)
-<a name="291"></a>    {
-<a name="292"></a>        if(txt.startsWith('\\'))
-<a name="293"></a>            txt = txt.substr(2);
-<a name="294"></a>        if(txt.endsWith('\\'))
-<a name="295"></a>            txt = txt.substr(1,txt.length() - 1);
-<a name="296"></a>        local newlen = txt.length() - 2;
-<a name="297"></a>        toks.append([txt.substr(2,newlen).toLower(), typ, txt]);
-<a name="298"></a>    }
-<a name="299"></a>    
-<a name="300"></a>    /* handle the |) or the (| sequence */
-<a name="301"></a>    tokDoEmptyString(txt, typ, toks)
-<a name="302"></a>    {
-<a name="303"></a>        local len = txt.length();
-<a name="304"></a>        toks.append([txt.substr(1,1),typ,txt.substr(1,1)]);
-<a name="305"></a>        toks.append(['',tokWord,'']);
-<a name="306"></a>        toks.append([txt.substr(len,1),typ,txt.substr(len,1)]);
-<a name="307"></a>    }
-<a name="308"></a>;
+<a name="283"></a>/* Exception to handle exceptions occurring in the remapCmd tokenizer */
+<a name="284"></a>class EvalToksError: Exception
+<a name="285"></a>    displayException() { "Evaluate tokenizer exception -- unable to parse"; }
+<a name="286"></a>;
+<a name="287"></a>
+<a name="288"></a>/* Tokenizer for use with RemapCmd */
+<a name="289"></a>remapCmdTokenizer: Tokenizer
+<a name="290"></a>    rules_ = static
+<a name="291"></a>    [
+<a name="292"></a>        /* skip whitespace */
+<a name="293"></a>        ['whitespace', R'&lt;Space&gt;+', nil, &amp;tokCvtSkip, nil],
+<a name="294"></a>
+<a name="295"></a>        /* 
+<a name="296"></a>         *   Words - note that we convert everything to lower-case.  A
+<a name="297"></a>         *   word can start with any letter or number and then
+<a name="298"></a>         *   alphabetics, digits, hyphens, and apostrophes after that. (tokWord,tokString)
+<a name="299"></a>         */
+<a name="300"></a>        ['word', R'&lt;AlphaNum&gt;(&lt;AlphaNum&gt;|[-\'])*', tokWord, &amp;tokCvtLower, nil],
+<a name="301"></a>        
+<a name="302"></a>        // handle , as a separate item for conversations
+<a name="303"></a>        ['comma', ',', tokWord, nil, nil],
+<a name="304"></a>        
+<a name="305"></a>        /* 
+<a name="306"></a>         *   Single-quoted strings also allowed and only way to get empty string
+<a name="307"></a>         */
+<a name="308"></a>        ['string', R'\\?\'(&lt;AlphaNum&gt;|[-\'])*\\?\'', tokWord, &amp;tokCvtStripSingle, nil],
 <a name="309"></a>
-<a name="310"></a>//////////////////////////////////////////////////////////
-<a name="311"></a>// Define the remapCmd grammar for the parser
-<a name="312"></a>
-<a name="313"></a>// the most basic left level grammar map
-<a name="314"></a>grammar remapCmdGrammar(lit): tokWord-&gt;txt_: Production
-<a name="315"></a>    lstval() {
-<a name="316"></a>        lst_ = [[txt_]];
-<a name="317"></a>        return lst_;
-<a name="318"></a>    }
-<a name="319"></a>;
-<a name="320"></a>
-<a name="321"></a>// handle concatenation of two words into the list
-<a name="322"></a>// note the use of badness to prioritize the correct conversions
-<a name="323"></a>grammar remapCmdGrammar(concat): [badness 50]
-<a name="324"></a>    remapCmdGrammar-&gt;pp_  remapCmdGrammar-&gt;pp2_ : Production
-<a name="325"></a>    lstval() {
-<a name="326"></a>        return remapCmdGrammarConcat(pp_.lstval(),pp2_.lstval());
-<a name="327"></a>    }
-<a name="328"></a>;
-<a name="329"></a>
-<a name="330"></a>grammar remapCmdGrammar(or): [badness 30]
-<a name="331"></a>    remapCmdGrammar-&gt;pp_ '|' remapCmdGrammar-&gt;pp2_ : Production
-<a name="332"></a>    lstval() {
-<a name="333"></a>        return remapCmdGrammarOr(pp_.lstval(),pp2_.lstval());
+<a name="310"></a>        // operators
+<a name="311"></a>        ['emptystring',R'(&lt;vbar&gt;&lt;Space&gt;*&lt;rparen&gt;)|(&lt;lparen&gt;&lt;Space&gt;*&lt;vbar&gt;)', tokOp, &amp;tokDoEmptyString, nil],
+<a name="312"></a>        ['operator', R'[|()]', tokOp, nil, nil]
+<a name="313"></a>    ]
+<a name="314"></a>    
+<a name="315"></a>    
+<a name="316"></a>    /* strip the leading and trailing single-quote -- and then push to lower-case */
+<a name="317"></a>    tokCvtStripSingle(txt, typ, toks)
+<a name="318"></a>    {
+<a name="319"></a>        if(txt.startsWith('\\'))
+<a name="320"></a>            txt = txt.substr(2);
+<a name="321"></a>        if(txt.endsWith('\\'))
+<a name="322"></a>            txt = txt.substr(1,txt.length() - 1);
+<a name="323"></a>        local newlen = txt.length() - 2;
+<a name="324"></a>        toks.append([txt.substr(2,newlen).toLower(), typ, txt]);
+<a name="325"></a>    }
+<a name="326"></a>    
+<a name="327"></a>    /* handle the |) or the (| sequence */
+<a name="328"></a>    tokDoEmptyString(txt, typ, toks)
+<a name="329"></a>    {
+<a name="330"></a>        local len = txt.length();
+<a name="331"></a>        toks.append([txt.substr(1,1),typ,txt.substr(1,1)]);
+<a name="332"></a>        toks.append(['',tokWord,'']);
+<a name="333"></a>        toks.append([txt.substr(len,1),typ,txt.substr(len,1)]);
 <a name="334"></a>    }
 <a name="335"></a>;
 <a name="336"></a>
-<a name="337"></a>grammar remapCmdGrammar(tail): [badness 40]
-<a name="338"></a>    remapCmdGrammar-&gt;pp_  remapCmdGrammar-&gt;pp2_ '|' remapCmdGrammar-&gt;pp3_: Production
-<a name="339"></a>    lstval() {
-<a name="340"></a>        local lst = remapCmdGrammarOr(pp2_.lstval(),pp3_.lstval());
-<a name="341"></a>        return remapCmdGrammarConcat(pp_.lstval(),lst);
-<a name="342"></a>    }
-<a name="343"></a>;
-<a name="344"></a>
-<a name="345"></a>grammar remapCmdGrammar(grp): [badness 20]
-<a name="346"></a>    '(' remapCmdGrammar-&gt;pp_ ')' : Production
-<a name="347"></a>    lstval() {
-<a name="348"></a>        return pp_.lstval();
-<a name="349"></a>    }
-<a name="350"></a>;
-<a name="351"></a>
-<a name="352"></a>
-<a name="353"></a>/*
-<a name="354"></a> *   Helper routines for the grammar text expansion
-<a name="355"></a> */
-<a name="356"></a>remapCmdGrammarConcat(lstleft,lstright) {
-<a name="357"></a>    local lft, rght;
-<a name="358"></a>    local lst = [];
-<a name="359"></a>    for(local i = 1; i &lt;= lstleft.length(); ++i) {
-<a name="360"></a>        for(local j = 1; j &lt;= lstright.length(); ++j) {
-<a name="361"></a>            lft = lstleft[i];
-<a name="362"></a>            rght = lstright[j];
-<a name="363"></a>            for(local k = 1; k &lt;= rght.length(); ++k)
-<a name="364"></a>                lft = lft.append(rght[k]);
-<a name="365"></a>            lst = lst.append(lft);
-<a name="366"></a>        }
-<a name="367"></a>    }
-<a name="368"></a>    return lst;
-<a name="369"></a>}
-<a name="370"></a>
-<a name="371"></a>remapCmdGrammarOr(lst,lstright) {
-<a name="372"></a>    for(local j = 1; j &lt;= lstright.length(); ++j) {
-<a name="373"></a>        lst = lst.append(lstright[j]);
-<a name="374"></a>    }
-<a name="375"></a>    return lst;
-<a name="376"></a>}
-<a name="377"></a>
-<a name="378"></a>/////////////////////////////////////////////////////////////////////////////////
+<a name="337"></a>//////////////////////////////////////////////////////////
+<a name="338"></a>// Define the remapCmd grammar for the parser
+<a name="339"></a>
+<a name="340"></a>/* The most basic left level grammar map */
+<a name="341"></a>grammar remapCmdGrammar(lit): tokWord-&gt;txt_: Production
+<a name="342"></a>    lstval() {
+<a name="343"></a>        lst_ = [[txt_]];
+<a name="344"></a>        return lst_;
+<a name="345"></a>    }
+<a name="346"></a>;
+<a name="347"></a>
+<a name="348"></a>/* handle concatenation of two words into the list
+<a name="349"></a> note the use of badness to prioritize the correct conversions */
+<a name="350"></a>grammar remapCmdGrammar(concat): [badness 50]
+<a name="351"></a>    remapCmdGrammar-&gt;pp_  remapCmdGrammar-&gt;pp2_ : Production
+<a name="352"></a>    lstval() {
+<a name="353"></a>        return remapCmdGrammarConcat(pp_.lstval(),pp2_.lstval());
+<a name="354"></a>    }
+<a name="355"></a>;
+<a name="356"></a>
+<a name="357"></a>grammar remapCmdGrammar(or): [badness 30]
+<a name="358"></a>    remapCmdGrammar-&gt;pp_ '|' remapCmdGrammar-&gt;pp2_ : Production
+<a name="359"></a>    lstval() {
+<a name="360"></a>        return remapCmdGrammarOr(pp_.lstval(),pp2_.lstval());
+<a name="361"></a>    }
+<a name="362"></a>;
+<a name="363"></a>
+<a name="364"></a>grammar remapCmdGrammar(tail): [badness 40]
+<a name="365"></a>    remapCmdGrammar-&gt;pp_  remapCmdGrammar-&gt;pp2_ '|' remapCmdGrammar-&gt;pp3_: Production
+<a name="366"></a>    lstval() {
+<a name="367"></a>        local lst = remapCmdGrammarOr(pp2_.lstval(),pp3_.lstval());
+<a name="368"></a>        return remapCmdGrammarConcat(pp_.lstval(),lst);
+<a name="369"></a>    }
+<a name="370"></a>;
+<a name="371"></a>
+<a name="372"></a>grammar remapCmdGrammar(grp): [badness 20]
+<a name="373"></a>    '(' remapCmdGrammar-&gt;pp_ ')' : Production
+<a name="374"></a>    lstval() {
+<a name="375"></a>        return pp_.lstval();
+<a name="376"></a>    }
+<a name="377"></a>;
+<a name="378"></a>
 <a name="379"></a>
-<a name="380"></a>modify Parser
-<a name="381"></a>
-<a name="382"></a>    // return nil if an error; otherwise, return token list that could be empty
-<a name="383"></a>    parseToksOnly(str)
-<a name="384"></a>    {
-<a name="385"></a>        /* Make sure our current SpecialVerb is set to nil before we start parsing a new command. */
-<a name="386"></a>        specialVerbMgr.currentSV = nil;
-<a name="387"></a>
-<a name="388"></a>        /* tokenize the input */
-<a name="389"></a>        local toks;
-<a name="390"></a>        
-<a name="391"></a>        try
-<a name="392"></a>        {
-<a name="393"></a>            /* run the command tokenizer over the input string */
-<a name="394"></a>            toks = cmdTokenizer.tokenize(str);
-<a name="395"></a>            
-<a name="396"></a>            /* Dispose of any unwanted terminal punctuation */
-<a name="397"></a>            while(toks.length &gt; 0 &amp;&amp; getTokType(toks[toks.length]) == tokPunct)
-<a name="398"></a>                toks = toks.removeElementAt(toks.length);
-<a name="399"></a>            
-<a name="400"></a>        }
-<a name="401"></a>        catch (TokErrorNoMatch err)
-<a name="402"></a>        {
-<a name="403"></a>            /* 
-<a name="404"></a>             *   The tokenizer found a character (usually a punctuation
-<a name="405"></a>             *   mark) that doesn't fit any of the token rules.  
-<a name="406"></a>             */
-<a name="407"></a>            DMsg(token error, 'I don\'t understand the punctuation {1}',
-<a name="408"></a>                 err.curChar_);
-<a name="409"></a>            
-<a name="410"></a>            /* give up on the parse */
-<a name="411"></a>            return nil;
-<a name="412"></a>        }
-<a name="413"></a>        return toks;
-<a name="414"></a>    }
-<a name="415"></a>    
-<a name="416"></a>    parse(str)
-<a name="417"></a>    {
-<a name="418"></a>        /* tokenize the input */
-<a name="419"></a>        local toks = parseToksOnly(str);
-<a name="420"></a>        if(toks == nil)
-<a name="421"></a>            return;
-<a name="422"></a>
-<a name="423"></a>        /* 
-<a name="424"></a>         *   Assume initially that the actor is the player character, but only
-<a name="425"></a>         *   if we don't have a question, since if the player is replying to a
-<a name="426"></a>         *   question the actor may already have been resolved.
-<a name="427"></a>         */
-<a name="428"></a>        if(question == nil)
-<a name="429"></a>            gActor = gPlayerChar;        
-<a name="430"></a>        
-<a name="431"></a>        /* no spelling corrections have been attempted yet */
-<a name="432"></a>        local history = new transient SpellingHistory(self);
-<a name="433"></a>
-<a name="434"></a>        /* we're starting with the first command in the string */
-<a name="435"></a>        local firstCmd = true;
-<a name="436"></a>
-<a name="437"></a>        /* parse the tokens */
-<a name="438"></a>        try
-<a name="439"></a>        {
-<a name="440"></a>            /* if there are no tokens, simply perform the empty command */
-<a name="441"></a>            if (toks.length() == 0)
-<a name="442"></a>            {
-<a name="443"></a>                /* 
-<a name="444"></a>                 *   this counts as a new command, so forget any previous
-<a name="445"></a>                 *   question or typo information 
-<a name="446"></a>                 */
-<a name="447"></a>                question = nil;
-<a name="448"></a>                lastTokens = nil;
-<a name="449"></a>
-<a name="450"></a>                /* process an empty command */
-<a name="451"></a>                emptyCommand();
-<a name="452"></a>
-<a name="453"></a>                /* we're done */
-<a name="454"></a>                return;
-<a name="455"></a>            }
-<a name="456"></a>
-<a name="457"></a>            /* check for an OOPS command */
-<a name="458"></a>            local lst = oopsCommand.parseTokens(toks, cmdDict);
-<a name="459"></a>            if (lst.length() != 0)
-<a name="460"></a>            {
-<a name="461"></a>                /* this only works if we have an error to correct */
-<a name="462"></a>                local ui;
-<a name="463"></a>                if (lastTokens == nil
-<a name="464"></a>                    || (ui = spellingCorrector.findUnknownWord(lastTokens))
-<a name="465"></a>                        == nil)
-<a name="466"></a>                {
-<a name="467"></a>                    /* OOPS isn't available - throw an error */
-<a name="468"></a>                    throw new CantOopsError();
-<a name="469"></a>                }
-<a name="470"></a>
-<a name="471"></a>                /* apply the correction, and proceed to parse the result */
-<a name="472"></a>                toks = OopsProduction.applyCorrection(lst[1], lastTokens, ui);
-<a name="473"></a>            }
-<a name="474"></a>            
-<a name="475"></a>             /* Update the vocabulary of any game objects with alternating/changing vocab. */
-<a name="476"></a>            updateVocab();
-<a name="477"></a>            
-<a name="478"></a>             /* Allow the specialVerb Manager to adjust our toks */            
-<a name="479"></a>            toks = specialVerbMgr.matchSV(toks);  
-<a name="480"></a>            
-<a name="481"></a>            /*   
-<a name="482"></a>             *   Parse each predicate in the command line, until we run out
-<a name="483"></a>             *   of tokens.  The beginning of a whole new command line is
-<a name="484"></a>             *   definitely the beginning of a sentence, so start parsing
-<a name="485"></a>             *   with firstCommandPhrase.  
-<a name="486"></a>             */
-<a name="487"></a>            for (local root = firstCommandPhrase ; toks.length() != 0 ; )
+<a name="380"></a>/*
+<a name="381"></a> *   Helper routines for the grammar text expansion
+<a name="382"></a> */
+<a name="383"></a>remapCmdGrammarConcat(lstleft,lstright) {
+<a name="384"></a>    local lft, rght;
+<a name="385"></a>    local lst = [];
+<a name="386"></a>    for(local i = 1; i &lt;= lstleft.length(); ++i) {
+<a name="387"></a>        for(local j = 1; j &lt;= lstright.length(); ++j) {
+<a name="388"></a>            lft = lstleft[i];
+<a name="389"></a>            rght = lstright[j];
+<a name="390"></a>            for(local k = 1; k &lt;= rght.length(); ++k)
+<a name="391"></a>                lft = lft.append(rght[k]);
+<a name="392"></a>            lst = lst.append(lft);
+<a name="393"></a>        }
+<a name="394"></a>    }
+<a name="395"></a>    return lst;
+<a name="396"></a>}
+<a name="397"></a>
+<a name="398"></a>remapCmdGrammarOr(lst,lstright) {
+<a name="399"></a>    for(local j = 1; j &lt;= lstright.length(); ++j) {
+<a name="400"></a>        lst = lst.append(lstright[j]);
+<a name="401"></a>    }
+<a name="402"></a>    return lst;
+<a name="403"></a>}
+<a name="404"></a>
+<a name="405"></a>/////////////////////////////////////////////////////////////////////////////////
+<a name="406"></a>
+<a name="407"></a>/* Modifications to the Parser to accommodate RemapCmd */
+<a name="408"></a>modify Parser
+<a name="409"></a>
+<a name="410"></a>    // return nil if an error; otherwise, return token list that could be empty
+<a name="411"></a>    parseToksOnly(str)
+<a name="412"></a>    {
+<a name="413"></a>        /* Make sure our current SpecialVerb is set to nil before we start parsing a new command. */
+<a name="414"></a>        specialVerbMgr.currentSV = nil;
+<a name="415"></a>
+<a name="416"></a>        /* tokenize the input */
+<a name="417"></a>        local toks;
+<a name="418"></a>        
+<a name="419"></a>        try
+<a name="420"></a>        {
+<a name="421"></a>            /* run the command tokenizer over the input string */
+<a name="422"></a>            toks = cmdTokenizer.tokenize(str);
+<a name="423"></a>            
+<a name="424"></a>            /* Dispose of any unwanted terminal punctuation */
+<a name="425"></a>            while(toks.length &gt; 0 &amp;&amp; getTokType(toks[toks.length]) == tokPunct)
+<a name="426"></a>                toks = toks.removeElementAt(toks.length);
+<a name="427"></a>            
+<a name="428"></a>        }
+<a name="429"></a>        catch (TokErrorNoMatch err)
+<a name="430"></a>        {
+<a name="431"></a>            /* 
+<a name="432"></a>             *   The tokenizer found a character (usually a punctuation
+<a name="433"></a>             *   mark) that doesn't fit any of the token rules.  
+<a name="434"></a>             */
+<a name="435"></a>            DMsg(token error, 'I don\'t understand the punctuation {1}',
+<a name="436"></a>                 err.curChar_);
+<a name="437"></a>            
+<a name="438"></a>            /* give up on the parse */
+<a name="439"></a>            return nil;
+<a name="440"></a>        }
+<a name="441"></a>        return toks;
+<a name="442"></a>    }
+<a name="443"></a>    
+<a name="444"></a>    parse(str)
+<a name="445"></a>    {
+<a name="446"></a>        /* tokenize the input */
+<a name="447"></a>        local toks = parseToksOnly(str);
+<a name="448"></a>        if(toks == nil)
+<a name="449"></a>            return;
+<a name="450"></a>
+<a name="451"></a>        /* 
+<a name="452"></a>         *   Assume initially that the actor is the player character, but only
+<a name="453"></a>         *   if we don't have a question, since if the player is replying to a
+<a name="454"></a>         *   question the actor may already have been resolved.
+<a name="455"></a>         */
+<a name="456"></a>        if(question == nil)
+<a name="457"></a>            gActor = gPlayerChar;        
+<a name="458"></a>        
+<a name="459"></a>        /* no spelling corrections have been attempted yet */
+<a name="460"></a>        local history = new transient SpellingHistory(self);
+<a name="461"></a>
+<a name="462"></a>        /* we're starting with the first command in the string */
+<a name="463"></a>        local firstCmd = true;
+<a name="464"></a>
+<a name="465"></a>        /* parse the tokens */
+<a name="466"></a>        try
+<a name="467"></a>        {
+<a name="468"></a>            /* if there are no tokens, simply perform the empty command */
+<a name="469"></a>            if (toks.length() == 0)
+<a name="470"></a>            {
+<a name="471"></a>                /* 
+<a name="472"></a>                 *   this counts as a new command, so forget any previous
+<a name="473"></a>                 *   question or typo information 
+<a name="474"></a>                 */
+<a name="475"></a>                question = nil;
+<a name="476"></a>                lastTokens = nil;
+<a name="477"></a>
+<a name="478"></a>                /* process an empty command */
+<a name="479"></a>                emptyCommand();
+<a name="480"></a>
+<a name="481"></a>                /* we're done */
+<a name="482"></a>                return;
+<a name="483"></a>            }
+<a name="484"></a>
+<a name="485"></a>            /* check for an OOPS command */
+<a name="486"></a>            local lst = oopsCommand.parseTokens(toks, cmdDict);
+<a name="487"></a>            if (lst.length() != 0)
 <a name="488"></a>            {
-<a name="489"></a>                /* we don't have a parse list yet */
-<a name="490"></a>                local cmdLst = nil;
-<a name="491"></a>                local remapCmdItem = nil;   // for later processing
-<a name="492"></a>                local remapCmdTokCnt = 0;
-<a name="493"></a>
-<a name="494"></a>                /* 
-<a name="495"></a>                 *   we haven't found a resolution error in a non-command
-<a name="496"></a>                 *   parsing yet 
-<a name="497"></a>                 */
-<a name="498"></a>                local qErr = nil, defErr = nil;
-<a name="499"></a>
-<a name="500"></a>                /* 
-<a name="501"></a>                 *   If we have an outstanding question, and it takes
-<a name="502"></a>                 *   priority over interpreting input as a new command, try
-<a name="503"></a>                 *   parsing the input against the question.  Only do this
-<a name="504"></a>                 *   on the first command on the line - a question answer
-<a name="505"></a>                 *   has to be the entire input, so if we've already parsed
-<a name="506"></a>                 *   earlier commands on the same line, this definitely
-<a name="507"></a>                 *   isn't an answer to a past question.  
-<a name="508"></a>                 */
-<a name="509"></a>                if (firstCmd &amp;&amp; question != nil &amp;&amp; question.priority)
-<a name="510"></a>                {
-<a name="511"></a>                    /* try parsing against the Question */
-<a name="512"></a>                    local l = question.parseAnswer(toks, cmdDict);
-<a name="513"></a>
-<a name="514"></a>                    /* if it parsed and resolved, this is our command */
-<a name="515"></a>                    if (l != nil &amp;&amp; l.cmd != nil)
-<a name="516"></a>                        cmdLst = l;
-<a name="517"></a>
-<a name="518"></a>                    /* if it parsed but didn't resolved, note the error */
-<a name="519"></a>                    if (l != nil)
-<a name="520"></a>                        qErr = l.getResErr();
-<a name="521"></a>                } else {
-<a name="522"></a>                    remapCmdTokCnt = 0;
-<a name="523"></a>                    while(++remapCmdTokCnt &lt;= toks.length()) {
-<a name="524"></a>                        if(toks[remapCmdTokCnt][1] == ';' ||
-<a name="525"></a>                           toks[remapCmdTokCnt][1] == '.') {
-<a name="526"></a>                            break;
-<a name="527"></a>                        }
-<a name="528"></a>                    }
-<a name="529"></a>                    // if i is 1, then semicolon is the (empty) command!
-<a name="530"></a>                    if(--remapCmdTokCnt &gt; 0) {
-<a name="531"></a>                        if(remapCmdTokCnt == toks.length())
-<a name="532"></a>                            remapCmdTokCnt = 0;
-<a name="533"></a>                        remapCmdItem = remapCmdDicts.processCmd(toks,remapCmdTokCnt);
-<a name="534"></a>                        if(dataType(remapCmdItem) == TypeSString) {
-<a name="535"></a>                            local remaptoks = parseToksOnly(remapCmdItem);
-<a name="536"></a>                            if(remaptoks == nil)
-<a name="537"></a>                                return;
-<a name="538"></a>                            local i = remapCmdTokCnt;
-<a name="539"></a>                            remapCmdTokCnt = remaptoks.length();
-<a name="540"></a>                            // rip out old tokens and replace with new ones!
-<a name="541"></a>                            if(i &gt; 0) {
-<a name="542"></a>                                while(++i &lt;= toks.length())
-<a name="543"></a>                                    remaptoks = remaptoks.append(toks[i]);
-<a name="544"></a>                            }
-<a name="545"></a>                            // readjust the token set
-<a name="546"></a>                            toks = remaptoks;
-<a name="547"></a>                            remapCmdItem = nil;
-<a name="548"></a>                        }
-<a name="549"></a>                    }
-<a name="550"></a>                }
-<a name="551"></a>
-<a name="552"></a>                /* 
-<a name="553"></a>                 *   if the question didn't grab it, try parsing as a whole
-<a name="554"></a>                 *   new command against the ordinary command grammar
-<a name="555"></a>                 */
-<a name="556"></a>                if (cmdLst == nil || cmdLst.cmd == nil)
-<a name="557"></a>                {
-<a name="558"></a>                    if(remapCmdItem == nil) {
-<a name="559"></a>                        cmdLst = new CommandList(
-<a name="560"></a>                            root, toks, cmdDict, { p: new Command(p) });
-<a name="561"></a>                    } else {
-<a name="562"></a>                        remapCmdItem.execute_(); // ECSE mod
-<a name="563"></a>                        if(remapCmdItem.doInsteadItems != nil) {
-<a name="564"></a>                            // create the artificial command
-<a name="565"></a>                            local cobj = remapCmdItem.doInsteadItems;
-<a name="566"></a>                            local c2;
-<a name="567"></a>                            if(cobj[2] == nil)
-<a name="568"></a>                                c2 = new Command(cobj[1]);
-<a name="569"></a>                            else if(cobj[3] == nil)
-<a name="570"></a>                                c2 = new Command(cobj[1],cobj[2]);
-<a name="571"></a>                            else if(cobj[4] == nil)
-<a name="572"></a>                                c2 = new Command(cobj[1],cobj[2],cobj[3]);
-<a name="573"></a>                            else
-<a name="574"></a>                                c2 = new Command(cobj[1],cobj[2],cobj[3],cobj[4]);
-<a name="575"></a>                            // fix c2 for items needed later here
-<a name="576"></a>                            c2.endOfSentence = true;   // remapped commands are stand-alone
-<a name="577"></a>                            c2.nextTokens = remapCmdTokCnt &gt; 0?
-<a name="578"></a>                                toks.sublist(remapCmdTokCnt+2) : [];
-<a name="579"></a>                            cmdLst = new CommandList(c2);
-<a name="580"></a>                        } else {
-<a name="581"></a>                            firstCmd = nil;
-<a name="582"></a>                            
-<a name="583"></a>                            /* start over with a new spelling correction history */
-<a name="584"></a>                            history = new transient SpellingHistory(self);
-<a name="585"></a>
-<a name="586"></a>                            // since we remapped, it will always be end-of-sentence
-<a name="587"></a>                            root = firstCommandPhrase;
-<a name="588"></a>                            /* 
-<a name="589"></a>                             *   Set the root grammar production for the next
-<a name="590"></a>                             *   predicate.  If the previous command ended the
-<a name="591"></a>                             *   sentence, start a new sentence; otherwise, use the
-<a name="592"></a>                             *   additional clause syntax. 
-<a name="593"></a>                             */
-<a name="594"></a>                            
-<a name="595"></a>//                            root = cmd.endOfSentence
-<a name="596"></a>//                                ? firstCommandPhrase : commandPhrase;
-<a name="597"></a>//                    
-<a name="598"></a>                   
-<a name="599"></a>                            /* go back and parse the remainder of the command line */
-<a name="600"></a>                            /* start index is 1 and have to skip the semi-colon as well */
-<a name="601"></a>                            if(remapCmdTokCnt &gt; 0)
-<a name="602"></a>                                toks = toks.sublist(remapCmdTokCnt+2);
-<a name="603"></a>                            else
-<a name="604"></a>                                toks = [];
-<a name="605"></a>                            continue;
-<a name="606"></a>                        }
-<a name="607"></a>                    }
-<a name="608"></a>                }
-<a name="609"></a>
-<a name="610"></a>                /* 
-<a name="611"></a>                 *   If we didn't find any resolvable commands, and this is
-<a name="612"></a>                 *   the first command, check to see if it's an answer to
-<a name="613"></a>                 *   an outstanding query.  We only check this if the
-<a name="614"></a>                 *   regular grammar parsing fails, because anything that
-<a name="615"></a>                 *   looks like a valid new command overrides a past query.
-<a name="616"></a>                 *   This is important because some of the short, common
-<a name="617"></a>                 *   commands sometimes can look like noun phrases, so we
-<a name="618"></a>                 *   explicitly give preference to interpreting these as
-<a name="619"></a>                 *   brand new commands.  
-<a name="620"></a>                 */
-<a name="621"></a>                if (cmdLst.cmd == nil
-<a name="622"></a>                    &amp;&amp; firstCmd
-<a name="623"></a>                    &amp;&amp; question != nil
-<a name="624"></a>                    &amp;&amp; !question.priority)
-<a name="625"></a>                {
-<a name="626"></a>                    /* try parsing against the Question */
-<a name="627"></a>                    local l = question.parseAnswer(toks, cmdDict);
-<a name="628"></a>
-<a name="629"></a>                    /* if it parsed and resolved, this is our command */
-<a name="630"></a>                    if (l != nil &amp;&amp; l.cmd != nil)
-<a name="631"></a>                        cmdLst = l;
-<a name="632"></a>
-<a name="633"></a>                    /* if it parsed but didn't resolved, note the error */
-<a name="634"></a>                    if (l != nil)
-<a name="635"></a>                        qErr = l.getResErr();
+<a name="489"></a>                /* this only works if we have an error to correct */
+<a name="490"></a>                local ui;
+<a name="491"></a>                if (lastTokens == nil
+<a name="492"></a>                    || (ui = spellingCorrector.findUnknownWord(lastTokens))
+<a name="493"></a>                        == nil)
+<a name="494"></a>                {
+<a name="495"></a>                    /* OOPS isn't available - throw an error */
+<a name="496"></a>                    throw new CantOopsError();
+<a name="497"></a>                }
+<a name="498"></a>
+<a name="499"></a>                /* apply the correction, and proceed to parse the result */
+<a name="500"></a>                toks = OopsProduction.applyCorrection(lst[1], lastTokens, ui);
+<a name="501"></a>            }
+<a name="502"></a>            
+<a name="503"></a>             /* Update the vocabulary of any game objects with alternating/changing vocab. */
+<a name="504"></a>            updateVocab();
+<a name="505"></a>            
+<a name="506"></a>             /* Allow the specialVerb Manager to adjust our toks */            
+<a name="507"></a>            toks = specialVerbMgr.matchSV(toks);  
+<a name="508"></a>            
+<a name="509"></a>            /*   
+<a name="510"></a>             *   Parse each predicate in the command line, until we run out
+<a name="511"></a>             *   of tokens.  The beginning of a whole new command line is
+<a name="512"></a>             *   definitely the beginning of a sentence, so start parsing
+<a name="513"></a>             *   with firstCommandPhrase.  
+<a name="514"></a>             */
+<a name="515"></a>            for (local root = firstCommandPhrase ; toks.length() != 0 ; )
+<a name="516"></a>            {
+<a name="517"></a>                /* we don't have a parse list yet */
+<a name="518"></a>                local cmdLst = nil;
+<a name="519"></a>                local remapCmdItem = nil;   // for later processing
+<a name="520"></a>                local remapCmdTokCnt = 0;
+<a name="521"></a>
+<a name="522"></a>                /* 
+<a name="523"></a>                 *   we haven't found a resolution error in a non-command
+<a name="524"></a>                 *   parsing yet 
+<a name="525"></a>                 */
+<a name="526"></a>                local qErr = nil, defErr = nil;
+<a name="527"></a>
+<a name="528"></a>                /* 
+<a name="529"></a>                 *   If we have an outstanding question, and it takes
+<a name="530"></a>                 *   priority over interpreting input as a new command, try
+<a name="531"></a>                 *   parsing the input against the question.  Only do this
+<a name="532"></a>                 *   on the first command on the line - a question answer
+<a name="533"></a>                 *   has to be the entire input, so if we've already parsed
+<a name="534"></a>                 *   earlier commands on the same line, this definitely
+<a name="535"></a>                 *   isn't an answer to a past question.  
+<a name="536"></a>                 */
+<a name="537"></a>                if (firstCmd &amp;&amp; question != nil &amp;&amp; question.priority)
+<a name="538"></a>                {
+<a name="539"></a>                    /* try parsing against the Question */
+<a name="540"></a>                    local l = question.parseAnswer(toks, cmdDict);
+<a name="541"></a>
+<a name="542"></a>                    /* if it parsed and resolved, this is our command */
+<a name="543"></a>                    if (l != nil &amp;&amp; l.cmd != nil)
+<a name="544"></a>                        cmdLst = l;
+<a name="545"></a>
+<a name="546"></a>                    /* if it parsed but didn't resolved, note the error */
+<a name="547"></a>                    if (l != nil)
+<a name="548"></a>                        qErr = l.getResErr();
+<a name="549"></a>                } else {
+<a name="550"></a>                    remapCmdTokCnt = 0;
+<a name="551"></a>                    while(++remapCmdTokCnt &lt;= toks.length()) {
+<a name="552"></a>                        if(toks[remapCmdTokCnt][1] == ';' ||
+<a name="553"></a>                           toks[remapCmdTokCnt][1] == '.') {
+<a name="554"></a>                            break;
+<a name="555"></a>                        }
+<a name="556"></a>                    }
+<a name="557"></a>                    // if i is 1, then semicolon is the (empty) command!
+<a name="558"></a>                    if(--remapCmdTokCnt &gt; 0) {
+<a name="559"></a>                        if(remapCmdTokCnt == toks.length())
+<a name="560"></a>                            remapCmdTokCnt = 0;
+<a name="561"></a>                        remapCmdItem = remapCmdDicts.processCmd(toks,remapCmdTokCnt);
+<a name="562"></a>                        if(dataType(remapCmdItem) == TypeSString) {
+<a name="563"></a>                            local remaptoks = parseToksOnly(remapCmdItem);
+<a name="564"></a>                            if(remaptoks == nil)
+<a name="565"></a>                                return;
+<a name="566"></a>                            local i = remapCmdTokCnt;
+<a name="567"></a>                            remapCmdTokCnt = remaptoks.length();
+<a name="568"></a>                            // rip out old tokens and replace with new ones!
+<a name="569"></a>                            if(i &gt; 0) {
+<a name="570"></a>                                while(++i &lt;= toks.length())
+<a name="571"></a>                                    remaptoks = remaptoks.append(toks[i]);
+<a name="572"></a>                            }
+<a name="573"></a>                            // readjust the token set
+<a name="574"></a>                            toks = remaptoks;
+<a name="575"></a>                            remapCmdItem = nil;
+<a name="576"></a>                        }
+<a name="577"></a>                    }
+<a name="578"></a>                }
+<a name="579"></a>
+<a name="580"></a>                /* 
+<a name="581"></a>                 *   if the question didn't grab it, try parsing as a whole
+<a name="582"></a>                 *   new command against the ordinary command grammar
+<a name="583"></a>                 */
+<a name="584"></a>                if (cmdLst == nil || cmdLst.cmd == nil)
+<a name="585"></a>                {
+<a name="586"></a>                    if(remapCmdItem == nil) {
+<a name="587"></a>                        cmdLst = new CommandList(
+<a name="588"></a>                            root, toks, cmdDict, { p: new Command(p) });
+<a name="589"></a>                    } else {
+<a name="590"></a>                        remapCmdItem.execute_(); // ECSE mod
+<a name="591"></a>                        if(remapCmdItem.doInsteadItems != nil) {
+<a name="592"></a>                            // create the artificial command
+<a name="593"></a>                            local cobj = remapCmdItem.doInsteadItems;
+<a name="594"></a>                            local c2;
+<a name="595"></a>                            if(cobj[2] == nil)
+<a name="596"></a>                                c2 = new Command(cobj[1]);
+<a name="597"></a>                            else if(cobj[3] == nil)
+<a name="598"></a>                                c2 = new Command(cobj[1],cobj[2]);
+<a name="599"></a>                            else if(cobj[4] == nil)
+<a name="600"></a>                                c2 = new Command(cobj[1],cobj[2],cobj[3]);
+<a name="601"></a>                            else
+<a name="602"></a>                                c2 = new Command(cobj[1],cobj[2],cobj[3],cobj[4]);
+<a name="603"></a>                            // fix c2 for items needed later here
+<a name="604"></a>                            c2.endOfSentence = true;   // remapped commands are stand-alone
+<a name="605"></a>                            c2.nextTokens = remapCmdTokCnt &gt; 0?
+<a name="606"></a>                                toks.sublist(remapCmdTokCnt+2) : [];
+<a name="607"></a>                            cmdLst = new CommandList(c2);
+<a name="608"></a>                        } else {
+<a name="609"></a>                            firstCmd = nil;
+<a name="610"></a>                            
+<a name="611"></a>                            /* start over with a new spelling correction history */
+<a name="612"></a>                            history = new transient SpellingHistory(self);
+<a name="613"></a>
+<a name="614"></a>                            // since we remapped, it will always be end-of-sentence
+<a name="615"></a>                            root = firstCommandPhrase;
+<a name="616"></a>                            /* 
+<a name="617"></a>                             *   Set the root grammar production for the next
+<a name="618"></a>                             *   predicate.  If the previous command ended the
+<a name="619"></a>                             *   sentence, start a new sentence; otherwise, use the
+<a name="620"></a>                             *   additional clause syntax. 
+<a name="621"></a>                             */
+<a name="622"></a>                            
+<a name="623"></a>//                            root = cmd.endOfSentence
+<a name="624"></a>//                                ? firstCommandPhrase : commandPhrase;
+<a name="625"></a>//                    
+<a name="626"></a>                   
+<a name="627"></a>                            /* go back and parse the remainder of the command line */
+<a name="628"></a>                            /* start index is 1 and have to skip the semi-colon as well */
+<a name="629"></a>                            if(remapCmdTokCnt &gt; 0)
+<a name="630"></a>                                toks = toks.sublist(remapCmdTokCnt+2);
+<a name="631"></a>                            else
+<a name="632"></a>                                toks = [];
+<a name="633"></a>                            continue;
+<a name="634"></a>                        }
+<a name="635"></a>                    }
 <a name="636"></a>                }
 <a name="637"></a>
-<a name="638"></a>                /*
-<a name="639"></a>                 *   If we don't have a command yet, and this is the first
-<a name="640"></a>                 *   command on the line, handle it as a conversational command
-<a name="641"></a>                 *   if conversation is in progress; otherwise if default
-<a name="642"></a>                 *   actions are enabled, check to see if the command looks like
-<a name="643"></a>                 *   a single noun phrase.  If so, handle it as the default
-<a name="644"></a>                 *   action on the noun.
-<a name="645"></a>                 */
-<a name="646"></a>                if (cmdLst.cmd == nil
-<a name="647"></a>                    &amp;&amp; firstCmd)
-<a name="648"></a>                {
-<a name="649"></a>                    local l;                   
-<a name="650"></a>                    
-<a name="651"></a>                    
-<a name="652"></a>                    /* 
-<a name="653"></a>                     *   If a conversation is in progress parse the command line
-<a name="654"></a>                     *   as the single topic object phrase of a Say command,
-<a name="655"></a>                     *   provided that the first word on the command line
-<a name="656"></a>                     *   doesn't match a possible action.
-<a name="657"></a>                     */
-<a name="658"></a>                    
-<a name="659"></a>                    if(gPlayerChar.currentInterlocutor != nil
-<a name="660"></a>                       &amp;&amp; cmdLst.length == 0 
-<a name="661"></a>                       &amp;&amp; Q.canTalkTo(gPlayerChar,
-<a name="662"></a>                                      gPlayerChar.currentInterlocutor)
-<a name="663"></a>                       &amp;&amp; str.find(',') == nil
-<a name="664"></a>                       &amp;&amp; gPlayerChar.currentInterlocutor.allowImplicitSay())
-<a name="665"></a>                    {
-<a name="666"></a>                         l = new CommandList(
-<a name="667"></a>                            topicPhrase, toks, cmdDict,
-<a name="668"></a>                            { p: new Command(SayAction, p) });
-<a name="669"></a>                        
-<a name="670"></a>                        libGlobal.lastCommandForUndo = str;
-<a name="671"></a>                        savepoint();
-<a name="672"></a>                    }
-<a name="673"></a>                    /* 
-<a name="674"></a>                     *   If the player char is not in conversation with anyone,
-<a name="675"></a>                     *   and the first word of the command doesn't match a possible
-<a name="676"></a>                     *   command verb, then try parsing the command line as a
-<a name="677"></a>                     *   single direct object phrase for the DefaultAction verb,
-<a name="678"></a>                     *   provided defaultActions are enabled (which they are
-<a name="679"></a>                     *   by default).
-<a name="680"></a>                     */
-<a name="681"></a>                    else if(defaultActions)                                                
-<a name="682"></a>                        l = new CommandList(
-<a name="683"></a>                            defaultCommandPhrase, toks, cmdDict,
-<a name="684"></a>                            { p: new Command(p) });                       
-<a name="685"></a>                    
+<a name="638"></a>                /* 
+<a name="639"></a>                 *   If we didn't find any resolvable commands, and this is
+<a name="640"></a>                 *   the first command, check to see if it's an answer to
+<a name="641"></a>                 *   an outstanding query.  We only check this if the
+<a name="642"></a>                 *   regular grammar parsing fails, because anything that
+<a name="643"></a>                 *   looks like a valid new command overrides a past query.
+<a name="644"></a>                 *   This is important because some of the short, common
+<a name="645"></a>                 *   commands sometimes can look like noun phrases, so we
+<a name="646"></a>                 *   explicitly give preference to interpreting these as
+<a name="647"></a>                 *   brand new commands.  
+<a name="648"></a>                 */
+<a name="649"></a>                if (cmdLst.cmd == nil
+<a name="650"></a>                    &amp;&amp; firstCmd
+<a name="651"></a>                    &amp;&amp; question != nil
+<a name="652"></a>                    &amp;&amp; !question.priority)
+<a name="653"></a>                {
+<a name="654"></a>                    /* try parsing against the Question */
+<a name="655"></a>                    local l = question.parseAnswer(toks, cmdDict);
+<a name="656"></a>
+<a name="657"></a>                    /* if it parsed and resolved, this is our command */
+<a name="658"></a>                    if (l != nil &amp;&amp; l.cmd != nil)
+<a name="659"></a>                        cmdLst = l;
+<a name="660"></a>
+<a name="661"></a>                    /* if it parsed but didn't resolved, note the error */
+<a name="662"></a>                    if (l != nil)
+<a name="663"></a>                        qErr = l.getResErr();
+<a name="664"></a>                }
+<a name="665"></a>
+<a name="666"></a>                /*
+<a name="667"></a>                 *   If we don't have a command yet, and this is the first
+<a name="668"></a>                 *   command on the line, handle it as a conversational command
+<a name="669"></a>                 *   if conversation is in progress; otherwise if default
+<a name="670"></a>                 *   actions are enabled, check to see if the command looks like
+<a name="671"></a>                 *   a single noun phrase.  If so, handle it as the default
+<a name="672"></a>                 *   action on the noun.
+<a name="673"></a>                 */
+<a name="674"></a>                if (cmdLst.cmd == nil
+<a name="675"></a>                    &amp;&amp; firstCmd)
+<a name="676"></a>                {
+<a name="677"></a>                    local l;                   
+<a name="678"></a>                    
+<a name="679"></a>                    
+<a name="680"></a>                    /* 
+<a name="681"></a>                     *   If a conversation is in progress parse the command line
+<a name="682"></a>                     *   as the single topic object phrase of a Say command,
+<a name="683"></a>                     *   provided that the first word on the command line
+<a name="684"></a>                     *   doesn't match a possible action.
+<a name="685"></a>                     */
 <a name="686"></a>                    
-<a name="687"></a>                       
-<a name="688"></a>                    /* accept a curable reply */
-<a name="689"></a>                    if (l != nil &amp;&amp; l.acceptCurable() != nil)
-<a name="690"></a>                    {
-<a name="691"></a>                        cmdLst = l;
-<a name="692"></a>                        
-<a name="693"></a>                        /* note any resolution error */
-<a name="694"></a>                        defErr = l.getResErr();
-<a name="695"></a>                    }
-<a name="696"></a>                }
-<a name="697"></a>                
-<a name="698"></a>                /*
-<a name="699"></a>                 *   If we've applied a spelling correction, and the
-<a name="700"></a>                 *   command match didn't consume the entire input, make
-<a name="701"></a>                 *   sure what's left of the input has a valid parsing as
-<a name="702"></a>                 *   another command.  This ensures that we don't get a
-<a name="703"></a>                 *   false positive by excessively shortening a command,
-<a name="704"></a>                 *   which we can sometimes do by substituting a word like
-<a name="705"></a>                 *   "then" for another word.  
-<a name="706"></a>                 */
-<a name="707"></a>                if (cmdLst.length() != nil
-<a name="708"></a>                    &amp;&amp; history.hasCorrections())
-<a name="709"></a>                {
-<a name="710"></a>                    /* get the best available parsing */
-<a name="711"></a>                    local c = cmdLst.getBestCmd();
-<a name="712"></a>
-<a name="713"></a>                    /* if it doesn't use all the tokens, check what's left */
-<a name="714"></a>                    if (c != nil &amp;&amp; c.tokenLen &lt; toks.length())
-<a name="715"></a>                    {
-<a name="716"></a>                        /* try parsing the next command */
-<a name="717"></a>                        local l = commandPhrase.parseTokens(
-<a name="718"></a>                            c.nextTokens, cmdDict);
-<a name="719"></a>
-<a name="720"></a>                        /* 
-<a name="721"></a>                         *   if that didn't work, invalidate the command by
-<a name="722"></a>                         *   substituting an empty command list 
-<a name="723"></a>                         */
-<a name="724"></a>                        if (l.length() == 0)
-<a name="725"></a>                            cmdLst = new CommandList();
-<a name="726"></a>                    }
-<a name="727"></a>                }
-<a name="728"></a>                
-<a name="729"></a>                /* 
-<a name="730"></a>                 *   If we didn't find a parsing at all, it's a generic "I
-<a name="731"></a>                 *   don't understand" error.  If we found a parsing, but
-<a name="732"></a>                 *   not a resolution, reject it if it's a spelling
-<a name="733"></a>                 *   correction.  We only want completely clean spelling
-<a name="734"></a>                 *   corrections, without any errors.
-<a name="735"></a>                 */
-<a name="736"></a>                if (cmdLst.length() == 0
-<a name="737"></a>                    || (history.hasCorrections()
-<a name="738"></a>                        &amp;&amp; cmdLst.getResErr() != nil
-<a name="739"></a>                        &amp;&amp; !cmdLst.getResErr().allowOnRespell))
-<a name="740"></a>                {
-<a name="741"></a>                    /* 
-<a name="742"></a>                     *   If we were able to parse the input using one of
-<a name="743"></a>                     *   the non-command interpretations, use the
-<a name="744"></a>                     *   resolution error from that parsing.  Otherwise, we
-<a name="745"></a>                     *   simply can't make any sense of this input, so use
-<a name="746"></a>                     *   the generic "I don't understand" error. 
-<a name="747"></a>                     */
-<a name="748"></a>                    local err = (qErr != nil ? qErr :
-<a name="749"></a>                                 defErr != nil ? defErr :
-<a name="750"></a>                                 new NotUnderstoodError());
-<a name="751"></a>                    
-<a name="752"></a>                    /* look for a spelling correction */
-<a name="753"></a>                    local newToks = history.checkSpelling(toks, err);
-<a name="754"></a>                    if (newToks != nil)
-<a name="755"></a>                    {
-<a name="756"></a>                        /* parse again with the new tokens */
-<a name="757"></a>                        toks = newToks;
-<a name="758"></a>                        continue;
-<a name="759"></a>                    }
-<a name="760"></a>
-<a name="761"></a>                    /* 
-<a name="762"></a>                     *   There's no spelling correction available.  If we've 
-<a name="763"></a>                     *   settled on an auto-examine or question error, skip 
-<a name="764"></a>                     *   that and go back to "I don't understand" after 
-<a name="765"></a>                     *   all.  We don't want to assume Auto-Examine unless we
-<a name="766"></a>                     *   actually have something to examine, since we can 
-<a name="767"></a>                     *   parse noun phrase grammar out of practically any 
-<a name="768"></a>                     *   input.  
-<a name="769"></a>                     */
-<a name="770"></a>                    if (err is in (defErr, qErr))
-<a name="771"></a>                    {
-<a name="772"></a>                        /* return to the not-understood error */
-<a name="773"></a>                        err = new NotUnderstoodError();
-<a name="774"></a>                        
-<a name="775"></a>                        /* check spelling again with this error */
-<a name="776"></a>                        newToks = history.checkSpelling(toks, err);
-<a name="777"></a>                        if (newToks != nil)
-<a name="778"></a>                        {
-<a name="779"></a>                            /* parse again with the new tokens */
-<a name="780"></a>                            toks = newToks;
-<a name="781"></a>                            continue;
-<a name="782"></a>                        }
-<a name="783"></a>                    
-<a name="784"></a>                        
-<a name="785"></a>                        /* 
-<a name="786"></a>                         *   We didn't find any spelling corrections this time
-<a name="787"></a>                         *   through.  Since we're rolling back to the
-<a name="788"></a>                         *   not-understood error, discard any spelling
-<a name="789"></a>                         *   corrections we attempted with other
-<a name="790"></a>                         *   interpretations.
-<a name="791"></a>                         */
-<a name="792"></a>                        history.clear();                   
-<a name="793"></a>                    }
-<a name="794"></a>                
-<a name="795"></a>                    /* fail with the error */
-<a name="796"></a>                    throw err;
-<a name="797"></a>                }
-<a name="798"></a>
-<a name="799"></a>                /* if we found a resolvable command, execute it */
-<a name="800"></a>                if (cmdLst.cmd != nil)
-<a name="801"></a>                {
-<a name="802"></a>                    /* get the winning Command */
-<a name="803"></a>                    local cmd = cmdLst.cmd;
-<a name="804"></a>                    
-<a name="805"></a>                    /* 
-<a name="806"></a>                     *   We next have to ensure that the player hasn't entered
-<a name="807"></a>                     *   multiple nouns in a slot that only allows a single noun
-<a name="808"></a>                     *   in the grammar. If the player has entered two objects
-<a name="809"></a>                     *   like "the bat and the ball" in such a case, the
-<a name="810"></a>                     *   badMulti flag will be set on the command object, so we
-<a name="811"></a>                     *   first test for that and abort the command with a
-<a name="812"></a>                     *   suitable error message if badMulti is not nil (by
-<a name="813"></a>                     *   throwing a BadMultiError
-<a name="814"></a>                     *
-<a name="815"></a>                     *   Unfortunately the badMulti flag doesn't get set if the
-<a name="816"></a>                     *   player enters a multiple object as a plural (e.g.
-<a name="817"></a>                     *   "bats"), so we need to trap this case too. We do that
-<a name="818"></a>                     *   by checking whether there's multiple objects in the
-<a name="819"></a>                     *   direct, indirect and accessory object slots at the same
-<a name="820"></a>                     *   time as the grammar tag matching the slot in question
-<a name="821"></a>                     *   is 'normal', which it is only for a single noun match.
-<a name="822"></a>                     */
-<a name="823"></a>                     
-<a name="824"></a>                    if(cmd &amp;&amp; cmd.verbProd != nil &amp;&amp;                        
-<a name="825"></a>                        (cmd.badMulti != nil 
-<a name="826"></a>                       || (cmd.verbProd.dobjMatch != nil &amp;&amp;
-<a name="827"></a>                           cmd.verbProd.dobjMatch.grammarTag == 'normal'
-<a name="828"></a>                           &amp;&amp; cmd.dobjs.length &gt; 1)
-<a name="829"></a>                       ||
-<a name="830"></a>                       (cmd.verbProd.iobjMatch != nil &amp;&amp;
-<a name="831"></a>                           cmd.verbProd.iobjMatch.grammarTag == 'normal'
-<a name="832"></a>                           &amp;&amp; cmd.iobjs.length &gt; 1)                          
-<a name="833"></a>                        ||
-<a name="834"></a>                       (cmd.verbProd.accMatch != nil &amp;&amp;
-<a name="835"></a>                           cmd.verbProd.accMatch.grammarTag == 'normal'
-<a name="836"></a>                           &amp;&amp; cmd.accs.length &gt; 1)
-<a name="837"></a>                           ))
-<a name="838"></a>                        cmd.cmdErr = new BadMultiError(cmd.np);
-<a name="839"></a>                    
-<a name="840"></a>                    /* if this command has a pending error, throw it */
-<a name="841"></a>                    if (cmd.cmdErr != nil)
-<a name="842"></a>                        throw cmd.cmdErr;
-<a name="843"></a>
-<a name="844"></a>                    /* 
-<a name="845"></a>                     *   Forget any past question and typo information.
-<a name="846"></a>                     *   The new command is either an answer to this
-<a name="847"></a>                     *   question, or it's simply ignoring the question; in
-<a name="848"></a>                     *   either case, the question is no longer in play for
-<a name="849"></a>                     *   future input.  
+<a name="687"></a>                    if(gPlayerChar.currentInterlocutor != nil
+<a name="688"></a>                       &amp;&amp; cmdLst.length == 0 
+<a name="689"></a>                       &amp;&amp; Q.canTalkTo(gPlayerChar,
+<a name="690"></a>                                      gPlayerChar.currentInterlocutor)
+<a name="691"></a>                       &amp;&amp; str.find(',') == nil
+<a name="692"></a>                       &amp;&amp; gPlayerChar.currentInterlocutor.allowImplicitSay())
+<a name="693"></a>                    {
+<a name="694"></a>                         l = new CommandList(
+<a name="695"></a>                            topicPhrase, toks, cmdDict,
+<a name="696"></a>                            { p: new Command(SayAction, p) });
+<a name="697"></a>                        
+<a name="698"></a>                        libGlobal.lastCommandForUndo = str;
+<a name="699"></a>                        savepoint();
+<a name="700"></a>                    }
+<a name="701"></a>                    /* 
+<a name="702"></a>                     *   If the player char is not in conversation with anyone,
+<a name="703"></a>                     *   and the first word of the command doesn't match a possible
+<a name="704"></a>                     *   command verb, then try parsing the command line as a
+<a name="705"></a>                     *   single direct object phrase for the DefaultAction verb,
+<a name="706"></a>                     *   provided defaultActions are enabled (which they are
+<a name="707"></a>                     *   by default).
+<a name="708"></a>                     */
+<a name="709"></a>                    else if(defaultActions)                                                
+<a name="710"></a>                        l = new CommandList(
+<a name="711"></a>                            defaultCommandPhrase, toks, cmdDict,
+<a name="712"></a>                            { p: new Command(p) });                       
+<a name="713"></a>                    
+<a name="714"></a>                    
+<a name="715"></a>                       
+<a name="716"></a>                    /* accept a curable reply */
+<a name="717"></a>                    if (l != nil &amp;&amp; l.acceptCurable() != nil)
+<a name="718"></a>                    {
+<a name="719"></a>                        cmdLst = l;
+<a name="720"></a>                        
+<a name="721"></a>                        /* note any resolution error */
+<a name="722"></a>                        defErr = l.getResErr();
+<a name="723"></a>                    }
+<a name="724"></a>                }
+<a name="725"></a>                
+<a name="726"></a>                /*
+<a name="727"></a>                 *   If we've applied a spelling correction, and the
+<a name="728"></a>                 *   command match didn't consume the entire input, make
+<a name="729"></a>                 *   sure what's left of the input has a valid parsing as
+<a name="730"></a>                 *   another command.  This ensures that we don't get a
+<a name="731"></a>                 *   false positive by excessively shortening a command,
+<a name="732"></a>                 *   which we can sometimes do by substituting a word like
+<a name="733"></a>                 *   "then" for another word.  
+<a name="734"></a>                 */
+<a name="735"></a>                if (cmdLst.length() != nil
+<a name="736"></a>                    &amp;&amp; history.hasCorrections())
+<a name="737"></a>                {
+<a name="738"></a>                    /* get the best available parsing */
+<a name="739"></a>                    local c = cmdLst.getBestCmd();
+<a name="740"></a>
+<a name="741"></a>                    /* if it doesn't use all the tokens, check what's left */
+<a name="742"></a>                    if (c != nil &amp;&amp; c.tokenLen &lt; toks.length())
+<a name="743"></a>                    {
+<a name="744"></a>                        /* try parsing the next command */
+<a name="745"></a>                        local l = commandPhrase.parseTokens(
+<a name="746"></a>                            c.nextTokens, cmdDict);
+<a name="747"></a>
+<a name="748"></a>                        /* 
+<a name="749"></a>                         *   if that didn't work, invalidate the command by
+<a name="750"></a>                         *   substituting an empty command list 
+<a name="751"></a>                         */
+<a name="752"></a>                        if (l.length() == 0)
+<a name="753"></a>                            cmdLst = new CommandList();
+<a name="754"></a>                    }
+<a name="755"></a>                }
+<a name="756"></a>                
+<a name="757"></a>                /* 
+<a name="758"></a>                 *   If we didn't find a parsing at all, it's a generic "I
+<a name="759"></a>                 *   don't understand" error.  If we found a parsing, but
+<a name="760"></a>                 *   not a resolution, reject it if it's a spelling
+<a name="761"></a>                 *   correction.  We only want completely clean spelling
+<a name="762"></a>                 *   corrections, without any errors.
+<a name="763"></a>                 */
+<a name="764"></a>                if (cmdLst.length() == 0
+<a name="765"></a>                    || (history.hasCorrections()
+<a name="766"></a>                        &amp;&amp; cmdLst.getResErr() != nil
+<a name="767"></a>                        &amp;&amp; !cmdLst.getResErr().allowOnRespell))
+<a name="768"></a>                {
+<a name="769"></a>                    /* 
+<a name="770"></a>                     *   If we were able to parse the input using one of
+<a name="771"></a>                     *   the non-command interpretations, use the
+<a name="772"></a>                     *   resolution error from that parsing.  Otherwise, we
+<a name="773"></a>                     *   simply can't make any sense of this input, so use
+<a name="774"></a>                     *   the generic "I don't understand" error. 
+<a name="775"></a>                     */
+<a name="776"></a>                    local err = (qErr != nil ? qErr :
+<a name="777"></a>                                 defErr != nil ? defErr :
+<a name="778"></a>                                 new NotUnderstoodError());
+<a name="779"></a>                    
+<a name="780"></a>                    /* look for a spelling correction */
+<a name="781"></a>                    local newToks = history.checkSpelling(toks, err);
+<a name="782"></a>                    if (newToks != nil)
+<a name="783"></a>                    {
+<a name="784"></a>                        /* parse again with the new tokens */
+<a name="785"></a>                        toks = newToks;
+<a name="786"></a>                        continue;
+<a name="787"></a>                    }
+<a name="788"></a>
+<a name="789"></a>                    /* 
+<a name="790"></a>                     *   There's no spelling correction available.  If we've 
+<a name="791"></a>                     *   settled on an auto-examine or question error, skip 
+<a name="792"></a>                     *   that and go back to "I don't understand" after 
+<a name="793"></a>                     *   all.  We don't want to assume Auto-Examine unless we
+<a name="794"></a>                     *   actually have something to examine, since we can 
+<a name="795"></a>                     *   parse noun phrase grammar out of practically any 
+<a name="796"></a>                     *   input.  
+<a name="797"></a>                     */
+<a name="798"></a>                    if (err is in (defErr, qErr))
+<a name="799"></a>                    {
+<a name="800"></a>                        /* return to the not-understood error */
+<a name="801"></a>                        err = new NotUnderstoodError();
+<a name="802"></a>                        
+<a name="803"></a>                        /* check spelling again with this error */
+<a name="804"></a>                        newToks = history.checkSpelling(toks, err);
+<a name="805"></a>                        if (newToks != nil)
+<a name="806"></a>                        {
+<a name="807"></a>                            /* parse again with the new tokens */
+<a name="808"></a>                            toks = newToks;
+<a name="809"></a>                            continue;
+<a name="810"></a>                        }
+<a name="811"></a>                    
+<a name="812"></a>                        
+<a name="813"></a>                        /* 
+<a name="814"></a>                         *   We didn't find any spelling corrections this time
+<a name="815"></a>                         *   through.  Since we're rolling back to the
+<a name="816"></a>                         *   not-understood error, discard any spelling
+<a name="817"></a>                         *   corrections we attempted with other
+<a name="818"></a>                         *   interpretations.
+<a name="819"></a>                         */
+<a name="820"></a>                        history.clear();                   
+<a name="821"></a>                    }
+<a name="822"></a>                
+<a name="823"></a>                    /* fail with the error */
+<a name="824"></a>                    throw err;
+<a name="825"></a>                }
+<a name="826"></a>
+<a name="827"></a>                /* if we found a resolvable command, execute it */
+<a name="828"></a>                if (cmdLst.cmd != nil)
+<a name="829"></a>                {
+<a name="830"></a>                    /* get the winning Command */
+<a name="831"></a>                    local cmd = cmdLst.cmd;
+<a name="832"></a>                    
+<a name="833"></a>                    /* 
+<a name="834"></a>                     *   We next have to ensure that the player hasn't entered
+<a name="835"></a>                     *   multiple nouns in a slot that only allows a single noun
+<a name="836"></a>                     *   in the grammar. If the player has entered two objects
+<a name="837"></a>                     *   like "the bat and the ball" in such a case, the
+<a name="838"></a>                     *   badMulti flag will be set on the command object, so we
+<a name="839"></a>                     *   first test for that and abort the command with a
+<a name="840"></a>                     *   suitable error message if badMulti is not nil (by
+<a name="841"></a>                     *   throwing a BadMultiError
+<a name="842"></a>                     *
+<a name="843"></a>                     *   Unfortunately the badMulti flag doesn't get set if the
+<a name="844"></a>                     *   player enters a multiple object as a plural (e.g.
+<a name="845"></a>                     *   "bats"), so we need to trap this case too. We do that
+<a name="846"></a>                     *   by checking whether there's multiple objects in the
+<a name="847"></a>                     *   direct, indirect and accessory object slots at the same
+<a name="848"></a>                     *   time as the grammar tag matching the slot in question
+<a name="849"></a>                     *   is 'normal', which it is only for a single noun match.
 <a name="850"></a>                     */
-<a name="851"></a>                    question = nil;
-<a name="852"></a>                    lastTokens = nil;
-<a name="853"></a>                    
-<a name="854"></a>                    /* note any spelling changes */
-<a name="855"></a>                    history.noteSpelling(toks);
-<a name="856"></a>                    
-<a name="857"></a>                    /* execute the command */
-<a name="858"></a>                    cmd.exec();
-<a name="859"></a>                    
-<a name="860"></a>                    /* start over with a new spelling correction history */
-<a name="861"></a>                    history = new transient SpellingHistory(self);
-<a name="862"></a>                    
-<a name="863"></a>                    /* 
-<a name="864"></a>                     *   Set the root grammar production for the next
-<a name="865"></a>                     *   predicate.  If the previous command ended the
-<a name="866"></a>                     *   sentence, start a new sentence; otherwise, use the
-<a name="867"></a>                     *   additional clause syntax. 
-<a name="868"></a>                     */
-<a name="869"></a>                    root = cmd.endOfSentence
-<a name="870"></a>                        ? firstCommandPhrase : commandPhrase;
-<a name="871"></a>                    
-<a name="872"></a>                    /* we're no longer on the first command in the string */
-<a name="873"></a>                    firstCmd = nil;
-<a name="874"></a>                    
-<a name="875"></a>                    /* go back and parse the remainder of the command line */
-<a name="876"></a>                    toks = cmd.nextTokens;
-<a name="877"></a>                    continue;
-<a name="878"></a>                }
-<a name="879"></a>
-<a name="880"></a>                /*
-<a name="881"></a>                 *   We weren't able to resolve any of the parse trees.  If
-<a name="882"></a>                 *   one of the errors is "curable", meaning that the
-<a name="883"></a>                 *   player can fix it by answering a question, pick the
-<a name="884"></a>                 *   first of those, in predicate priority order.
-<a name="885"></a>                 *   Otherwise, just pick the first command overall in
-<a name="886"></a>                 *   predicate priority order.  In either case, since we
-<a name="887"></a>                 *   didn't find any working alternatives, it's time to
-<a name="888"></a>                 *   actually show the error and fail the command.  
-<a name="889"></a>                 */
-<a name="890"></a>                local c = cmdLst.acceptAny();
-<a name="891"></a>
-<a name="892"></a>                /* 
-<a name="893"></a>                 *   If the error isn't curable, check for spelling errors,
-<a name="894"></a>                 *   time permitting.  Don't bother doing this with a
-<a name="895"></a>                 *   curable error, since that will have its own way of
-<a name="896"></a>                 *   solving the problem that reflects a better
-<a name="897"></a>                 *   understanding of the input than considering it a
-<a name="898"></a>                 *   simple typo.  
-<a name="899"></a>                 */
-<a name="900"></a>                if (!c.cmdErr.curable)
-<a name="901"></a>                {
-<a name="902"></a>                    /*
-<a name="903"></a>                     *   For spelling correction purposes, if this is an
-<a name="904"></a>                     *   unmatched noun error, but the command has a misc
-<a name="905"></a>                     *   word list and an empty noun phrase, treat this as
-<a name="906"></a>                     *   a "not understood" error.  The combination of noun
-<a name="907"></a>                     *   phrase errors suggests that we took a word that
-<a name="908"></a>                     *   was meant to be part of the verb, and incorrectly
-<a name="909"></a>                     *   parsed it as part of a noun phrase, leaving the
-<a name="910"></a>                     *   verb structure and other noun phrase incomplete.
-<a name="911"></a>                     *   This is really a verb syntax error, not a noun
-<a name="912"></a>                     *   phrase error.  
-<a name="913"></a>                     */
-<a name="914"></a>                    local spellErr = c.cmdErr;
-<a name="915"></a>                    if (c.cmdErr.ofKind(UnmatchedNounError)
-<a name="916"></a>                        &amp;&amp; c.miscWordLists.length() &gt; 0
-<a name="917"></a>                        &amp;&amp; c.missingNouns &gt; 0)
-<a name="918"></a>                        spellErr = new NotUnderstoodError();
+<a name="851"></a>                     
+<a name="852"></a>                    if(cmd &amp;&amp; cmd.verbProd != nil &amp;&amp;                        
+<a name="853"></a>                        (cmd.badMulti != nil 
+<a name="854"></a>                       || (cmd.verbProd.dobjMatch != nil &amp;&amp;
+<a name="855"></a>                           cmd.verbProd.dobjMatch.grammarTag == 'normal'
+<a name="856"></a>                           &amp;&amp; cmd.dobjs.length &gt; 1)
+<a name="857"></a>                       ||
+<a name="858"></a>                       (cmd.verbProd.iobjMatch != nil &amp;&amp;
+<a name="859"></a>                           cmd.verbProd.iobjMatch.grammarTag == 'normal'
+<a name="860"></a>                           &amp;&amp; cmd.iobjs.length &gt; 1)                          
+<a name="861"></a>                        ||
+<a name="862"></a>                       (cmd.verbProd.accMatch != nil &amp;&amp;
+<a name="863"></a>                           cmd.verbProd.accMatch.grammarTag == 'normal'
+<a name="864"></a>                           &amp;&amp; cmd.accs.length &gt; 1)
+<a name="865"></a>                           ))
+<a name="866"></a>                        cmd.cmdErr = new BadMultiError(cmd.np);
+<a name="867"></a>                    
+<a name="868"></a>                    /* if this command has a pending error, throw it */
+<a name="869"></a>                    if (cmd.cmdErr != nil)
+<a name="870"></a>                        throw cmd.cmdErr;
+<a name="871"></a>
+<a name="872"></a>                    /* 
+<a name="873"></a>                     *   Forget any past question and typo information.
+<a name="874"></a>                     *   The new command is either an answer to this
+<a name="875"></a>                     *   question, or it's simply ignoring the question; in
+<a name="876"></a>                     *   either case, the question is no longer in play for
+<a name="877"></a>                     *   future input.  
+<a name="878"></a>                     */
+<a name="879"></a>                    question = nil;
+<a name="880"></a>                    lastTokens = nil;
+<a name="881"></a>                    
+<a name="882"></a>                    /* note any spelling changes */
+<a name="883"></a>                    history.noteSpelling(toks);
+<a name="884"></a>                    
+<a name="885"></a>                    /* execute the command */
+<a name="886"></a>                    cmd.exec();
+<a name="887"></a>                    
+<a name="888"></a>                    /* start over with a new spelling correction history */
+<a name="889"></a>                    history = new transient SpellingHistory(self);
+<a name="890"></a>                    
+<a name="891"></a>                    /* 
+<a name="892"></a>                     *   Set the root grammar production for the next
+<a name="893"></a>                     *   predicate.  If the previous command ended the
+<a name="894"></a>                     *   sentence, start a new sentence; otherwise, use the
+<a name="895"></a>                     *   additional clause syntax. 
+<a name="896"></a>                     */
+<a name="897"></a>                    root = cmd.endOfSentence
+<a name="898"></a>                        ? firstCommandPhrase : commandPhrase;
+<a name="899"></a>                    
+<a name="900"></a>                    /* we're no longer on the first command in the string */
+<a name="901"></a>                    firstCmd = nil;
+<a name="902"></a>                    
+<a name="903"></a>                    /* go back and parse the remainder of the command line */
+<a name="904"></a>                    toks = cmd.nextTokens;
+<a name="905"></a>                    continue;
+<a name="906"></a>                }
+<a name="907"></a>
+<a name="908"></a>                /*
+<a name="909"></a>                 *   We weren't able to resolve any of the parse trees.  If
+<a name="910"></a>                 *   one of the errors is "curable", meaning that the
+<a name="911"></a>                 *   player can fix it by answering a question, pick the
+<a name="912"></a>                 *   first of those, in predicate priority order.
+<a name="913"></a>                 *   Otherwise, just pick the first command overall in
+<a name="914"></a>                 *   predicate priority order.  In either case, since we
+<a name="915"></a>                 *   didn't find any working alternatives, it's time to
+<a name="916"></a>                 *   actually show the error and fail the command.  
+<a name="917"></a>                 */
+<a name="918"></a>                local c = cmdLst.acceptAny();
 <a name="919"></a>
-<a name="920"></a>                    /* try spelling correction */
-<a name="921"></a>                    local newToks = history.checkSpelling(toks, spellErr);
-<a name="922"></a>
-<a name="923"></a>                    /* if that worked, try the corrected command */
-<a name="924"></a>                    if (newToks != nil)
-<a name="925"></a>                    {
-<a name="926"></a>                        /* parse again with the new tokens */
-<a name="927"></a>                        toks = newToks;
-<a name="928"></a>                        continue;
-<a name="929"></a>                    }
-<a name="930"></a>                }
-<a name="931"></a>
-<a name="932"></a>                /* re-throw the error that caused the resolution to fail */
-<a name="933"></a>                throw c.cmdErr;
-<a name="934"></a>            }
-<a name="935"></a>        }
-<a name="936"></a>        catch (ParseError err)
-<a name="937"></a>        {
-<a name="938"></a>            /* 
-<a name="939"></a>             *   roll back any spelling changes to the last one that
-<a name="940"></a>             *   improved matters 
-<a name="941"></a>             */
-<a name="942"></a>            local h = history.rollback(toks, err);
-<a name="943"></a>            toks = h.oldToks;
-<a name="944"></a>            err = h.parseError;
-<a name="945"></a>
-<a name="946"></a>            /* 
-<a name="947"></a>             *   if this is a curable error, it poses a question, which the
-<a name="948"></a>             *   player can answer on the next input 
-<a name="949"></a>             */
-<a name="950"></a>            if (err.curable)
-<a name="951"></a>                question = new ParseErrorQuestion(err);
-<a name="952"></a>            
-<a name="953"></a>            /* 
-<a name="954"></a>             *   If the current error isn't curable, and unknown word
-<a name="955"></a>             *   disclosure is enabled, and there's a word in the command
-<a name="956"></a>             *   that's not in the dictionary, replace the parsing error
-<a name="957"></a>             *   with an unknown word error.  
-<a name="958"></a>             */
-<a name="959"></a>            local ui;
-<a name="960"></a>            if (!err.curable
-<a name="961"></a>                &amp;&amp; showUnknownWords
-<a name="962"></a>                &amp;&amp; (ui = spellingCorrector.findUnknownWord(toks)) != nil)
-<a name="963"></a>            {
-<a name="964"></a>                /* find the misspelled word in the original tokens */
-<a name="965"></a>                err = new UnknownWordError(getTokOrig(toks[ui]));
-<a name="966"></a>            }
-<a name="967"></a>            
-<a name="968"></a>            /* 
-<a name="969"></a>             *   If the new error isn't an error in an OOPS command, save
-<a name="970"></a>             *   the token list for an OOPS command next time out. 
-<a name="971"></a>             */
-<a name="972"></a>            if (!err.ofKind(OopsError))
-<a name="973"></a>                lastTokens = toks;
-<a name="974"></a>            
-<a name="975"></a>            /* log any spelling changes we kept */
-<a name="976"></a>            history.noteSpelling(toks);
-<a name="977"></a>
-<a name="978"></a>            /* display the error we finally decided upon */
-<a name="979"></a>            err.display();
-<a name="980"></a>        }
-<a name="981"></a>        catch (CommandSignal sig)
-<a name="982"></a>        {
-<a name="983"></a>            /* 
-<a name="984"></a>             *   On any command signal we haven't caught so far, simply
-<a name="985"></a>             *   stop processing this command line.  
+<a name="920"></a>                /* 
+<a name="921"></a>                 *   If the error isn't curable, check for spelling errors,
+<a name="922"></a>                 *   time permitting.  Don't bother doing this with a
+<a name="923"></a>                 *   curable error, since that will have its own way of
+<a name="924"></a>                 *   solving the problem that reflects a better
+<a name="925"></a>                 *   understanding of the input than considering it a
+<a name="926"></a>                 *   simple typo.  
+<a name="927"></a>                 */
+<a name="928"></a>                if (!c.cmdErr.curable)
+<a name="929"></a>                {
+<a name="930"></a>                    /*
+<a name="931"></a>                     *   For spelling correction purposes, if this is an
+<a name="932"></a>                     *   unmatched noun error, but the command has a misc
+<a name="933"></a>                     *   word list and an empty noun phrase, treat this as
+<a name="934"></a>                     *   a "not understood" error.  The combination of noun
+<a name="935"></a>                     *   phrase errors suggests that we took a word that
+<a name="936"></a>                     *   was meant to be part of the verb, and incorrectly
+<a name="937"></a>                     *   parsed it as part of a noun phrase, leaving the
+<a name="938"></a>                     *   verb structure and other noun phrase incomplete.
+<a name="939"></a>                     *   This is really a verb syntax error, not a noun
+<a name="940"></a>                     *   phrase error.  
+<a name="941"></a>                     */
+<a name="942"></a>                    local spellErr = c.cmdErr;
+<a name="943"></a>                    if (c.cmdErr.ofKind(UnmatchedNounError)
+<a name="944"></a>                        &amp;&amp; c.miscWordLists.length() &gt; 0
+<a name="945"></a>                        &amp;&amp; c.missingNouns &gt; 0)
+<a name="946"></a>                        spellErr = new NotUnderstoodError();
+<a name="947"></a>
+<a name="948"></a>                    /* try spelling correction */
+<a name="949"></a>                    local newToks = history.checkSpelling(toks, spellErr);
+<a name="950"></a>
+<a name="951"></a>                    /* if that worked, try the corrected command */
+<a name="952"></a>                    if (newToks != nil)
+<a name="953"></a>                    {
+<a name="954"></a>                        /* parse again with the new tokens */
+<a name="955"></a>                        toks = newToks;
+<a name="956"></a>                        continue;
+<a name="957"></a>                    }
+<a name="958"></a>                }
+<a name="959"></a>
+<a name="960"></a>                /* re-throw the error that caused the resolution to fail */
+<a name="961"></a>                throw c.cmdErr;
+<a name="962"></a>            }
+<a name="963"></a>        }
+<a name="964"></a>        catch (ParseError err)
+<a name="965"></a>        {
+<a name="966"></a>            /* 
+<a name="967"></a>             *   roll back any spelling changes to the last one that
+<a name="968"></a>             *   improved matters 
+<a name="969"></a>             */
+<a name="970"></a>            local h = history.rollback(toks, err);
+<a name="971"></a>            toks = h.oldToks;
+<a name="972"></a>            err = h.parseError;
+<a name="973"></a>
+<a name="974"></a>            /* 
+<a name="975"></a>             *   if this is a curable error, it poses a question, which the
+<a name="976"></a>             *   player can answer on the next input 
+<a name="977"></a>             */
+<a name="978"></a>            if (err.curable)
+<a name="979"></a>                question = new ParseErrorQuestion(err);
+<a name="980"></a>            
+<a name="981"></a>            /* 
+<a name="982"></a>             *   If the current error isn't curable, and unknown word
+<a name="983"></a>             *   disclosure is enabled, and there's a word in the command
+<a name="984"></a>             *   that's not in the dictionary, replace the parsing error
+<a name="985"></a>             *   with an unknown word error.  
 <a name="986"></a>             */
-<a name="987"></a>        }
-<a name="988"></a>    }
-<a name="989"></a>;
-<a name="990"></a>
-<a name="991"></a>
-<a name="992"></a>
-<a name="993"></a>////////////////////////////////////////////////////////////////////////////////
-<a name="994"></a>
-<a name="995"></a>
-<a name="996"></a>////////////////////////////////////////////////////
-<a name="997"></a>
-<a name="998"></a>/*
-<a name="999"></a> *   This is only emabled for testing the tokenizer and parser if you want to see how it
-<a name="1000"></a> *   operates.  You will need to run tok_test2() from somewhere (I usually put it in
-<a name="1001"></a> *   showIntro for quick/easy/immediate access
-<a name="1002"></a> */
-<a name="1003"></a>
-<a name="1004"></a>#if 0
-<a name="1005"></a>tok_test2()
-<a name="1006"></a>{    
-<a name="1007"></a>    local tmap = new LookupTable([tokWord,'word',tokString,'string',tokOp,'operator']);
-<a name="1008"></a>    
-<a name="1009"></a>    // get grammar info
-<a name="1010"></a>//    local ginfo = remapCmdGrammar.getGrammarInfo();   
-<a name="1011"></a>//    local val = spelledToInt('ninety-six');   // to see how it is done
-<a name="1012"></a>
-<a name="1013"></a>    "Enter text to tokenize.  Type Q or QUIT when done. ";
-<a name="1014"></a>    for (;;)
-<a name="1015"></a>    {
-<a name="1016"></a>        local str, toks, tok, match, res, c, lsthold;
-<a name="1017"></a>
-<a name="1018"></a>        /* read a string */
-<a name="1019"></a>        "\b&gt;";
-<a name="1020"></a>        str = inputLine().split(';');
-<a name="1021"></a>        
-<a name="1022"></a>        lsthold = [];
-<a name="1023"></a>        foreach(c in str) {
-<a name="1024"></a>            try {
-<a name="1025"></a>                toks = remapCmdTokenizer.tokenize(c);
-<a name="1026"></a>                //getTokVal(tok) returns the parsed value of the token.
-<a name="1027"></a>                //getTokType(tok) returns the type of the token.
-<a name="1028"></a>                //getTokOrig(tok) returns the original source text the token matched.
-<a name="1029"></a>                /* display the tokens */
-<a name="1030"></a>                for (local i = 1, local cnt = toks.length() ; i &lt;= cnt ; ++i) {
-<a name="1031"></a>                    tok = toks[i];
-<a name="1032"></a>                    "(&lt;&lt;getTokVal(tok)&gt;&gt;,&lt;&lt;tmap[getTokType(tok)]&gt;&gt;)";
-<a name="1033"></a>                }
-<a name="1034"></a>                "\n";
-<a name="1035"></a>                // this phrase is set -- parse it up
-<a name="1036"></a>                match = remapCmdGrammar.parseTokens(toks,nil);
-<a name="1037"></a>                if(match.length &gt; 0) {
-<a name="1038"></a>                    res = match[1].lstval();
-<a name="1039"></a>                    dumpList(res); "\n";
-<a name="1040"></a>                    lsthold = remapCmdGrammarOr(lsthold,res);
-<a name="1041"></a>                }
-<a name="1042"></a>                else
-<a name="1043"></a>                    "?????\n";
-<a name="1044"></a>                "-----\n";            
-<a name="1045"></a>            }
-<a name="1046"></a>            catch (TokErrorNoMatch err)
-<a name="1047"></a>            {
-<a name="1048"></a>                "Unrecognized punctuation: &lt;&lt;err.remainingStr_.substr(1, 1)&gt;&gt;";
-<a name="1049"></a>            }
-<a name="1050"></a>        }
-<a name="1051"></a>        "------ Final -----\n";
-<a name="1052"></a>        dumpList(lsthold);
-<a name="1053"></a>    }
-<a name="1054"></a>}
-<a name="1055"></a>
-<a name="1056"></a>// simple list dumper
-<a name="1057"></a>dumpList(lst) {
-<a name="1058"></a>    if(lst == nil)
-<a name="1059"></a>        "&lt;nil&gt;";
-<a name="1060"></a>    else {
-<a name="1061"></a>        "[";
-<a name="1062"></a>        local prefix = '';
-<a name="1063"></a>        foreach(local item in lst) {
-<a name="1064"></a>            "&lt;&lt;prefix&gt;&gt;";
-<a name="1065"></a>            prefix = ',';
-<a name="1066"></a>            if(dataType(item) == TypeList)
-<a name="1067"></a>                dumpList(item);
-<a name="1068"></a>            else if(item == ',')
-<a name="1069"></a>                "(comma)";
-<a name="1070"></a>            else {
-<a name="1071"></a>                item = toString(item);
-<a name="1072"></a>                item = item.findReplace(',','(comma)',ReplaceAll);
-<a name="1073"></a>                "&lt;&lt;item&gt;&gt;";
-<a name="1074"></a>            }
-<a name="1075"></a>        }
-<a name="1076"></a>        "]";
-<a name="1077"></a>    }    
-<a name="1078"></a>}
-<a name="1079"></a>
-<a name="1080"></a>getDataType(data) {
-<a name="1081"></a>    local s = '?';
-<a name="1082"></a>    switch(dataType(data)) {
-<a name="1083"></a>        case TypeObject: s='object'; break;
-<a name="1084"></a>        case TypeList: s='list'; break;
-<a name="1085"></a>        case TypeSString: s='single-string'; break;
-<a name="1086"></a>        case TypeInt: s='integer'; break;
-<a name="1087"></a>        case TypeFuncPtr: s='func-ptr'; break;
-<a name="1088"></a>        case TypeProp: s='property'; break;
-<a name="1089"></a>        case TypeNil: s='nil'; break;
-<a name="1090"></a>        case TypeTrue: s='true'; break;
-<a name="1091"></a>        case TypeEnum: s='enum'; break;
-<a name="1092"></a>
-<a name="1093"></a>        // grammars
-<a name="1094"></a>        case GramTokTypeProd: s='gramProd'; break;
-<a name="1095"></a>        case GramTokTypeSpeech: s='gramSpeech'; break;
-<a name="1096"></a>        case GramTokTypeNSpeech: s='gramNSpeech'; break;
-<a name="1097"></a>        case GramTokTypeLiteral: s='gramLiteral'; break;
-<a name="1098"></a>        case GramTokTypeTokEnum: s='gramEnum'; break;
-<a name="1099"></a>        case GramTokTypeStar: s='gramStar'; break;
-<a name="1100"></a>    }
-<a name="1101"></a>    return s;
-<a name="1102"></a>}
-<a name="1103"></a>
-<a name="1104"></a>#endif
+<a name="987"></a>            local ui;
+<a name="988"></a>            if (!err.curable
+<a name="989"></a>                &amp;&amp; showUnknownWords
+<a name="990"></a>                &amp;&amp; (ui = spellingCorrector.findUnknownWord(toks)) != nil)
+<a name="991"></a>            {
+<a name="992"></a>                /* find the misspelled word in the original tokens */
+<a name="993"></a>                err = new UnknownWordError(getTokOrig(toks[ui]));
+<a name="994"></a>            }
+<a name="995"></a>            
+<a name="996"></a>            /* 
+<a name="997"></a>             *   If the new error isn't an error in an OOPS command, save
+<a name="998"></a>             *   the token list for an OOPS command next time out. 
+<a name="999"></a>             */
+<a name="1000"></a>            if (!err.ofKind(OopsError))
+<a name="1001"></a>                lastTokens = toks;
+<a name="1002"></a>            
+<a name="1003"></a>            /* log any spelling changes we kept */
+<a name="1004"></a>            history.noteSpelling(toks);
+<a name="1005"></a>
+<a name="1006"></a>            /* display the error we finally decided upon */
+<a name="1007"></a>            err.display();
+<a name="1008"></a>        }
+<a name="1009"></a>        catch (CommandSignal sig)
+<a name="1010"></a>        {
+<a name="1011"></a>            /* 
+<a name="1012"></a>             *   On any command signal we haven't caught so far, simply
+<a name="1013"></a>             *   stop processing this command line.  
+<a name="1014"></a>             */
+<a name="1015"></a>        }
+<a name="1016"></a>    }
+<a name="1017"></a>;
+<a name="1018"></a>
+<a name="1019"></a>
+<a name="1020"></a>
+<a name="1021"></a>////////////////////////////////////////////////////////////////////////////////
+<a name="1022"></a>
+<a name="1023"></a>
+<a name="1024"></a>////////////////////////////////////////////////////
+<a name="1025"></a>
+<a name="1026"></a>/*
+<a name="1027"></a> *   This is only emabled for testing the tokenizer and parser if you want to see how it
+<a name="1028"></a> *   operates.  You will need to run tok_test2() from somewhere (I usually put it in
+<a name="1029"></a> *   showIntro for quick/easy/immediate access
+<a name="1030"></a> */
+<a name="1031"></a>
+<a name="1032"></a>#if 0
+<a name="1033"></a>tok_test2()
+<a name="1034"></a>{    
+<a name="1035"></a>    local tmap = new LookupTable([tokWord,'word',tokString,'string',tokOp,'operator']);
+<a name="1036"></a>    
+<a name="1037"></a>    // get grammar info
+<a name="1038"></a>//    local ginfo = remapCmdGrammar.getGrammarInfo();   
+<a name="1039"></a>//    local val = spelledToInt('ninety-six');   // to see how it is done
+<a name="1040"></a>
+<a name="1041"></a>    "Enter text to tokenize.  Type Q or QUIT when done. ";
+<a name="1042"></a>    for (;;)
+<a name="1043"></a>    {
+<a name="1044"></a>        local str, toks, tok, match, res, c, lsthold;
+<a name="1045"></a>
+<a name="1046"></a>        /* read a string */
+<a name="1047"></a>        "\b&gt;";
+<a name="1048"></a>        str = inputLine().split(';');
+<a name="1049"></a>        
+<a name="1050"></a>        lsthold = [];
+<a name="1051"></a>        foreach(c in str) {
+<a name="1052"></a>            try {
+<a name="1053"></a>                toks = remapCmdTokenizer.tokenize(c);
+<a name="1054"></a>                //getTokVal(tok) returns the parsed value of the token.
+<a name="1055"></a>                //getTokType(tok) returns the type of the token.
+<a name="1056"></a>                //getTokOrig(tok) returns the original source text the token matched.
+<a name="1057"></a>                /* display the tokens */
+<a name="1058"></a>                for (local i = 1, local cnt = toks.length() ; i &lt;= cnt ; ++i) {
+<a name="1059"></a>                    tok = toks[i];
+<a name="1060"></a>                    "(&lt;&lt;getTokVal(tok)&gt;&gt;,&lt;&lt;tmap[getTokType(tok)]&gt;&gt;)";
+<a name="1061"></a>                }
+<a name="1062"></a>                "\n";
+<a name="1063"></a>                // this phrase is set -- parse it up
+<a name="1064"></a>                match = remapCmdGrammar.parseTokens(toks,nil);
+<a name="1065"></a>                if(match.length &gt; 0) {
+<a name="1066"></a>                    res = match[1].lstval();
+<a name="1067"></a>                    dumpList(res); "\n";
+<a name="1068"></a>                    lsthold = remapCmdGrammarOr(lsthold,res);
+<a name="1069"></a>                }
+<a name="1070"></a>                else
+<a name="1071"></a>                    "?????\n";
+<a name="1072"></a>                "-----\n";            
+<a name="1073"></a>            }
+<a name="1074"></a>            catch (TokErrorNoMatch err)
+<a name="1075"></a>            {
+<a name="1076"></a>                "Unrecognized punctuation: &lt;&lt;err.remainingStr_.substr(1, 1)&gt;&gt;";
+<a name="1077"></a>            }
+<a name="1078"></a>        }
+<a name="1079"></a>        "------ Final -----\n";
+<a name="1080"></a>        dumpList(lsthold);
+<a name="1081"></a>    }
+<a name="1082"></a>}
+<a name="1083"></a>
+<a name="1084"></a>// simple list dumper
+<a name="1085"></a>dumpList(lst) {
+<a name="1086"></a>    if(lst == nil)
+<a name="1087"></a>        "&lt;nil&gt;";
+<a name="1088"></a>    else {
+<a name="1089"></a>        "[";
+<a name="1090"></a>        local prefix = '';
+<a name="1091"></a>        foreach(local item in lst) {
+<a name="1092"></a>            "&lt;&lt;prefix&gt;&gt;";
+<a name="1093"></a>            prefix = ',';
+<a name="1094"></a>            if(dataType(item) == TypeList)
+<a name="1095"></a>                dumpList(item);
+<a name="1096"></a>            else if(item == ',')
+<a name="1097"></a>                "(comma)";
+<a name="1098"></a>            else {
+<a name="1099"></a>                item = toString(item);
+<a name="1100"></a>                item = item.findReplace(',','(comma)',ReplaceAll);
+<a name="1101"></a>                "&lt;&lt;item&gt;&gt;";
+<a name="1102"></a>            }
+<a name="1103"></a>        }
+<a name="1104"></a>        "]";
+<a name="1105"></a>    }    
+<a name="1106"></a>}
+<a name="1107"></a>
+<a name="1108"></a>getDataType(data) {
+<a name="1109"></a>    local s = '?';
+<a name="1110"></a>    switch(dataType(data)) {
+<a name="1111"></a>        case TypeObject: s='object'; break;
+<a name="1112"></a>        case TypeList: s='list'; break;
+<a name="1113"></a>        case TypeSString: s='single-string'; break;
+<a name="1114"></a>        case TypeInt: s='integer'; break;
+<a name="1115"></a>        case TypeFuncPtr: s='func-ptr'; break;
+<a name="1116"></a>        case TypeProp: s='property'; break;
+<a name="1117"></a>        case TypeNil: s='nil'; break;
+<a name="1118"></a>        case TypeTrue: s='true'; break;
+<a name="1119"></a>        case TypeEnum: s='enum'; break;
+<a name="1120"></a>
+<a name="1121"></a>        // grammars
+<a name="1122"></a>        case GramTokTypeProd: s='gramProd'; break;
+<a name="1123"></a>        case GramTokTypeSpeech: s='gramSpeech'; break;
+<a name="1124"></a>        case GramTokTypeNSpeech: s='gramNSpeech'; break;
+<a name="1125"></a>        case GramTokTypeLiteral: s='gramLiteral'; break;
+<a name="1126"></a>        case GramTokTypeTokEnum: s='gramEnum'; break;
+<a name="1127"></a>        case GramTokTypeStar: s='gramStar'; break;
+<a name="1128"></a>    }
+<a name="1129"></a>    return s;
+<a name="1130"></a>}
+<a name="1131"></a>
+<a name="1132"></a>#endif
 </pre>
-<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 20/10/2025 from adv3Lite version 2.2.1.1</div>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 08/12/2025 from adv3Lite version 2.2.2</div>
 </body>
 </html>

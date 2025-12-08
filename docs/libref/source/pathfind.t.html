@@ -569,57 +569,87 @@
 <a name="567"></a>    execTravel(actor, traveler, conn)
 <a name="568"></a>    {
 <a name="569"></a>        /* 
-<a name="570"></a>         *   If we have an options property, list the options it contains (e.g., 'that wat lies the
-<a name="571"></a>         *   red door and the blue door') and ask the player to specify which one to go through.
-<a name="572"></a>         */        
-<a name="573"></a>        if(gActionIn(GoTo, Continue))
-<a name="574"></a>        {
-<a name="575"></a>            /* Get a list of rooms along our route. */
-<a name="576"></a>            local rooms = pcRouteFinder.cachedRoute.mapAll({x: x[2]});
-<a name="577"></a>            
-<a name="578"></a>            
-<a name="579"></a>            /* Restrict this to the list that starts from the actor's room */     
-<a name="580"></a>            local ri = rooms.indexOf(gActor.getOutermostRoom);
-<a name="581"></a>            if(ri)
-<a name="582"></a>                rooms = rooms.toList().sublist(ri);
-<a name="583"></a>            
-<a name="584"></a>            /* 
-<a name="585"></a>             *   The connector we want to use is the one among our options whose destination is one
-<a name="586"></a>             *   of the rooms along our route.
-<a name="587"></a>             */
-<a name="588"></a>            
-<a name="589"></a>            local connToUse 
-<a name="590"></a>                = options.valWhich({x: rooms.indexOf(x.getDestination(effectiveLocation))});
-<a name="591"></a>            
-<a name="592"></a>            /* 
-<a name="593"></a>             *   If we find one, then use its travelVia() method to move the actor, then return,
-<a name="594"></a>             *   because we'll be done.
-<a name="595"></a>             */
-<a name="596"></a>            if(connToUse)
-<a name="597"></a>            {
-<a name="598"></a>                connToUse.travelVia(actor);
-<a name="599"></a>                return;                                         
-<a name="600"></a>            }
-<a name="601"></a>        }
-<a name="602"></a>        
-<a name="603"></a>        /* Otherwise ask the player which connector to use. */            
-<a name="604"></a>        DMsg(multi destination, 'That way {plural}{lie} {1}. ',  makeListStr(options, &amp;theName));
-<a name="605"></a>        askForDobjX(travelAction);            
-<a name="606"></a>        return;        
-<a name="607"></a>    }
-<a name="608"></a>    
-<a name="609"></a>    /* 
-<a name="610"></a>     *   A LookUp table to cache which of our options' immediate destinations this AskConnector
-<a name="611"></a>     *   notionally leads to when we're on a path to any given to anu given target destination.
-<a name="612"></a>     */
-<a name="613"></a>    destTab = nil
-<a name="614"></a>    
-<a name="615"></a>    
-<a name="616"></a>    
-<a name="617"></a>;
-<a name="618"></a>
-<a name="619"></a>
+<a name="570"></a>         *   An AskConnector is not really designed to work directly with Rooms in its list of
+<a name="571"></a>         *   options. but should this occur we try to handle it gracefully.
+<a name="572"></a>         */
+<a name="573"></a>        if(options.indexWhich({x: x.ofKind(Room)}))
+<a name="574"></a>        {   
+<a name="575"></a>            /* 
+<a name="576"></a>             *   We can't handle Rooms and non-Rooms in the same list of options, so if we encounter
+<a name="577"></a>             *   this we need to report an error and give up.
+<a name="578"></a>             */
+<a name="579"></a>            if(options.indexWhich({x: !x.ofKind(Room)}))
+<a name="580"></a>            {
+<a name="581"></a>                "&lt;b&gt;&lt;FONT COLOR='RED'&gt;ERROR:&lt;/FONT&gt;&lt;/b&gt; You cannot mix Rooms and Non-Rooms in the
+<a name="582"></a>                options property of an AskConnector\b
+<a name="583"></a>                &lt;&lt;list of options&gt;&gt;";
+<a name="584"></a>                exit;
+<a name="585"></a>            }
+<a name="586"></a>            /* 
+<a name="587"></a>             *   Otherwise we need to change our travel action to GoTo and mark every room in our
+<a name="588"></a>             *   options list as familiar and visited so that the GoTo command will work on it.
+<a name="589"></a>             */
+<a name="590"></a>            else if(travelAction != GoTo)
+<a name="591"></a>            {
+<a name="592"></a>                travelAction = GoTo;
+<a name="593"></a>                foreach(local o in options)
+<a name="594"></a>                {
+<a name="595"></a>                    o.familiar = true;
+<a name="596"></a>                    o.visited = true;
+<a name="597"></a>                }
+<a name="598"></a>            }           
+<a name="599"></a>        }
+<a name="600"></a>        
+<a name="601"></a>        /* 
+<a name="602"></a>         *   If we have an options property, list the options it contains (e.g., 'that wat lies the
+<a name="603"></a>         *   red door and the blue door') and ask the player to specify which one to go through.
+<a name="604"></a>         */        
+<a name="605"></a>        if(gActionIn(GoTo, Continue))
+<a name="606"></a>        {
+<a name="607"></a>            /* Get a list of rooms along our route. */
+<a name="608"></a>            local rooms = pcRouteFinder.cachedRoute.mapAll({x: x[2]});
+<a name="609"></a>            
+<a name="610"></a>            
+<a name="611"></a>            /* Restrict this to the list that starts from the actor's room */     
+<a name="612"></a>            local ri = rooms.indexOf(gActor.getOutermostRoom);
+<a name="613"></a>            if(ri)
+<a name="614"></a>                rooms = rooms.toList().sublist(ri);
+<a name="615"></a>            
+<a name="616"></a>            /* 
+<a name="617"></a>             *   The connector we want to use is the one among our options whose destination is one
+<a name="618"></a>             *   of the rooms along our route.
+<a name="619"></a>             */
+<a name="620"></a>            
+<a name="621"></a>            local connToUse 
+<a name="622"></a>                = options.valWhich({x: rooms.indexOf(x.getDestination(effectiveLocation))});
+<a name="623"></a>            
+<a name="624"></a>            /* 
+<a name="625"></a>             *   If we find one, then use its travelVia() method to move the actor, then return,
+<a name="626"></a>             *   because we'll be done.
+<a name="627"></a>             */
+<a name="628"></a>            if(connToUse)
+<a name="629"></a>            {
+<a name="630"></a>                connToUse.travelVia(actor);
+<a name="631"></a>                return;                                         
+<a name="632"></a>            }
+<a name="633"></a>        }
+<a name="634"></a>        
+<a name="635"></a>        /* Otherwise ask the player which connector to use. */            
+<a name="636"></a>        DMsg(multi destination, 'That way {plural}{lie} {1}. ',  
+<a name="637"></a>             makeListStr(options, &amp;theName, 'and', true));
+<a name="638"></a>        askForDobjX(travelAction);            
+<a name="639"></a>        return;        
+<a name="640"></a>    }
+<a name="641"></a>    
+<a name="642"></a>    /* 
+<a name="643"></a>     *   A LookUp table to cache which of our options' immediate destinations this AskConnector
+<a name="644"></a>     *   notionally leads to when we're on a path to any given to anu given target destination.
+<a name="645"></a>     */
+<a name="646"></a>    destTab = nil   
+<a name="647"></a>;
+<a name="648"></a>
+<a name="649"></a>
 </pre>
-<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 20/10/2025 from adv3Lite version 2.2.1.1</div>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 08/12/2025 from adv3Lite version 2.2.2</div>
 </body>
 </html>
