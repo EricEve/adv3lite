@@ -883,7 +883,7 @@ extraHintManager: PreinitObject
          *   Daemon if one is already running.
          */
         if(daemonID == nil)
-            daemonID = new Daemon(self, &hintDaemon, 1);  
+            daemonID = new PromptDaemon(self, &hintDaemon);  
     }
     
     /* 
