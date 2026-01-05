@@ -1732,12 +1732,12 @@ setPlayer(actor, person = 2)
     
     if(prop != other.knownProp)
     {
-    for(local reg = firstObj(Region); reg != nil;  reg = nextObj(reg, Region))
-        reg.setFamiliarRooms(prop);
+        for(local reg = firstObj(Region); reg != nil;  reg = nextObj(reg, Region))
+            reg.setFamiliarRooms(prop);
     }
     
     /* 
-     *   If the new player character defines its own ThoughtManagr object, set this up on libGlobal,
+     *   If the new player character defines its own ThoughtManager object, set this up on libGlobal,
      *   so that any ThinkAbout commands will use the Thoughts belonging to the new Player
      *   Character, otherwise leave it unchanged,
      */

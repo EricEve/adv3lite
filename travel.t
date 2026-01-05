@@ -1747,7 +1747,7 @@ class TravelConnector: object
      *   If canTravelerPass returns nil explainTravelBarrier should display a
      *   message explaining why travel has been prohibited.
      */
-    explainTravelBarrier(actor) { }
+    explainTravelBarrier(actor, connector) { }
     
     /*   
      *   Carry out any side effects of travel if the traveler is the player

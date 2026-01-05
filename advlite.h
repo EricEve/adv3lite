@@ -651,7 +651,7 @@ enum rmcDisambig;
     gram\
     : VerbProduction\
     action = name\
-    verbPhrase = inf + '/' + partc + ' what ' + '('+ #@prep + ' what)'\
+    verbPhrase = inf + '/' + partc + ' (what) ' + '('+ #@prep + ' what)'\
     missingQ = 'what do you want to ' + inf +';what do you want to ' + inf + ' it ' + #@prep\
     iobjReply = prep##SingleNoun \
     ;\
@@ -662,7 +662,7 @@ enum rmcDisambig;
     gram\
     : VerbProduction\
     action = name\
-    verbPhrase = inf + '/' + partc + 'what '\
+    verbPhrase = inf + '/' + partc + ' (what) '\
     missingQ = 'what do you want to ' + inf\
     dobjReply = singleNoun\
     ;\
@@ -673,7 +673,7 @@ enum rmcDisambig;
     gram\
     : VerbProduction\
     action = name\
-    verbPhrase = inf + '/' + partc + ' what ' + '('+ #@prep + ' what)'\
+    verbPhrase = inf + '/' + partc + ' (what) ' + '('+ #@prep + ' what)'\
     missingQ = 'what do you want to ' + inf +';what do you want to ' + inf + ' it ' + #@prep\
     iobjReply = prep##SingleNoun \
     dobjReply = singleNoun\
