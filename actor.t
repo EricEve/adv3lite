@@ -64,6 +64,9 @@ modify Actor
             if(curState != nil)
                curState.deactivateState(self, stat);
             
+            /* Note what our old state was. */
+            local oldState = curState;
+            
             /*  Set out current state to the new state. */
             curState = stat;
             
@@ -72,7 +75,7 @@ modify Actor
              *   notify it that we're entering it.
              */
             if(stat != nil)
-               stat.activateState(self, curState);           
+               stat.activateState(self, oldState);           
         }
     }
     
