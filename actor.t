@@ -4994,7 +4994,7 @@ class DefaultTopic: ActorTopicEntry
      *   Don't match this DefaultTopic if top is one of the topics we want to
      *   avoid matching. Otherwise carry out the inherited handling.
      */
-    matchTopic(top)
+    matchTopic(top)   
     {
         if(avoidMatching(top))
             return nil;
@@ -5011,13 +5011,30 @@ class DefaultTopic: ActorTopicEntry
     exceptions = []
     
     /* 
-     *   Do we want to avoid this DefaultTopic matching top, so that it can be
-     *   matched elsewhere? By default we do so if top is listed in our
-     *   exceptions.
+     *   Do we want to avoid this DefaultTopic matching top, so that it can be matched elsewhere? By
+     *   default we do so if top is listed in our exceptions or if the topic's isCommonTopic
+     *   property is relevantly defined
      */
     
-    avoidMatching(top)
+    avoidMatching(top)    
     {
+        /* 
+         *   If top's isCommonTopic property is set to true, then we want to avoid matching it here.
+         */
+        if(top.propType(&isCommonTopic) == TypeTrue)
+            return true;    
+        
+        /*  
+         *   Otherwise, if top's isCommonTopic property contains a list of ActorStstes, then avoid
+         *   matching top if our current ActorState is one of those in the list.
+         */
+        if(top.propType(&isCommonTopic) == TypeList && top.propType.indexOf(getActor.curState))
+            return true;
+        
+        /* 
+         *   Otherwise, avoid matching if top is one of the topics listed in our exceptions
+         *   property.
+         */
         return (valToList(exceptions).indexOf(top) != nil);
     }
 ;

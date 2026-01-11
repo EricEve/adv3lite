@@ -241,11 +241,16 @@ modify TopicDatabase
             /* Sort the list in descending order of name length. */
             requestedList = requestedList.sort(nil, {a, b: a.name.length - b.name.length});
             
-            /* Note the length of the shortest name. */
-            local minLength = requestedList[1].name.length;
             
-            /* Reduce our list to items whose name length is that of the shortest name. */
-            requestedList = requestedList.subset({x: x.name.length == minLength });
+            // These lines may be prematurely excluding items that should match, so I've commented
+            // them out for now to see if that works better. The sort is still worth doing 
+            // since it allows name length to act as a tie-breaker when two topic entries have the
+            // same score.
+//            /* Note the length of the shortest name. */
+//            local minLength = requestedList[1].name.length;
+//            
+//            /* Reduce our list to items whose name length is that of the shortest name. */
+//            requestedList = requestedList.subset({x: x.name.length == minLength });
         }
         
         /* 
