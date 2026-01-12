@@ -196,7 +196,7 @@ modify TopicDatabase
         local bestMatch = nil;
         local bestScore = 0;
         
-        /* Ensure that our requestedList is actually a list. */
+        /* Ensure that our requestedList is actually a list of named topics. */
         requestedList = valToList(requestedList);
         
         /* 
@@ -214,7 +214,7 @@ modify TopicDatabase
         
         /* 
          *   if requestedList contains any topics that have not been newlyCreated, eliminate the
-         *   new;y created ones.
+         *   newly created ones.
          */
         local revList = requestedList.subset({x: x.newlyCreated == nil});
         
@@ -236,7 +236,8 @@ modify TopicDatabase
          *   which might then get masked by a shorter topic; e.g. we don't want ASK WHEN THE WEDDING
          *   WILL BE to be masked by a 'wedding' topic if the player types ASK WHEN WEDDING.
          */
-        if(requestedList.length > 1 && gAction not in (Query, SayTo, QueryAbout, SayAction))
+        if(requestedList.length > 1 && gAction not in (Query, SayTo, QueryAbout, SayAction)
+           && requestedList.indexWhich({t:t.name == nil}) == nil )
         {
             /* Sort the list in descending order of name length. */
             requestedList = requestedList.sort(nil, {a, b: a.name.length - b.name.length});
