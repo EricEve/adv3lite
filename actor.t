@@ -4331,11 +4331,10 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
         
                     
         /* 
-         *   If we don't have a matchObj (or our matchObj is an Action) assume
-         *   we're reachable unless certain conditions apply (e.g. we're blocked
-         *   by a DefaultTopic).
+         *   If we don't have a matchObj or a matchPattern (or our matchObj is an Action) assume
+         *   we're reachable unless certain conditions apply (e.g. we're blocked by a DefaultTopic).
          */        
-        if(matchObj == nil || matchObj.ofKind(Action))
+        if((matchObj == nil && matchPattern == nil)|| (matchObj && matchObj.ofKind(Action)))
         {
             /* 
              *   if the actor doesn't have a current actor state or we're in the
@@ -4378,7 +4377,7 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
          *   matchObj
          */
         
-        if(valToList(matchObj).indexWhich({ x: x.isClass() 
+        if(matchObj && valToList(matchObj).indexWhich({ x: x.isClass() 
                                           || gPlayerChar.knowsAbout(x)}) == nil)         
             return nil;
         
@@ -4421,7 +4420,7 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
          *   (e.g. its askTopics list if prop is &askTopics). If the result is
          *   this TopicEntry, then this TopicEntry is reachable, so return true.
          */
-        if(actor.findBestResponse(prop, matchObj) == self)
+        if(actor.findBestResponse(prop, matchObj ?? matchPattern) == self)
             return true;
         
         /*   

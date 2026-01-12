@@ -46,25 +46,37 @@ class TopicEntry: object
          *   is a Topic (which the parser will have created to encapsulate the
          *   text our matchPattern needs to match).
          */
-        if(matchPattern != nil && top.ofKind(Topic))
+        if(matchPattern != nil)
         {    
             local txt;
 
             /* 
-             *   There's no match object; try matching our regular
-             *   expression to the actual topic text.  Get the actual text.
+             *   if top hss been passed as a single-quoted string the suggested topic listing
+             *   mechanism is testing whether this TopicEntry is reachable, in which case we
+             *   consider it a match if top is our matchPattern.
              */
-            txt = top.getTopicText();
-            
-             /* 
-              *   If they don't want an exact case match, make the regex search non case sensitive,
-              *   otherwise make it case sensitive.
-              */                     
-            local caseHandling = matchExactCase ? '<Case>' : '<NoCase>';
-            
-            /* if the regular expression matches, we match */
-            if (rexMatch('<<caseHandling>><<matchPattern>>', txt) != nil)
-                return matchScore + scoreBoost;
+            if(dataType(top) == TypeSString)
+            {
+                return matchPattern == top ? matchScore + scoreBoost : nil;
+            }
+            else if(dataType(top) == TypeObject && top.ofKind(Topic))
+            {                
+                /*                  
+                 *   Otherwise, try matching our regular expression to the actual topic text.  Get
+                 *   the actual text.
+                 */
+                txt = top.getTopicText();
+                
+                /* 
+                 *   If they don't want an exact case match, make the regex search non case
+                 *   sensitive, otherwise make it case sensitive.
+                 */                     
+                local caseHandling = matchExactCase ? '<Case>' : '<NoCase>';
+                
+                /* if the regular expression matches, we match */
+                if (rexMatch('<<caseHandling>><<matchPattern>>', txt) != nil)
+                    return matchScore + scoreBoost;
+            }
         }
         
         /* If we haven't found a match, return nil */
