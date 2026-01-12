@@ -46,25 +46,37 @@ class TopicEntry: object
          *   is a Topic (which the parser will have created to encapsulate the
          *   text our matchPattern needs to match).
          */
-        if(matchPattern != nil && top.ofKind(Topic))
+        if(matchPattern != nil)
         {    
             local txt;
 
             /* 
-             *   There's no match object; try matching our regular
-             *   expression to the actual topic text.  Get the actual text.
+             *   if top hss been passed as a single-quoted string the suggested topic listing
+             *   mechanism is testing whether this TopicEntry is reachable, in which case we
+             *   consider it a match if top is our matchPattern.
              */
-            txt = top.getTopicText();
-            
-             /* 
-              *   If they don't want an exact case match, make the regex search non case sensitive,
-              *   otherwise make it case sensitive.
-              */                     
-            local caseHandling = matchExactCase ? '<Case>' : '<NoCase>';
-            
-            /* if the regular expression matches, we match */
-            if (rexMatch('<<caseHandling>><<matchPattern>>', txt) != nil)
-                return matchScore + scoreBoost;
+            if(dataType(top) == TypeSString)
+            {
+                return matchPattern == top ? matchScore + scoreBoost : nil;
+            }
+            else if(dataType(top) == TypeObject && top.ofKind(Topic))
+            {                
+                /*                  
+                 *   Otherwise, try matching our regular expression to the actual topic text.  Get
+                 *   the actual text.
+                 */
+                txt = top.getTopicText();
+                
+                /* 
+                 *   If they don't want an exact case match, make the regex search non case
+                 *   sensitive, otherwise make it case sensitive.
+                 */                     
+                local caseHandling = matchExactCase ? '<Case>' : '<NoCase>';
+                
+                /* if the regular expression matches, we match */
+                if (rexMatch('<<caseHandling>><<matchPattern>>', txt) != nil)
+                    return matchScore + scoreBoost;
+            }
         }
         
         /* If we haven't found a match, return nil */
@@ -196,7 +208,7 @@ modify TopicDatabase
         local bestMatch = nil;
         local bestScore = 0;
         
-        /* Ensure that our requestedList is actually a list. */
+        /* Ensure that our requestedList is actually a list of named topics. */
         requestedList = valToList(requestedList);
         
         /* 
@@ -214,7 +226,7 @@ modify TopicDatabase
         
         /* 
          *   if requestedList contains any topics that have not been newlyCreated, eliminate the
-         *   new;y created ones.
+         *   newly created ones.
          */
         local revList = requestedList.subset({x: x.newlyCreated == nil});
         
@@ -236,16 +248,22 @@ modify TopicDatabase
          *   which might then get masked by a shorter topic; e.g. we don't want ASK WHEN THE WEDDING
          *   WILL BE to be masked by a 'wedding' topic if the player types ASK WHEN WEDDING.
          */
-        if(requestedList.length > 1 && gAction not in (Query, SayTo, QueryAbout, SayAction))
+        if(requestedList.length > 1 && gAction not in (Query, SayTo, QueryAbout, SayAction)
+           && requestedList.indexWhich({t:t.name == nil}) == nil )
         {
             /* Sort the list in descending order of name length. */
             requestedList = requestedList.sort(nil, {a, b: a.name.length - b.name.length});
             
-            /* Note the length of the shortest name. */
-            local minLength = requestedList[1].name.length;
             
-            /* Reduce our list to items whose name length is that of the shortest name. */
-            requestedList = requestedList.subset({x: x.name.length == minLength });
+            // These lines may be prematurely excluding items that should match, so I've commented
+            // them out for now to see if that works better. The sort is still worth doing 
+            // since it allows name length to act as a tie-breaker when two topic entries have the
+            // same score.
+//            /* Note the length of the shortest name. */
+//            local minLength = requestedList[1].name.length;
+//            
+//            /* Reduce our list to items whose name length is that of the shortest name. */
+//            requestedList = requestedList.subset({x: x.name.length == minLength });
         }
         
         /* 

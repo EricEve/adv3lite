@@ -3389,7 +3389,10 @@ modify ActorTopicDatabase
          *   Note that we deliberately leave the reachability test to last as it
          *   is the most computationally demanding.
          */
-        lst = lst.subset({x: x.name!= nil && x.active && !x.curiositySatisfied 
+//        lst = lst.subset({x: x.name!= nil && x.active && !x.curiositySatisfied 
+//                        && x.curiosityAroused && x.isReachable});
+//        
+        lst = lst.subset({x: x.active && !x.curiositySatisfied 
                         && x.curiosityAroused && x.isReachable});
         
         /*  
@@ -4328,11 +4331,10 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
         
                     
         /* 
-         *   If we don't have a matchObj (or our matchObj is an Action) assume
-         *   we're reachable unless certain conditions apply (e.g. we're blocked
-         *   by a DefaultTopic).
+         *   If we don't have a matchObj or a matchPattern (or our matchObj is an Action) assume
+         *   we're reachable unless certain conditions apply (e.g. we're blocked by a DefaultTopic).
          */        
-        if(matchObj == nil || matchObj.ofKind(Action))
+        if((matchObj == nil && matchPattern == nil)|| (matchObj && matchObj.ofKind(Action)))
         {
             /* 
              *   if the actor doesn't have a current actor state or we're in the
@@ -4375,7 +4377,7 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
          *   matchObj
          */
         
-        if(valToList(matchObj).indexWhich({ x: x.isClass() 
+        if(matchObj && valToList(matchObj).indexWhich({ x: x.isClass() 
                                           || gPlayerChar.knowsAbout(x)}) == nil)         
             return nil;
         
@@ -4418,7 +4420,7 @@ class ActorTopicEntry: ReplaceRedirector, TopicEntry
          *   (e.g. its askTopics list if prop is &askTopics). If the result is
          *   this TopicEntry, then this TopicEntry is reachable, so return true.
          */
-        if(actor.findBestResponse(prop, matchObj) == self)
+        if(actor.findBestResponse(prop, matchObj ?? matchPattern) == self)
             return true;
         
         /*   
@@ -4994,7 +4996,7 @@ class DefaultTopic: ActorTopicEntry
      *   Don't match this DefaultTopic if top is one of the topics we want to
      *   avoid matching. Otherwise carry out the inherited handling.
      */
-    matchTopic(top)
+    matchTopic(top)   
     {
         if(avoidMatching(top))
             return nil;
@@ -5011,13 +5013,30 @@ class DefaultTopic: ActorTopicEntry
     exceptions = []
     
     /* 
-     *   Do we want to avoid this DefaultTopic matching top, so that it can be
-     *   matched elsewhere? By default we do so if top is listed in our
-     *   exceptions.
+     *   Do we want to avoid this DefaultTopic matching top, so that it can be matched elsewhere? By
+     *   default we do so if top is listed in our exceptions or if the topic's isCommonTopic
+     *   property is relevantly defined
      */
     
-    avoidMatching(top)
+    avoidMatching(top)    
     {
+        /* 
+         *   If top's isCommonTopic property is set to true, then we want to avoid matching it here.
+         */
+        if(top.propType(&isCommonTopic) == TypeTrue)
+            return true;    
+        
+        /*  
+         *   Otherwise, if top's isCommonTopic property contains a list of ActorStstes, then avoid
+         *   matching top if our current ActorState is one of those in the list.
+         */
+        if(top.propType(&isCommonTopic) == TypeList && top.propType.indexOf(getActor.curState))
+            return true;
+        
+        /* 
+         *   Otherwise, avoid matching if top is one of the topics listed in our exceptions
+         *   property.
+         */
         return (valToList(exceptions).indexOf(top) != nil);
     }
 ;
@@ -5509,7 +5528,7 @@ class SlaveTopic: ActorTopicEntry
         /*  Our matchScore is the same as our masterObj's matchScore. */
         matchScore = masterObj.matchScore;
         
-        /*  Our scoreBoost is the same as our masterObj's location. */
+        /*  Our scoreBoost is the same as our masterObj's scoreBoost. */
         scoreBoost = masterObj.scoreBoost;
         
         /* Carry out our initialization as a TopicEntry. */
@@ -5543,6 +5562,13 @@ class SlaveTopic: ActorTopicEntry
     
     /* Flag: has this SlaveTopic already been initialized. */
     initialized = nil
+    
+    /* If our masterObj's curiosity has been satisfied then so has ours. */
+    curiositySatisfied = masterObj.curiositySatisfied
+    curiosityAroused = masterObj.curiosityAroused
+    
+    /* We're active when our masterObj is. */
+    isActive = masterObj.isActive
 ;
 
 /* 
@@ -7823,7 +7849,19 @@ suggestedTopicLister: object
         gCommand = gCommand ?? new Command;
         
         gCommand.actor = gPlayerChar;
-        DMsg(suggestion list intro, '{I} could ');
+        
+        sayListIntro(lst, pl);
+    }
+    
+    /* Show the introductory text */
+    sayListIntro(lst, pl)
+    {
+        if(suggestionStyle == suggestionStyleExhaustive ||
+           (suggestionStyle == suggestionStyleAuto && !pl))
+            DMsg(suggestion list intro, '{I} could ');
+        
+        else
+            DMsg(open suggestion list intro, 'Among other things, {i} could ');
     }
     
     /* End the list with a closing parenthesis or full stop as appropriate */
@@ -7867,13 +7905,22 @@ suggestedTopicLister: object
     }
     
     /* The message to display if there are no topics to suggest. */
-    showListEmpty(explicit)  
+    showListEmpty(explicit, oll)  
     { 
         gCommand.actor = gPlayerChar;
         if(explicit)
-            DMsg(nothing in mind, '{I} {have} nothing in mind to discuss
-                with {1} just {then}. ',
-                 gPlayerChar.currentInterlocutor.theObjName);
+        {
+            if(suggestionStyle == suggestionStyleExhaustive ||
+               (suggestionStyle == suggestionStyleAuto && oll == 0))
+                DMsg(nothing in mind, '{I} {have} nothing in mind to discuss
+                    with {1} just {then}. ',
+                     gPlayerChar.currentInterlocutor.theObjName);
+            else
+                DMsg(nothing specfic in mind, '{I}\'ll have to decide for {myself}
+                    what to discuss with {1} at this point. ',
+                     gPlayerChar.currentInterlocutor.theObjName);
+                
+        }
     }
     
     show(lst, explicit = true)
@@ -7883,11 +7930,18 @@ suggestedTopicLister: object
          *   previous suggestion listings.
          */        
         suggestionEnumerator.initialize();
+        
+        /* Make a note of our original list, less any DefaultTopics */
+        local origLst = lst.subset({x:!x.ofKind(DefaultTopic)});
+        
+        
         /* 
              *   first exclude all items that don't have a name property, since
              *   there won't be anything to show.
          */        
         lst = lst.subset({x: x.name != nil && x.name.length > 0});
+        
+        local pl = origLst.length > lst.length;
         
         /* 
          *   if the list is empty there's nothing for us to say, so say so and
@@ -7895,7 +7949,7 @@ suggestedTopicLister: object
          */        
         if(lst.length == 0)
         {
-            showListEmpty(explicit);                
+            showListEmpty(explicit, origLst.length);                
             return;
         }
         
@@ -7963,7 +8017,7 @@ suggestedTopicLister: object
         /* 
          *   Introduce the list.
          */
-        showListPrefix(lst, nil, explicit);
+        showListPrefix(lst, pl, explicit);
         
         /* Note that we haven't listed any items yet */
         local listStarted = nil;
@@ -8167,6 +8221,16 @@ suggestedTopicLister: object
     /*  The conjunction to use at the end of a list of alternatives */
     orListSep = BMsg(or list separator, '; or ')
 
+    
+    /* 
+     *   The suggestionStyle defines how lists of suggested topics are introduced and how empty
+     *   lists are described. This can be one of suggestionStyleExhaustive , suggestionStyleOpen,
+     *   and suggestionStyleAuto (the default). The first of these presents lists as if they were
+     *   exhaustive ('You could ask about so-and-so, ...). The second presents them as open-ended
+     *   ('Among other things, you could ask about so-and-so...). The third tries to choose
+     *   whichever of the other two is most appropriate in context particular contexts.
+     */
+   suggestionStyle = suggestionStyleAuto
 ;
 
 /* 

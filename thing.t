@@ -822,6 +822,15 @@ class Mentionable: LMentionable
      *   command is not handled by a Thought object.
      */    
     // thinkDesc = nil
+    
+    /* 
+     *   Can be used to indicate that a Topic or Thing is intended to be common to more than one
+     *   ActorState. The associated TopicEntry can then be defined on the Actor (or a TopicGroup
+     *   under the Actor) without being masked by a DefaultTopic on one or more ActorStates. Set
+     *   isCommonTopic to true for all DefaultTopics on all ActorStates to ignore it, or to a list
+     *   of ActorStates whose DefaultTopics are not to match (and so trap) this topic.
+     */
+    isCommonTopic = nil
 ;
 
 /* ------------------------------------------------------------------------ */

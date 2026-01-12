@@ -1666,6 +1666,11 @@ EventListItem template @myListObj? ~isReady? +minInterval? *maxFireCt? "invokeIt
 SpecialVerb template 'specVerb' 'stdVerb' @matchObjs | [matchObjs];
 SpecialVerb template 'specVerb' @matchObjs | [matchObjs] 'stdVerb' ;
 
+/* enums for different styles of Suggested Topic Listings */
+     
+enum suggestionStyleExhaustive, suggestionStyleOpen, suggestionStyleAuto;     
+
+
  /*----------------------------------------------------------------------------*/
 /*
  *   Include the header for the Date intrinsic class. For some reason the
