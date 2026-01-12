@@ -2210,6 +2210,20 @@ class TAction: Action
      */
     combineDuplicateObjects = true
    
+    /* 
+     *   Determine whether or not this action requires touching obj (which defaults to dobj). The
+     *   iobj (indirect object) parameter is not used, but definined here so that the method can be
+     *   called on either a TAction or a TIAction.
+     */
+    requiresTouching(dobj = gDobj, iobj?)
+    {
+        /* 
+         *   Return whether or not dobj's preCond property includes the touchObj preCondition or
+         *   objHeld PreCondition for this action.
+         */       
+        return objOfKind(dobj, Thing) 
+            && dobj.(preCondDobjProp).indexWhich({o:o is in (touchObj, objHeld)}) != nil;
+    }
 ;
 
 /* 
@@ -2529,6 +2543,27 @@ class TIAction: TAction
         return true;
     }
      
+    /* 
+     *   Determine whether or not this action requires touching dobj or iobj. If obj is not supplied
+     *   (or is supplied as nil) it will default to dobj.  This allows, for example, using
+     *   gAction.requireesTouching(vase) to test whether the current action would require the actor
+     *   to be able to touch the vase as either dobj or iobj.
+     */
+    requiresTouching(dobj = gDobj, iobj?)
+    {
+        /* 
+         *   Return whether or not dobj's preCond property includes the touchObj or the objHeld
+         *   preCondition for this action.
+         */
+        
+        /* If iobj is not supplied, set it to dobj. */
+        iobj = iobj ?? dobj;
+        
+        return inherited(dobj) || 
+            objOfKind(iobj, Thing) && 
+            iobj.(preCondIobjProp).indexWhich({o:o is in (touchObj, objHeld)});
+    }
+    
     
     
     /* 
