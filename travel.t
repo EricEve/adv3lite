@@ -1771,6 +1771,14 @@ class TravelConnector: object
        
     
     /* 
+     *   Compatibity switch to work round an inadvertent library change that erroneously introduced
+     *   a second parameter to explainTravelBarrier into the library. This has now been reversed but
+     *   any code that uses the second parameter can change explainTBParams to 2 to maintain
+     *   compatibility,
+     */
+    explainTBParams = 1
+    
+    /* 
      *   Check all the travel barriers associated with this connector to
      *   determine whether the traveler is allowed to pass through this travel
      *   connector.
@@ -1804,6 +1812,8 @@ class TravelConnector: object
             }
         }
         
+        
+        
         /* first check our own built-in barrier test. */
         if(!canTravelerPass(traveler))
         {
@@ -1811,7 +1821,10 @@ class TravelConnector: object
              *   If travel is not permitted display a message explaining why and
              *   then return nil to cancel the travel.
              */
-            explainTravelBarrier(traveler, self);
+            if(explainTBParams == 2)
+                explainTravelBarrier(traveler, self);
+            else
+                explainTravelBarrier(traveler);
             return nil;
         }
         
@@ -2177,9 +2190,11 @@ class TravelBarrier: object
     
     /*  
      *   Display some text explaining why traveler is not permitted to travel
-     *   via connector when canTravelerPass() returns nil.
+     *   via connector when canTravelerPass() returns nil. The second parameter
+     *   isn't needed but is retained here for compatibility with an inadvertent
+     *   change.
      */
-    explainTravelBarrier(traveler, connector)
+    explainTravelBarrier(traveler, connector?)
     {
     }
     
