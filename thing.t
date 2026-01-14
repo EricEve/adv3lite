@@ -3656,9 +3656,7 @@ class Thing:  ReplaceRedirector, Mentionable
      /*
      *   Can we hear in from my exterior to my interior?  That is, can an
      *   observer on the outside of this container hear a sound source on
-     *   the inside?
-     *   
-      
+     *   the inside?           
      */
     canHearIn = (!isSoundproof || !enclosing)
 
