@@ -3635,45 +3635,68 @@ class Thing:  ReplaceRedirector, Mentionable
      */
     canSeeOut = (isTransparent || !enclosing)
 
+    
+    /*
+     *   Are we opaque to sound?  If this is true, then an observer outside this object can't
+     *   hear through it to objects on its interior, and an observer inside can't hear through to
+     *   objects on its exterior.
+     *
+     *   This property controls audibility symmetrically (listening in from outside and listening
+     *   out from within).  The library also lets you control audibility asymmetrically, using
+     *   canHearIn and canHearOut. Those values are by default derived from this one, but you can
+     *   override them separately to create something like a one-way material.
+     *
+     *   By default, we can hear in  and out for all containers, since most
+     *   materials transmit at least some sound even if they're opaque to
+     *   light.  For a soundproof material (a glass booth, say), you could
+     *   override this to make it true instead. 
+     */
+    isSoundproof = nil    
+    
      /*
      *   Can we hear in from my exterior to my interior?  That is, can an
      *   observer on the outside of this container hear a sound source on
      *   the inside?
      *   
-     *   By default, we can hear in for all containers, since most
-     *   materials transmit at least some sound even if they're opaque to
-     *   light.  For a soundproof material (a glass booth, say), you could
-     *   override this to make it (!enclosing) instead.  
+      
      */
-    canHearIn = true
+    canHearIn = (!isSoundproof || !enclosing)
 
     /*
      *   Can we hear out from my interior to my exterior?  That is, can an
      *   observer on the inside of this container hear a sound source on
-     *   the outside?
-     *   
-     *   By default, we can hear out for all containers, since most
-     *   materials transmit at least some sound even if they're opaque to
-     *   light.  For a soundproof material (a glass both, say), you could
-     *   override this to make it (!enclosing) instead.  
+     *   the outside?     
      */
-    canHearOut = true
+    canHearOut = (!isSoundproof || !enclosing)
 
     /*
-     *   Can we smell in (from an observer on my exterior to an odor source
-     *   on my interior)?  By default, we can smell in if we're
+     *   Are we permeable to smell?  If this is true, then an observer outside this object can't
+     *   hear through it to objects on its interior, and an observer inside can't smell through to
+     *   objects on its exterior.
+     *
+     *   This property controls smellability symmetrically (smelling in from outside and smelling
+     *   out from within).  The library also lets you control smellability asymmetrically, using
+     *   canSmellIn and canSmellOut. Those values are by default derived from this one, but you can
+     *   override them separately to create something like a one-way material.
+     *
+     *   By default, we can smell in only if we're
      *   non-enclosing, since most solid materials aren't very permeable to
      *   scents (at human sensitivities, at least).  
      */
-    canSmellIn = (!enclosing)
+    isSmellproof = true
+    
+    
+    /*
+     *   Can we smell in (from an observer on my exterior to an odor source
+     *   on my interior)?  
+     */
+    canSmellIn = (!isSmellproof || !enclosing)
 
     /*
      *   Can we smell out (from an observer on my interior to an odor
-     *   source on my exterior)?  By default, we can smell out if we're
-     *   non-enclosing, since most solid materials aren't very permeable to
-     *   scents (at human sensitivities, at least).  
+     *   source on my exterior)?    
      */
-    canSmellOut = (!enclosing)
+    canSmellOut = (!isSmellproof || !enclosing)
 
     /*
      *   Can we reach out from my interior to my exterior?  That is, can an
