@@ -2240,10 +2240,43 @@ class Thing:  ReplaceRedirector, Mentionable
         return totalBulk;
     }
     
+    /* 
+     *   Our maximum linear dimension, if we want to check that it fits a potential container. a
+     *   value of nil means we don't want to check. (The unit can be anything we like, though cm
+     *   might work well in most IF).
+     */
+    length = nil
+    
+    /* 
+     *   The maximum length (largest linear dimension) we can accommodate being put inside us. A
+     *   value of nil means we don't want to check length. By default the maximum length we can
+     *   accomodate is equal to our own length, but some open containers (e.g. a shopping bag) might
+     *   be able to accomodate longer objects that stick out of their top or side.
+     */
+    maxLength = length
+    
+    /*   Check whether our length can fit inside our potentl container's maximum legth. */
+    fitsLength(cont)
+    {
+        /* 
+         *   If either our own length or our potential container's maximumLength is nil, we're not
+         *   restricted by length.
+         */
+        if(length == nil || cont.maxLength == nil)
+            return true;
+        
+        /* 
+         *   Otherwise we can fit if our length is less than or equal to the maximum length our
+         *   potential container can accommodate.
+         */
+        return length <= cont.maxLength;
+    }    
+    
     /*  
      *   Check whether an item can be inserted into this object, or whether
      *   doing so would either exceed the total bulk capacity of the object or
-     *   the maximum bulk allowed for a single item.
+     *   the maximum bulk allowed for a single item of the maximum length capacity 
+     *   of this object.
      */
     checkInsert(obj)
     {
@@ -2251,11 +2284,11 @@ class Thing:  ReplaceRedirector, Mentionable
         gMessageParams(obj);
         
         /* 
-         *   If the bulk of obj is greater than the maxSingleBulk this Thing can
-         *   take, or greater than its overall bulk capacity then display a
-         *   message to say it's too big to fit inside ue.
+         *   If the bulk of obj is greater than the maxSingleBulk this Thing can take, or greater
+         *   than its overall bulk capacity, or obj's length won't fit inside our maximum length
+         *   then display a message to say it's too big to fit inside ue.
          */
-        if(obj.bulk > maxSingleBulk || obj.bulk > bulkCapacity)
+        if(obj.bulk > maxSingleBulk || obj.bulk > bulkCapacity || !obj.fitsLength(self))
             DMsg(too big, '{The subj obj} {is} too big to fit {1} {2}. ', 
                  objInPrep, theName);
             
