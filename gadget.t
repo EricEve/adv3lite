@@ -322,7 +322,7 @@ class BagOfHolding: object
     suitabilityFor(obj)
     {
         if(obj.bulk > bulkCapacity - getBulkWithin || obj.bulk > maxSingleBulk
-           || isLocked || obj.isFixed)
+           || isLocked || obj.isFixed || !obj.fitsLength(self))
             return 0;
         
         return affinityFor(obj);
