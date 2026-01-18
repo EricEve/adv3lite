@@ -2361,6 +2361,7 @@ class NounPhrase: object
 
             /* flag the objects as arbitrarily chosen */
             matches.forEach({ m: m.flags |= SelArbitrary });
+            cmd.matchedMulti = true;
             break;
 
         case All:
