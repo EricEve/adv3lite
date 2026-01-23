@@ -57,7 +57,10 @@ class Collective: Thing
     /* The number of dispensible items being requested. */
     numberWanted = 0
     
-	/* For the COLLECTIVE EXTENSION  decide whether to select the collective object (ourselves) or an individual item. */
+	/* 
+         *   For the COLLECTIVE EXTENSION  decide whether to select the collective object
+         *   (ourselves) or an individual item.
+         */
     filterResolveList(np, cmd, mode)
     {
         /* Carry out any inherited handling */
@@ -65,7 +68,8 @@ class Collective: Thing
         
         local num = np.quantifier == nil ? 1 : np.quantifier;
         
-        local collectiveMatch = np.tokens.overlapsWith(collectiveToks) 
+        local collectiveMatch = (np.tokens.overlapsWith(collectiveToks) || np.tokens == [] &&
+                                 np.pronoun == Them)
             && num == 1;
         
         /* 
