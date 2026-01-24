@@ -620,7 +620,7 @@ class DoerCmd: object
          */
            
         
-        if (gCommand != nil && doer.strict && gCommand.verbProd.tokenList !=
+        if (gCommand != nil && doer.strict && gCommand.verbProd && gCommand.verbProd.tokenList !=
             nil)
         {
             local cmdToks = gCommand.verbProd.tokenList.mapAll( {x:
