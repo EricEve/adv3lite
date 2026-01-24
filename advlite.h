@@ -905,7 +905,7 @@ TopicEntry template
    [firstEvents] [eventList]; 
 
 /* Version of ActorTopicEntry template for use with Facts and kTag */
-ActorTopicEntry template ->location? +matchScore? "topicResponse" | [eventList];
+//ActorTopicEntry template ->location? +matchScore? "topicResponse" | [eventList];
 
 QueryTopic template
    ->location? 
