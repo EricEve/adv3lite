@@ -1013,8 +1013,11 @@ class Action: ReplaceRedirector
     }
     
     /* 
-     *   Flag: is this an action that acts on an object even if it is hidden;
-     *   normally this will only apply to debugging actions.
+     *   Flag: is this an action that acts on an object even if it is hidden; normally this will
+     *   only apply to debugging and actions involving topics. unhides can be either nil (the
+     *   default, meaning that the action can't apply to any hidden objects, true meaning that it
+     *   can, or one of DirectObject or IndirectObject, meaning it can operate on objects occupying
+     *   that role.     
      */
     unhides = nil
     
