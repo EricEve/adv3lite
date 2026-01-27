@@ -931,552 +931,561 @@
 <a name="929"></a>            /* run through each NounPhrase in this slot's list */
 <a name="930"></a>            foreach (local np in self.(role.npListProp))
 <a name="931"></a>            {
-<a name="932"></a>                /* invoke the callback on this item */
-<a name="933"></a>                func(np);
-<a name="934"></a>            }
-<a name="935"></a>        }
-<a name="936"></a>    }
-<a name="937"></a>
-<a name="938"></a>    /* 
-<a name="939"></a>     *   If the parser has just asked the player to supply a missing object via
-<a name="940"></a>     *   the askMissingObject() function, we don't want to resolve the nouns for
-<a name="941"></a>     *   every object role, but only for the role with which askMissingObject()
-<a name="942"></a>     *   is currently concerned; askMissingObject() stores that role here so
-<a name="943"></a>     *   that our resolvedNouns() method knows to resolve only the noun for this
-<a name="944"></a>     *   role rather than for all the roles in the command. If npToResolve is
-<a name="945"></a>     *   nil (as it normally will be) then it will be ignored, and all noun
-<a name="946"></a>     *   roles will be resolved.
-<a name="947"></a>     */
-<a name="948"></a>        
-<a name="949"></a>    npToResolve = nil
-<a name="950"></a>    
-<a name="951"></a>    /* 
-<a name="952"></a>     *   Build the object lists.  This runs through each NounPhrase in the
-<a name="953"></a>     *   command to build its 'objs' list, then builds the corresponding
-<a name="954"></a>     *   master list in the Command object.  
-<a name="955"></a>     */
-<a name="956"></a>    buildObjLists()
-<a name="957"></a>    {
-<a name="958"></a>        /* 
-<a name="959"></a>         *   Note that we're the current command object, so that other object
-<a name="960"></a>         *   methods can refer to our object lists.
-<a name="961"></a>         */
-<a name="962"></a>        gCommand = self;
-<a name="963"></a>        
-<a name="964"></a>        /* run through each active noun phrase list */
-<a name="965"></a>        foreach (local role in npList)
-<a name="966"></a>        {
-<a name="967"></a>            /* set up a vector to hold this list's nouns */
-<a name="968"></a>            self.(role.objListProp) = new Vector(10);
-<a name="969"></a>
-<a name="970"></a>            /* build the object list for each NounPhrase */
-<a name="971"></a>            foreach (local np in self.(role.npListProp))
-<a name="972"></a>            {
-<a name="973"></a>                /* build the list */
-<a name="974"></a>                np.buildObjList();
-<a name="975"></a>
-<a name="976"></a>                /* append it to the master match list for this slot */
-<a name="977"></a>                self.(role.objListProp).appendAll(np.matches);
-<a name="978"></a>            }
-<a name="979"></a>        }
-<a name="980"></a>    }
-<a name="981"></a>
-<a name="982"></a>    /*
-<a name="983"></a>     *   Save a potential antecedent for a reflexive pronoun coming up
-<a name="984"></a>     *   later in the command.  Each time we visit a noun phrase during the
-<a name="985"></a>     *   reflexive pronoun phase, we'll note its resolved objects here.
-<a name="986"></a>     *   Since we visit the noun phrases in their order of appearance in
-<a name="987"></a>     *   the command, we'll naturally always have the latest one mentioned
-<a name="988"></a>     *   when we come to a reflexive pronoun.  This gives us the correct
-<a name="989"></a>     *   resolution, which is the nearest preceding noun.  Note that the
-<a name="990"></a>     *   noun phrase shouldn't call this routine to note reflexive
-<a name="991"></a>     *   pronouns, since they don't bind to earlier reflexive pronouns -
-<a name="992"></a>     *   they only bind to regular noun phrases.  
-<a name="993"></a>     */
-<a name="994"></a>    saveReflexiveAnte(obj)
-<a name="995"></a>    {
-<a name="996"></a>        /* if we don't have a reflexive antecedent table, skip this */
-<a name="997"></a>        if (reflexiveAnte == nil)
-<a name="998"></a>            return;
-<a name="999"></a>
-<a name="1000"></a>        /* if the object isn't already a list, wrap it in a list */
-<a name="1001"></a>        local lst = obj;
-<a name="1002"></a>        if (!lst.ofKind(Collection))
-<a name="1003"></a>            lst = [obj];
-<a name="1004"></a>
-<a name="1005"></a>        /* 
-<a name="1006"></a>         *   Run through the regular pronoun list, and save this object
-<a name="1007"></a>         *   with the pronouns that apply to this object.  Note that a
-<a name="1008"></a>         *   given object might match multiple pronouns, so we might save
-<a name="1009"></a>         *   the object for several different pronouns.  
-<a name="1010"></a>         */
-<a name="1011"></a>        foreach (local p in Pronoun.all)
-<a name="1012"></a>        {
-<a name="1013"></a>            if (p.matchObj(obj))
-<a name="1014"></a>                reflexiveAnte[p] = lst;
-<a name="1015"></a>        }
-<a name="1016"></a>    }
-<a name="1017"></a>
-<a name="1018"></a>    /*
-<a name="1019"></a>     *   Resolve a reflexive pronoun on behalf of one of the NounPhrases
-<a name="1020"></a>     *   within this command.  
-<a name="1021"></a>     */
-<a name="1022"></a>    resolveReflexive(pronoun)
-<a name="1023"></a>    {
-<a name="1024"></a>        /* if there's no table, there's no antecedent */
-<a name="1025"></a>        if (reflexiveAnte == nil)
-<a name="1026"></a>            return [];
-<a name="1027"></a>
-<a name="1028"></a>        /* get the meaning from the reflexive antecedent table */
-<a name="1029"></a>        local ante = reflexiveAnte[pronoun];
+<a name="932"></a>                /* Note which role we're being considered for. */
+<a name="933"></a>                potentialRole = role;
+<a name="934"></a>                
+<a name="935"></a>                /* invoke the callback on this item */
+<a name="936"></a>                func(np);
+<a name="937"></a>            }
+<a name="938"></a>        }
+<a name="939"></a>    }
+<a name="940"></a>
+<a name="941"></a>    /* 
+<a name="942"></a>     *   If the parser has just asked the player to supply a missing object via
+<a name="943"></a>     *   the askMissingObject() function, we don't want to resolve the nouns for
+<a name="944"></a>     *   every object role, but only for the role with which askMissingObject()
+<a name="945"></a>     *   is currently concerned; askMissingObject() stores that role here so
+<a name="946"></a>     *   that our resolvedNouns() method knows to resolve only the noun for this
+<a name="947"></a>     *   role rather than for all the roles in the command. If npToResolve is
+<a name="948"></a>     *   nil (as it normally will be) then it will be ignored, and all noun
+<a name="949"></a>     *   roles will be resolved.
+<a name="950"></a>     */
+<a name="951"></a>        
+<a name="952"></a>    npToResolve = nil
+<a name="953"></a>    
+<a name="954"></a>    /* 
+<a name="955"></a>     *   Build the object lists.  This runs through each NounPhrase in the
+<a name="956"></a>     *   command to build its 'objs' list, then builds the corresponding
+<a name="957"></a>     *   master list in the Command object.  
+<a name="958"></a>     */
+<a name="959"></a>    buildObjLists()
+<a name="960"></a>    {
+<a name="961"></a>        /* 
+<a name="962"></a>         *   Note that we're the current command object, so that other object
+<a name="963"></a>         *   methods can refer to our object lists.
+<a name="964"></a>         */
+<a name="965"></a>        gCommand = self;
+<a name="966"></a>        
+<a name="967"></a>        /* run through each active noun phrase list */
+<a name="968"></a>        foreach (local role in npList)
+<a name="969"></a>        {
+<a name="970"></a>            /* set up a vector to hold this list's nouns */
+<a name="971"></a>            self.(role.objListProp) = new Vector(10);
+<a name="972"></a>
+<a name="973"></a>            /* build the object list for each NounPhrase */
+<a name="974"></a>            foreach (local np in self.(role.npListProp))
+<a name="975"></a>            {
+<a name="976"></a>                /* build the list */
+<a name="977"></a>                np.buildObjList();
+<a name="978"></a>
+<a name="979"></a>                /* append it to the master match list for this slot */
+<a name="980"></a>                self.(role.objListProp).appendAll(np.matches);
+<a name="981"></a>            }
+<a name="982"></a>        }
+<a name="983"></a>    }
+<a name="984"></a>
+<a name="985"></a>    /*
+<a name="986"></a>     *   Save a potential antecedent for a reflexive pronoun coming up
+<a name="987"></a>     *   later in the command.  Each time we visit a noun phrase during the
+<a name="988"></a>     *   reflexive pronoun phase, we'll note its resolved objects here.
+<a name="989"></a>     *   Since we visit the noun phrases in their order of appearance in
+<a name="990"></a>     *   the command, we'll naturally always have the latest one mentioned
+<a name="991"></a>     *   when we come to a reflexive pronoun.  This gives us the correct
+<a name="992"></a>     *   resolution, which is the nearest preceding noun.  Note that the
+<a name="993"></a>     *   noun phrase shouldn't call this routine to note reflexive
+<a name="994"></a>     *   pronouns, since they don't bind to earlier reflexive pronouns -
+<a name="995"></a>     *   they only bind to regular noun phrases.  
+<a name="996"></a>     */
+<a name="997"></a>    saveReflexiveAnte(obj)
+<a name="998"></a>    {
+<a name="999"></a>        /* if we don't have a reflexive antecedent table, skip this */
+<a name="1000"></a>        if (reflexiveAnte == nil)
+<a name="1001"></a>            return;
+<a name="1002"></a>
+<a name="1003"></a>        /* if the object isn't already a list, wrap it in a list */
+<a name="1004"></a>        local lst = obj;
+<a name="1005"></a>        if (!lst.ofKind(Collection))
+<a name="1006"></a>            lst = [obj];
+<a name="1007"></a>
+<a name="1008"></a>        /* 
+<a name="1009"></a>         *   Run through the regular pronoun list, and save this object
+<a name="1010"></a>         *   with the pronouns that apply to this object.  Note that a
+<a name="1011"></a>         *   given object might match multiple pronouns, so we might save
+<a name="1012"></a>         *   the object for several different pronouns.  
+<a name="1013"></a>         */
+<a name="1014"></a>        foreach (local p in Pronoun.all)
+<a name="1015"></a>        {
+<a name="1016"></a>            if (p.matchObj(obj))
+<a name="1017"></a>                reflexiveAnte[p] = lst;
+<a name="1018"></a>        }
+<a name="1019"></a>    }
+<a name="1020"></a>
+<a name="1021"></a>    /*
+<a name="1022"></a>     *   Resolve a reflexive pronoun on behalf of one of the NounPhrases
+<a name="1023"></a>     *   within this command.  
+<a name="1024"></a>     */
+<a name="1025"></a>    resolveReflexive(pronoun)
+<a name="1026"></a>    {
+<a name="1027"></a>        /* if there's no table, there's no antecedent */
+<a name="1028"></a>        if (reflexiveAnte == nil)
+<a name="1029"></a>            return [];
 <a name="1030"></a>
-<a name="1031"></a>        /* if there's no antecedent defined, return an empty list */
-<a name="1032"></a>        if (ante == nil)
-<a name="1033"></a>            ante = [];
-<a name="1034"></a>
-<a name="1035"></a>        /* return the result */
-<a name="1036"></a>        return ante;
-<a name="1037"></a>    }
-<a name="1038"></a>
-<a name="1039"></a>    /* table of reflexive pronoun antecedents */
-<a name="1040"></a>    reflexiveAnte = nil
+<a name="1031"></a>        /* get the meaning from the reflexive antecedent table */
+<a name="1032"></a>        local ante = reflexiveAnte[pronoun];
+<a name="1033"></a>
+<a name="1034"></a>        /* if there's no antecedent defined, return an empty list */
+<a name="1035"></a>        if (ante == nil)
+<a name="1036"></a>            ante = [];
+<a name="1037"></a>
+<a name="1038"></a>        /* return the result */
+<a name="1039"></a>        return ante;
+<a name="1040"></a>    }
 <a name="1041"></a>
-<a name="1042"></a>    /*
-<a name="1043"></a>     *   Class method: Sort a list of Command matches, in priority order.
-<a name="1044"></a>     *   The priority order is the order for processing predicate grammar
-<a name="1045"></a>     *   matches: start at the highest priority, and work through the list
-<a name="1046"></a>     *   until you find one where the noun phrases resolve to valid
-<a name="1047"></a>     *   game-world objects; that's the one to execute.  
-<a name="1048"></a>     */
-<a name="1049"></a>    sortList(cmdLst)
-<a name="1050"></a>    {
-<a name="1051"></a>        
-<a name="1052"></a>        /* First reduce the list to those with active predicates */
-<a name="1053"></a>        cmdLst = cmdLst.subset({c: c.predActive});
+<a name="1042"></a>    /* table of reflexive pronoun antecedents */
+<a name="1043"></a>    reflexiveAnte = nil
+<a name="1044"></a>
+<a name="1045"></a>    /*
+<a name="1046"></a>     *   Class method: Sort a list of Command matches, in priority order.
+<a name="1047"></a>     *   The priority order is the order for processing predicate grammar
+<a name="1048"></a>     *   matches: start at the highest priority, and work through the list
+<a name="1049"></a>     *   until you find one where the noun phrases resolve to valid
+<a name="1050"></a>     *   game-world objects; that's the one to execute.  
+<a name="1051"></a>     */
+<a name="1052"></a>    sortList(cmdLst)
+<a name="1053"></a>    {
 <a name="1054"></a>        
-<a name="1055"></a>        /* pre-calculate the priorities, to save work during the sort */
-<a name="1056"></a>        foreach (local cmd in cmdLst)
-<a name="1057"></a>            cmd.fixPriority();
-<a name="1058"></a>        
-<a name="1059"></a>        
-<a name="1060"></a>
-<a name="1061"></a>        /* sort in descending order of priority */
-<a name="1062"></a>        return cmdLst.sort(SortDesc, {a, b: a.priority - b.priority});
-<a name="1063"></a>    }
-<a name="1064"></a>
-<a name="1065"></a>    /*
-<a name="1066"></a>     *   Calculate the parsing priority.
-<a name="1067"></a>     *   
-<a name="1068"></a>     *   When the parser looks for grammar rule matches to the input, it
-<a name="1069"></a>     *   considers *all* of the possible matches.  Natural language is full
-<a name="1070"></a>     *   of syntactic ambiguity, so a given input string can often be
-<a name="1071"></a>     *   parsed into several different, but equally valid, syntax trees.
-<a name="1072"></a>     *   It's often impossible to tell which parsing is correct based on
-<a name="1073"></a>     *   syntax alone - you often have to look at the overall meaning of
-<a name="1074"></a>     *   the sentence.  For example, GIVE BOOK TO BOB could be interpreted
-<a name="1075"></a>     *   as having a direct object (BOOK) and an indirect object (BOB), or
-<a name="1076"></a>     *   it could be seen as having only a direct object (BOOK TO BOB,
-<a name="1077"></a>     *   treating the TO as a prepositional phrase modifying BOOK rather
-<a name="1078"></a>     *   than as a part of the verb phrase structure).  The initial parsing
-<a name="1079"></a>     *   phase only looks at the syntax, so it has to consider all of the
-<a name="1080"></a>     *   valid phrase structures, even though a human speaker would
-<a name="1081"></a>     *   immediately dismiss many of them as nonsensical.  Once we find all
-<a name="1082"></a>     *   of the syntax matches, the parser puts them into priority order,
-<a name="1083"></a>     *   and then goes down the list looking for the first one that makes
-<a name="1084"></a>     *   sense semantically (which is defined roughly as having noun
-<a name="1085"></a>     *   phrases that refer to actual objects).
-<a name="1086"></a>     *   
-<a name="1087"></a>     *   The priority, then, represents our guess at the likelihood that
-<a name="1088"></a>     *   the grammar structure matches the user's intentions, based on the
-<a name="1089"></a>     *   syntax.  Our fundamental assumption is that the command is valid:
-<a name="1090"></a>     *   that is, it's well-formed grammatically, AND it expresses
-<a name="1091"></a>     *   something that's possible, or at least logical to try, within the
-<a name="1092"></a>     *   game-world context.  Given this, our strategy is to find a grammar
-<a name="1093"></a>     *   structure that gives us a command that we can actually carry out.
-<a name="1094"></a>     *   
-<a name="1095"></a>     *   The priority is a composite value, made up of weighted component
-<a name="1096"></a>     *   values.  We combine the components into a single scalar value
-<a name="1097"></a>     *   simply by adding up the parts multiplied by their weights.  (Or,
-<a name="1098"></a>     *   looked at another way, we combine the values using a high-radix
-<a name="1099"></a>     *   numbering system.)  The components are, from most significant to
-<a name="1100"></a>     *   least significant:
-<a name="1101"></a>     *   
-<a name="1102"></a>     *   - Grammatically correct commands sort ahead of commands with
-<a name="1103"></a>     *   structural errors.
+<a name="1055"></a>        /* First reduce the list to those with active predicates */
+<a name="1056"></a>        cmdLst = cmdLst.subset({c: c.predActive});
+<a name="1057"></a>        
+<a name="1058"></a>        /* pre-calculate the priorities, to save work during the sort */
+<a name="1059"></a>        foreach (local cmd in cmdLst)
+<a name="1060"></a>            cmd.fixPriority();
+<a name="1061"></a>        
+<a name="1062"></a>        
+<a name="1063"></a>
+<a name="1064"></a>        /* sort in descending order of priority */
+<a name="1065"></a>        return cmdLst.sort(SortDesc, {a, b: a.priority - b.priority});
+<a name="1066"></a>    }
+<a name="1067"></a>
+<a name="1068"></a>    /*
+<a name="1069"></a>     *   Calculate the parsing priority.
+<a name="1070"></a>     *   
+<a name="1071"></a>     *   When the parser looks for grammar rule matches to the input, it
+<a name="1072"></a>     *   considers *all* of the possible matches.  Natural language is full
+<a name="1073"></a>     *   of syntactic ambiguity, so a given input string can often be
+<a name="1074"></a>     *   parsed into several different, but equally valid, syntax trees.
+<a name="1075"></a>     *   It's often impossible to tell which parsing is correct based on
+<a name="1076"></a>     *   syntax alone - you often have to look at the overall meaning of
+<a name="1077"></a>     *   the sentence.  For example, GIVE BOOK TO BOB could be interpreted
+<a name="1078"></a>     *   as having a direct object (BOOK) and an indirect object (BOB), or
+<a name="1079"></a>     *   it could be seen as having only a direct object (BOOK TO BOB,
+<a name="1080"></a>     *   treating the TO as a prepositional phrase modifying BOOK rather
+<a name="1081"></a>     *   than as a part of the verb phrase structure).  The initial parsing
+<a name="1082"></a>     *   phase only looks at the syntax, so it has to consider all of the
+<a name="1083"></a>     *   valid phrase structures, even though a human speaker would
+<a name="1084"></a>     *   immediately dismiss many of them as nonsensical.  Once we find all
+<a name="1085"></a>     *   of the syntax matches, the parser puts them into priority order,
+<a name="1086"></a>     *   and then goes down the list looking for the first one that makes
+<a name="1087"></a>     *   sense semantically (which is defined roughly as having noun
+<a name="1088"></a>     *   phrases that refer to actual objects).
+<a name="1089"></a>     *   
+<a name="1090"></a>     *   The priority, then, represents our guess at the likelihood that
+<a name="1091"></a>     *   the grammar structure matches the user's intentions, based on the
+<a name="1092"></a>     *   syntax.  Our fundamental assumption is that the command is valid:
+<a name="1093"></a>     *   that is, it's well-formed grammatically, AND it expresses
+<a name="1094"></a>     *   something that's possible, or at least logical to try, within the
+<a name="1095"></a>     *   game-world context.  Given this, our strategy is to find a grammar
+<a name="1096"></a>     *   structure that gives us a command that we can actually carry out.
+<a name="1097"></a>     *   
+<a name="1098"></a>     *   The priority is a composite value, made up of weighted component
+<a name="1099"></a>     *   values.  We combine the components into a single scalar value
+<a name="1100"></a>     *   simply by adding up the parts multiplied by their weights.  (Or,
+<a name="1101"></a>     *   looked at another way, we combine the values using a high-radix
+<a name="1102"></a>     *   numbering system.)  The components are, from most significant to
+<a name="1103"></a>     *   least significant:
 <a name="1104"></a>     *   
-<a name="1105"></a>     *   - The predicate priority, from the VerbProduction.  (This tells us
-<a name="1106"></a>     *   how "complete" the predicate structure is: a predicate with
-<a name="1107"></a>     *   missing information has a lower priority.  This is in keeping with
-<a name="1108"></a>     *   our assumption that the user's input is well-formed - we'll try
-<a name="1109"></a>     *   the most complete structures first before falling back on the
-<a name="1110"></a>     *   possibility that the user left out some information.)
-<a name="1111"></a>     *   
-<a name="1112"></a>     *   - Filled noun slots ahead of missing noun slots.  A missing noun
-<a name="1113"></a>     *   slot occurs when the player leaves one of the noun roles empty
-<a name="1114"></a>     *   (PUT BOX, TAKE).  We can fill in this information with automatic
-<a name="1115"></a>     *   defaults, so it's not necessarily a reason to reject the parsing,
-<a name="1116"></a>     *   but if there's another interpretation that has fully occupied noun
-<a name="1117"></a>     *   slots, try the occupied one first.
-<a name="1118"></a>     *   
-<a name="1119"></a>     *   - More noun phrase slots first.  For example, sort a command with
-<a name="1120"></a>     *   a direct and indirect object (two slots) ahead of one with only a
-<a name="1121"></a>     *   direct object.  More slots means that we found more "structure" in
-<a name="1122"></a>     *   the command; we can sometimes interpret the same command with less
-<a name="1123"></a>     *   structure by subsuming more words into a long noun phrase.
-<a name="1124"></a>     *   
-<a name="1125"></a>     *   - Longest noun phrases, in aggregate, first.  This is in terms of
-<a name="1126"></a>     *   tokens matched from the user input.  (We want to consider longer
-<a name="1127"></a>     *   noun phrases first because it's more likely that they'll match
-<a name="1128"></a>     *   exact objects, so there's less chance of ambiguity, *and* it's
-<a name="1129"></a>     *   more likely that if we're wrong about the structure, we'll simply
-<a name="1130"></a>     *   fail to find a matching object and move on to other parse trees.
-<a name="1131"></a>     *   Longer noun phrases are less likely to yield spurious matches
-<a name="1132"></a>     *   simply because they have more words that have to match.)
-<a name="1133"></a>     *   
-<a name="1134"></a>     *   - Grammatical noun phrases take priority over misc word phrases (a
-<a name="1135"></a>     *   misc word phrase is text in a noun phrase slot that doesn't match
-<a name="1136"></a>     *   any of the defined patterns in the grammar rules).
-<a name="1137"></a>     *   
-<a name="1138"></a>     *   - Longest command first, in terms of tokens matched from the user
-<a name="1139"></a>     *   input.  (The more user input we use the better, since that gives
-<a name="1140"></a>     *   us more confidence that we're correctly interpreting what the user
-<a name="1141"></a>     *   said.  When we leave extra tokens for later, we can't be sure that
-<a name="1142"></a>     *   we'll be able to make any sense of what's left over, whereas
-<a name="1143"></a>     *   tokens in the current match are known to fit a grammar rule.)  
-<a name="1144"></a>     */
-<a name="1145"></a>    calcPriority()
-<a name="1146"></a>    {
-<a name="1147"></a>        return (badMulti == nil ? 250000000 : 0)
-<a name="1148"></a>            + predPriority*2500000
-<a name="1149"></a>            + 500000*(4 - min(missingNouns, 4))
-<a name="1150"></a>            + 100000*min(numNounSlots(), 4)
-<a name="1151"></a>            + 10000*(9 - min(miscWordLists.length(), 9))
-<a name="1152"></a>            + 100*min(npTokenLen(), 99)
-<a name="1153"></a>            + min(tokenLen, 99);
-<a name="1154"></a>    }
-<a name="1155"></a>
-<a name="1156"></a>    /* 
-<a name="1157"></a>     *   Set a fixed priority.  This makes the priority a fixed value
-<a name="1158"></a>     *   rather than a calculated value.  We call this before sorting a
-<a name="1159"></a>     *   list of commands, so that we don't have to recalculate the
-<a name="1160"></a>     *   priority value repeatedly during the sort.  
-<a name="1161"></a>     */
-<a name="1162"></a>    fixPriority() { priority = self.calcPriority(); }
-<a name="1163"></a>
-<a name="1164"></a>    /* note a noun phrase with a miscellaneous word list */
-<a name="1165"></a>    noteMiscWords(np)
-<a name="1166"></a>    {
-<a name="1167"></a>        /* if we haven't already noted this one, add it to our list */
-<a name="1168"></a>        if (miscWordLists.indexOf(np) == nil)
-<a name="1169"></a>            miscWordLists += np;
-<a name="1170"></a>    }
-<a name="1171"></a>
-<a name="1172"></a>    /* the calculated priority */
-<a name="1173"></a>    priority = 0
+<a name="1105"></a>     *   - Grammatically correct commands sort ahead of commands with
+<a name="1106"></a>     *   structural errors.
+<a name="1107"></a>     *   
+<a name="1108"></a>     *   - The predicate priority, from the VerbProduction.  (This tells us
+<a name="1109"></a>     *   how "complete" the predicate structure is: a predicate with
+<a name="1110"></a>     *   missing information has a lower priority.  This is in keeping with
+<a name="1111"></a>     *   our assumption that the user's input is well-formed - we'll try
+<a name="1112"></a>     *   the most complete structures first before falling back on the
+<a name="1113"></a>     *   possibility that the user left out some information.)
+<a name="1114"></a>     *   
+<a name="1115"></a>     *   - Filled noun slots ahead of missing noun slots.  A missing noun
+<a name="1116"></a>     *   slot occurs when the player leaves one of the noun roles empty
+<a name="1117"></a>     *   (PUT BOX, TAKE).  We can fill in this information with automatic
+<a name="1118"></a>     *   defaults, so it's not necessarily a reason to reject the parsing,
+<a name="1119"></a>     *   but if there's another interpretation that has fully occupied noun
+<a name="1120"></a>     *   slots, try the occupied one first.
+<a name="1121"></a>     *   
+<a name="1122"></a>     *   - More noun phrase slots first.  For example, sort a command with
+<a name="1123"></a>     *   a direct and indirect object (two slots) ahead of one with only a
+<a name="1124"></a>     *   direct object.  More slots means that we found more "structure" in
+<a name="1125"></a>     *   the command; we can sometimes interpret the same command with less
+<a name="1126"></a>     *   structure by subsuming more words into a long noun phrase.
+<a name="1127"></a>     *   
+<a name="1128"></a>     *   - Longest noun phrases, in aggregate, first.  This is in terms of
+<a name="1129"></a>     *   tokens matched from the user input.  (We want to consider longer
+<a name="1130"></a>     *   noun phrases first because it's more likely that they'll match
+<a name="1131"></a>     *   exact objects, so there's less chance of ambiguity, *and* it's
+<a name="1132"></a>     *   more likely that if we're wrong about the structure, we'll simply
+<a name="1133"></a>     *   fail to find a matching object and move on to other parse trees.
+<a name="1134"></a>     *   Longer noun phrases are less likely to yield spurious matches
+<a name="1135"></a>     *   simply because they have more words that have to match.)
+<a name="1136"></a>     *   
+<a name="1137"></a>     *   - Grammatical noun phrases take priority over misc word phrases (a
+<a name="1138"></a>     *   misc word phrase is text in a noun phrase slot that doesn't match
+<a name="1139"></a>     *   any of the defined patterns in the grammar rules).
+<a name="1140"></a>     *   
+<a name="1141"></a>     *   - Longest command first, in terms of tokens matched from the user
+<a name="1142"></a>     *   input.  (The more user input we use the better, since that gives
+<a name="1143"></a>     *   us more confidence that we're correctly interpreting what the user
+<a name="1144"></a>     *   said.  When we leave extra tokens for later, we can't be sure that
+<a name="1145"></a>     *   we'll be able to make any sense of what's left over, whereas
+<a name="1146"></a>     *   tokens in the current match are known to fit a grammar rule.)  
+<a name="1147"></a>     */
+<a name="1148"></a>    calcPriority()
+<a name="1149"></a>    {
+<a name="1150"></a>        return (badMulti == nil ? 250000000 : 0)
+<a name="1151"></a>            + predPriority*2500000
+<a name="1152"></a>            + 500000*(4 - min(missingNouns, 4))
+<a name="1153"></a>            + 100000*min(numNounSlots(), 4)
+<a name="1154"></a>            + 10000*(9 - min(miscWordLists.length(), 9))
+<a name="1155"></a>            + 100*min(npTokenLen(), 99)
+<a name="1156"></a>            + min(tokenLen, 99);
+<a name="1157"></a>    }
+<a name="1158"></a>
+<a name="1159"></a>    /* 
+<a name="1160"></a>     *   Set a fixed priority.  This makes the priority a fixed value
+<a name="1161"></a>     *   rather than a calculated value.  We call this before sorting a
+<a name="1162"></a>     *   list of commands, so that we don't have to recalculate the
+<a name="1163"></a>     *   priority value repeatedly during the sort.  
+<a name="1164"></a>     */
+<a name="1165"></a>    fixPriority() { priority = self.calcPriority(); }
+<a name="1166"></a>
+<a name="1167"></a>    /* note a noun phrase with a miscellaneous word list */
+<a name="1168"></a>    noteMiscWords(np)
+<a name="1169"></a>    {
+<a name="1170"></a>        /* if we haven't already noted this one, add it to our list */
+<a name="1171"></a>        if (miscWordLists.indexOf(np) == nil)
+<a name="1172"></a>            miscWordLists += np;
+<a name="1173"></a>    }
 <a name="1174"></a>
-<a name="1175"></a>    /*
-<a name="1176"></a>     *   List of noun phrases containing misc word phrases.  The misc word
-<a name="1177"></a>     *   phrase grammar rules will notify us when they're visited in the
-<a name="1178"></a>     *   build process, and we'll note them here.  
-<a name="1179"></a>     */
-<a name="1180"></a>    miscWordLists = []
-<a name="1181"></a>
-<a name="1182"></a>    /*
-<a name="1183"></a>     *   Do we have any missing or empty noun phrases in the match?  The
-<a name="1184"></a>     *   verb and noun phrases will fill this in.  
-<a name="1185"></a>     */
-<a name="1186"></a>    missingNouns = 0
-<a name="1187"></a>
-<a name="1188"></a>    /* 
-<a name="1189"></a>     *   The number of tokens from the command line that we matched for the
-<a name="1190"></a>     *   command.  The CommandProduction object sets this for us as it
-<a name="1191"></a>     *   builds the command from the parse tree.  We use this to determine
-<a name="1192"></a>     *   the priority order of the syntax matches, when there are multiple
-<a name="1193"></a>     *   matches: other things being equal, we'll take the longest match.
-<a name="1194"></a>     *   Longer matches are better because they come closer to using
-<a name="1195"></a>     *   everything the user typed, which is our eventual goal.
-<a name="1196"></a>     *   
-<a name="1197"></a>     *   This reflects the number of tokens used in the first predicate
-<a name="1198"></a>     *   phrase; it omits any additional predicates or conjunctions.  We
-<a name="1199"></a>     *   only count the first predicate because we always go back and
-<a name="1200"></a>     *   re-parse any additional text on the line from scratch after
-<a name="1201"></a>     *   executing the first predicate, in case the execution changes the
-<a name="1202"></a>     *   game state in such a way that the parsing changes.  
-<a name="1203"></a>     */
-<a name="1204"></a>    tokenLen = 0
-<a name="1205"></a>
-<a name="1206"></a>    /* Calculate the sum of the token lengths of our noun phrases */
-<a name="1207"></a>    npTokenLen()
-<a name="1208"></a>    {
-<a name="1209"></a>        /* sum the token counts of all of the noun phrases */
-<a name="1210"></a>        local tot = 0;
-<a name="1211"></a>        forEachNP({ np: tot += np.tokens.length() });
-<a name="1212"></a>
-<a name="1213"></a>        /* return the sum */
-<a name="1214"></a>        return tot;
-<a name="1215"></a>    }
-<a name="1216"></a>
-<a name="1217"></a>    /* Calculate the number of noun slots we have filled in */
-<a name="1218"></a>    numNounSlots() { return npList.length(); }
+<a name="1175"></a>    /* the calculated priority */
+<a name="1176"></a>    priority = 0
+<a name="1177"></a>
+<a name="1178"></a>    /*
+<a name="1179"></a>     *   List of noun phrases containing misc word phrases.  The misc word
+<a name="1180"></a>     *   phrase grammar rules will notify us when they're visited in the
+<a name="1181"></a>     *   build process, and we'll note them here.  
+<a name="1182"></a>     */
+<a name="1183"></a>    miscWordLists = []
+<a name="1184"></a>
+<a name="1185"></a>    /*
+<a name="1186"></a>     *   Do we have any missing or empty noun phrases in the match?  The
+<a name="1187"></a>     *   verb and noun phrases will fill this in.  
+<a name="1188"></a>     */
+<a name="1189"></a>    missingNouns = 0
+<a name="1190"></a>
+<a name="1191"></a>    /* 
+<a name="1192"></a>     *   The number of tokens from the command line that we matched for the
+<a name="1193"></a>     *   command.  The CommandProduction object sets this for us as it
+<a name="1194"></a>     *   builds the command from the parse tree.  We use this to determine
+<a name="1195"></a>     *   the priority order of the syntax matches, when there are multiple
+<a name="1196"></a>     *   matches: other things being equal, we'll take the longest match.
+<a name="1197"></a>     *   Longer matches are better because they come closer to using
+<a name="1198"></a>     *   everything the user typed, which is our eventual goal.
+<a name="1199"></a>     *   
+<a name="1200"></a>     *   This reflects the number of tokens used in the first predicate
+<a name="1201"></a>     *   phrase; it omits any additional predicates or conjunctions.  We
+<a name="1202"></a>     *   only count the first predicate because we always go back and
+<a name="1203"></a>     *   re-parse any additional text on the line from scratch after
+<a name="1204"></a>     *   executing the first predicate, in case the execution changes the
+<a name="1205"></a>     *   game state in such a way that the parsing changes.  
+<a name="1206"></a>     */
+<a name="1207"></a>    tokenLen = 0
+<a name="1208"></a>
+<a name="1209"></a>    /* Calculate the sum of the token lengths of our noun phrases */
+<a name="1210"></a>    npTokenLen()
+<a name="1211"></a>    {
+<a name="1212"></a>        /* sum the token counts of all of the noun phrases */
+<a name="1213"></a>        local tot = 0;
+<a name="1214"></a>        forEachNP({ np: tot += np.tokens.length() });
+<a name="1215"></a>
+<a name="1216"></a>        /* return the sum */
+<a name="1217"></a>        return tot;
+<a name="1218"></a>    }
 <a name="1219"></a>
-<a name="1220"></a>    /* the predicate priority (see VerbProduction.priority) */
-<a name="1221"></a>    predPriority = 0
-<a name="1222"></a>    
-<a name="1223"></a>    /* is our predicate currently active (see VerbProduction.isActive) */
-<a name="1224"></a>    predActive = true
-<a name="1225"></a>
-<a name="1226"></a>    /*
-<a name="1227"></a>     *   The parse tree (the root of the grammar match), if applicable.
-<a name="1228"></a>     *   Commands built from user input have a parse tree; those built
-<a name="1229"></a>     *   internally don't.  Note that the parse tree doesn't necessarily
-<a name="1230"></a>     *   include *all* of the user input, since we could have asked
-<a name="1231"></a>     *   questions (disambiguation, missing noun phrases) before the
-<a name="1232"></a>     *   command was completed.  The question replies will be represented
-<a name="1233"></a>     *   in noun phrases or other data added to the command after the
-<a name="1234"></a>     *   initial parse.  
-<a name="1235"></a>     */
-<a name="1236"></a>    parseTree = nil
-<a name="1237"></a>
-<a name="1238"></a>    /* the Action object giving the action to be performed */
-<a name="1239"></a>    action = nil
+<a name="1220"></a>    /* Calculate the number of noun slots we have filled in */
+<a name="1221"></a>    numNounSlots() { return npList.length(); }
+<a name="1222"></a>
+<a name="1223"></a>    /* the predicate priority (see VerbProduction.priority) */
+<a name="1224"></a>    predPriority = 0
+<a name="1225"></a>    
+<a name="1226"></a>    /* is our predicate currently active (see VerbProduction.isActive) */
+<a name="1227"></a>    predActive = true
+<a name="1228"></a>
+<a name="1229"></a>    /*
+<a name="1230"></a>     *   The parse tree (the root of the grammar match), if applicable.
+<a name="1231"></a>     *   Commands built from user input have a parse tree; those built
+<a name="1232"></a>     *   internally don't.  Note that the parse tree doesn't necessarily
+<a name="1233"></a>     *   include *all* of the user input, since we could have asked
+<a name="1234"></a>     *   questions (disambiguation, missing noun phrases) before the
+<a name="1235"></a>     *   command was completed.  The question replies will be represented
+<a name="1236"></a>     *   in noun phrases or other data added to the command after the
+<a name="1237"></a>     *   initial parse.  
+<a name="1238"></a>     */
+<a name="1239"></a>    parseTree = nil
 <a name="1240"></a>
-<a name="1241"></a>    /* the Previous action performed by this command */
-<a name="1242"></a>    lastAction = nil
-<a name="1243"></a>    
-<a name="1244"></a>    /* the VerbProduction object for the command */
-<a name="1245"></a>    verbProd = nil
-<a name="1246"></a>
-<a name="1247"></a>    /* the resolved actor; we determine this before disambiguation */
-<a name="1248"></a>    actor = nil
+<a name="1241"></a>    /* the Action object giving the action to be performed */
+<a name="1242"></a>    action = nil
+<a name="1243"></a>
+<a name="1244"></a>    /* the Previous action performed by this command */
+<a name="1245"></a>    lastAction = nil
+<a name="1246"></a>    
+<a name="1247"></a>    /* the VerbProduction object for the command */
+<a name="1248"></a>    verbProd = nil
 <a name="1249"></a>
-<a name="1250"></a>    /* the actor(s) to whom the command is addressed, as a NounPhrase list */
-<a name="1251"></a>    actorNPs = []
+<a name="1250"></a>    /* the resolved actor; we determine this before disambiguation */
+<a name="1251"></a>    actor = nil
 <a name="1252"></a>
-<a name="1253"></a>    /* the actor(s), as NPMatch objects */
-<a name="1254"></a>    actors = []
+<a name="1253"></a>    /* the actor(s) to whom the command is addressed, as a NounPhrase list */
+<a name="1254"></a>    actorNPs = []
 <a name="1255"></a>
-<a name="1256"></a>    /*
-<a name="1257"></a>     *   The grammatical person in which we're addressing the actor.  This
-<a name="1258"></a>     *   is 2 for a second-person address, 3 for third-person orders.
-<a name="1259"></a>     *   (It's hard to think of a case for first-person orders, but 
-<a name="1260"></a>     *   
-<a name="1261"></a>     *   The conventional IF syntax for giving orders is ACTOR, DO
-<a name="1262"></a>     *   SOMETHING, which addresses ACTOR in the second person (as YOU).
-<a name="1263"></a>     *   This means that second-person pronouns 
-<a name="1264"></a>     */
-<a name="1265"></a>    actorPerson = 2
-<a name="1266"></a>
-<a name="1267"></a>    /* the direct object phrases, as a list of NounPhrase objects */
-<a name="1268"></a>    dobjNPs = []
+<a name="1256"></a>    /* the actor(s), as NPMatch objects */
+<a name="1257"></a>    actors = []
+<a name="1258"></a>
+<a name="1259"></a>    /*
+<a name="1260"></a>     *   The grammatical person in which we're addressing the actor.  This
+<a name="1261"></a>     *   is 2 for a second-person address, 3 for third-person orders.
+<a name="1262"></a>     *   (It's hard to think of a case for first-person orders, but 
+<a name="1263"></a>     *   
+<a name="1264"></a>     *   The conventional IF syntax for giving orders is ACTOR, DO
+<a name="1265"></a>     *   SOMETHING, which addresses ACTOR in the second person (as YOU).
+<a name="1266"></a>     *   This means that second-person pronouns 
+<a name="1267"></a>     */
+<a name="1268"></a>    actorPerson = 2
 <a name="1269"></a>
-<a name="1270"></a>    /* the list of resolved direct objects, as NPMatch objects */
-<a name="1271"></a>    dobjs = []
+<a name="1270"></a>    /* the direct object phrases, as a list of NounPhrase objects */
+<a name="1271"></a>    dobjNPs = []
 <a name="1272"></a>
-<a name="1273"></a>    /* the current direct object for the current action iteration */
-<a name="1274"></a>    dobj = nil
+<a name="1273"></a>    /* the list of resolved direct objects, as NPMatch objects */
+<a name="1274"></a>    dobjs = []
 <a name="1275"></a>
-<a name="1276"></a>    /* the NPMatch object for the current iteration's direct object */
-<a name="1277"></a>    dobjInfo = nil
+<a name="1276"></a>    /* the current direct object for the current action iteration */
+<a name="1277"></a>    dobj = nil
 <a name="1278"></a>
-<a name="1279"></a>    /* the indirect object phrases, as a list of NounPhrase objects */
-<a name="1280"></a>    iobjNPs = []
+<a name="1279"></a>    /* the NPMatch object for the current iteration's direct object */
+<a name="1280"></a>    dobjInfo = nil
 <a name="1281"></a>
-<a name="1282"></a>    /* the list of resolved indirect objects, as NPMatch objects */
-<a name="1283"></a>    iobjs = []
+<a name="1282"></a>    /* the indirect object phrases, as a list of NounPhrase objects */
+<a name="1283"></a>    iobjNPs = []
 <a name="1284"></a>
-<a name="1285"></a>    /* the indirect object for the current iteration */
-<a name="1286"></a>    iobj = nil
+<a name="1285"></a>    /* the list of resolved indirect objects, as NPMatch objects */
+<a name="1286"></a>    iobjs = []
 <a name="1287"></a>
-<a name="1288"></a>    /* the NPMatch object for the current indirect object */
-<a name="1289"></a>    iobjInfo = nil
+<a name="1288"></a>    /* the indirect object for the current iteration */
+<a name="1289"></a>    iobj = nil
 <a name="1290"></a>
-<a name="1291"></a>    /* the accessory phrases, as a list of NounPhrase objects */
-<a name="1292"></a>    accNPs = []
+<a name="1291"></a>    /* the NPMatch object for the current indirect object */
+<a name="1292"></a>    iobjInfo = nil
 <a name="1293"></a>
-<a name="1294"></a>    /* the list of resolved accessory objects, as NPMatch objects */
-<a name="1295"></a>    accs = []
+<a name="1294"></a>    /* the accessory phrases, as a list of NounPhrase objects */
+<a name="1295"></a>    accNPs = []
 <a name="1296"></a>
-<a name="1297"></a>    /* the accessory object for the current iteration */
-<a name="1298"></a>    acc = nil
+<a name="1297"></a>    /* the list of resolved accessory objects, as NPMatch objects */
+<a name="1298"></a>    accs = []
 <a name="1299"></a>
-<a name="1300"></a>    /* synonym for the accessory object */
-<a name="1301"></a>    aobj = (acc)
-<a name="1302"></a>    
-<a name="1303"></a>    /* the NPMatch object for the current accessory */
-<a name="1304"></a>    accInfo = nil
-<a name="1305"></a>
-<a name="1306"></a>    /*
-<a name="1307"></a>     *   Disambiguation replies.  Each time the player answers a
-<a name="1308"></a>     *   disambiguation question, we add the reply to this list.  We then
-<a name="1309"></a>     *   go back and re-resolve the noun phrases, fetching replies from the
-<a name="1310"></a>     *   list as we encounter the ambiguous objects again.
-<a name="1311"></a>     *   
-<a name="1312"></a>     *   Note that this is a list of list.  Each reply is a list of
-<a name="1313"></a>     *   NounPhrase objects, and we might have a series of replies, so one
-<a name="1314"></a>     *   list represents one reply.  
-<a name="1315"></a>     */
-<a name="1316"></a>    disambig = []
-<a name="1317"></a>
-<a name="1318"></a>    /* the next available disambiguation reply */
-<a name="1319"></a>    disambigIdx = 1
+<a name="1300"></a>    /* the accessory object for the current iteration */
+<a name="1301"></a>    acc = nil
+<a name="1302"></a>
+<a name="1303"></a>    /* synonym for the accessory object */
+<a name="1304"></a>    aobj = (acc)
+<a name="1305"></a>    
+<a name="1306"></a>    /* the NPMatch object for the current accessory */
+<a name="1307"></a>    accInfo = nil
+<a name="1308"></a>
+<a name="1309"></a>    /*
+<a name="1310"></a>     *   Disambiguation replies.  Each time the player answers a
+<a name="1311"></a>     *   disambiguation question, we add the reply to this list.  We then
+<a name="1312"></a>     *   go back and re-resolve the noun phrases, fetching replies from the
+<a name="1313"></a>     *   list as we encounter the ambiguous objects again.
+<a name="1314"></a>     *   
+<a name="1315"></a>     *   Note that this is a list of list.  Each reply is a list of
+<a name="1316"></a>     *   NounPhrase objects, and we might have a series of replies, so one
+<a name="1317"></a>     *   list represents one reply.  
+<a name="1318"></a>     */
+<a name="1319"></a>    disambig = []
 <a name="1320"></a>
-<a name="1321"></a>    /* 
-<a name="1322"></a>     *   Is this command at the end of a sentence?  The grammar match sets
-<a name="1323"></a>     *   this to true if the input syntax puts this predicate at the end of
-<a name="1324"></a>     *   a sentence.  For example, in the English grammar, this is set if
-<a name="1325"></a>     *   there's a period after this predicate.  This tells the parser that
-<a name="1326"></a>     *   the next predicate in the same line is the start of a new
-<a name="1327"></a>     *   sentence, so sentence-opening syntax is allowed.  
-<a name="1328"></a>     */
-<a name="1329"></a>    endOfSentence = nil
-<a name="1330"></a>
-<a name="1331"></a>    /*
-<a name="1332"></a>     *   The noun phrase roles (as NounRole objects), in the order they
-<a name="1333"></a>     *   actually appear in the user input.  We build this list as the
-<a name="1334"></a>     *   VerbProduction adds our noun phrases.  The phrase order is
-<a name="1335"></a>     *   important when there are reflexive pronouns, because a reflexive
-<a name="1336"></a>     *   pronoun generally refers back to the nearest preceding phrase of
-<a name="1337"></a>     *   the same number and gender.  
-<a name="1338"></a>     */
-<a name="1339"></a>    npList = []
-<a name="1340"></a>    
-<a name="1341"></a>    /*  
-<a name="1342"></a>     *   A copy of the npList sorted to ensure that the direct and indirect
-<a name="1343"></a>     *   objects of a TIAction are verified in the order specified on that
-<a name="1344"></a>     *   action.
-<a name="1345"></a>     */
-<a name="1346"></a>    
-<a name="1347"></a>    npListSorted = []
-<a name="1348"></a>
-<a name="1349"></a>    /* 
-<a name="1350"></a>     *   Error flag: we have a noun list (grammatically) where a single
-<a name="1351"></a>     *   noun is required.  When this occurs, this will be set to the role
-<a name="1352"></a>     *   where the error was noted.  
-<a name="1353"></a>     */
-<a name="1354"></a>    badMulti = nil
-<a name="1355"></a>
-<a name="1356"></a>    /*
-<a name="1357"></a>     *   The token list for the next predicate.  The first predicate
-<a name="1358"></a>     *   production fills this in during the build process with the token
-<a name="1359"></a>     *   list for the next predicate on the same command line, based on the
-<a name="1360"></a>     *   location of the conjunction or punctuation that ends the first
-<a name="1361"></a>     *   predicate.  This is just what's left of the token list after the
-<a name="1362"></a>     *   tokens used for our own predicate and after any conjunctions or
-<a name="1363"></a>     *   punctuation marks that separate our predicate from the next one.  
-<a name="1364"></a>     */
-<a name="1365"></a>    nextTokens = []
-<a name="1366"></a>
-<a name="1367"></a>    /* 
-<a name="1368"></a>     *   The error we encountered building the command, if any.  This is
-<a name="1369"></a>     *   usually a noun resolution error. 
-<a name="1370"></a>     */
-<a name="1371"></a>    cmdErr = nil
-<a name="1372"></a>    
-<a name="1373"></a>    /*   Does this command apply to objects matched to ALL? */
-<a name="1374"></a>    
+<a name="1321"></a>    /* the next available disambiguation reply */
+<a name="1322"></a>    disambigIdx = 1
+<a name="1323"></a>
+<a name="1324"></a>    /* 
+<a name="1325"></a>     *   Is this command at the end of a sentence?  The grammar match sets
+<a name="1326"></a>     *   this to true if the input syntax puts this predicate at the end of
+<a name="1327"></a>     *   a sentence.  For example, in the English grammar, this is set if
+<a name="1328"></a>     *   there's a period after this predicate.  This tells the parser that
+<a name="1329"></a>     *   the next predicate in the same line is the start of a new
+<a name="1330"></a>     *   sentence, so sentence-opening syntax is allowed.  
+<a name="1331"></a>     */
+<a name="1332"></a>    endOfSentence = nil
+<a name="1333"></a>
+<a name="1334"></a>    /*
+<a name="1335"></a>     *   The noun phrase roles (as NounRole objects), in the order they
+<a name="1336"></a>     *   actually appear in the user input.  We build this list as the
+<a name="1337"></a>     *   VerbProduction adds our noun phrases.  The phrase order is
+<a name="1338"></a>     *   important when there are reflexive pronouns, because a reflexive
+<a name="1339"></a>     *   pronoun generally refers back to the nearest preceding phrase of
+<a name="1340"></a>     *   the same number and gender.  
+<a name="1341"></a>     */
+<a name="1342"></a>    npList = []
+<a name="1343"></a>    
+<a name="1344"></a>    /*  
+<a name="1345"></a>     *   A copy of the npList sorted to ensure that the direct and indirect
+<a name="1346"></a>     *   objects of a TIAction are verified in the order specified on that
+<a name="1347"></a>     *   action.
+<a name="1348"></a>     */
+<a name="1349"></a>    
+<a name="1350"></a>    npListSorted = []
+<a name="1351"></a>
+<a name="1352"></a>    /* 
+<a name="1353"></a>     *   Error flag: we have a noun list (grammatically) where a single
+<a name="1354"></a>     *   noun is required.  When this occurs, this will be set to the role
+<a name="1355"></a>     *   where the error was noted.  
+<a name="1356"></a>     */
+<a name="1357"></a>    badMulti = nil
+<a name="1358"></a>
+<a name="1359"></a>    /*
+<a name="1360"></a>     *   The token list for the next predicate.  The first predicate
+<a name="1361"></a>     *   production fills this in during the build process with the token
+<a name="1362"></a>     *   list for the next predicate on the same command line, based on the
+<a name="1363"></a>     *   location of the conjunction or punctuation that ends the first
+<a name="1364"></a>     *   predicate.  This is just what's left of the token list after the
+<a name="1365"></a>     *   tokens used for our own predicate and after any conjunctions or
+<a name="1366"></a>     *   punctuation marks that separate our predicate from the next one.  
+<a name="1367"></a>     */
+<a name="1368"></a>    nextTokens = []
+<a name="1369"></a>
+<a name="1370"></a>    /* 
+<a name="1371"></a>     *   The error we encountered building the command, if any.  This is
+<a name="1372"></a>     *   usually a noun resolution error. 
+<a name="1373"></a>     */
+<a name="1374"></a>    cmdErr = nil
 <a name="1375"></a>    
-<a name="1376"></a>    matchedAll = nil
+<a name="1376"></a>    /*   Does this command apply to objects matched to ALL? */
 <a name="1377"></a>    
-<a name="1378"></a>    /*   Does this command apply to objects matched to multiple objects? */
-<a name="1379"></a>    matchedMulti = nil
+<a name="1378"></a>    
+<a name="1379"></a>    matchedAll = nil
 <a name="1380"></a>    
-<a name="1381"></a>    madeTopic = nil
-<a name="1382"></a>    
-<a name="1383"></a>    /* 
-<a name="1384"></a>     *   Get the command phrase entered by the player, with the words used to
-<a name="1385"></a>     *   match the direct, indirect and accessory objects replaced by (dobj),
-<a name="1386"></a>     *   (iobj) and (acc) respectively; e.g. PUT RED BALL ON TABLE becomes 'put
-<a name="1387"></a>     *   (dobj) on (iobj)'
-<a name="1388"></a>     */
-<a name="1389"></a>    getCommandPhrase()
-<a name="1390"></a>    {
-<a name="1391"></a>        /* 
-<a name="1392"></a>         *   If for any reason we don't have a verbProd property, return an
-<a name="1393"></a>         *   empty string (to avoid any run-time errors below).
-<a name="1394"></a>         */
-<a name="1395"></a>        if(verbProd == nil)
-<a name="1396"></a>            return '';
-<a name="1397"></a>        
-<a name="1398"></a>        /*  Get the tokens making up the current command. */
-<a name="1399"></a>        local toks = verbProd.tokenList.mapAll({t: getTokVal(t)});
-<a name="1400"></a>        
-<a name="1401"></a>        /*  Define a couple of local variables for use below */
-<a name="1402"></a>        local idx1, idx2;
-<a name="1403"></a>        
-<a name="1404"></a>        /*  
-<a name="1405"></a>         *   For each of the possible dobjMatch, iobjMatch and accMatch
-<a name="1406"></a>         *   properties, replace the tokens used to match the dobj, iobj or
-<a name="1407"></a>         *   accessory object with the placeholder '(dobj)', '(iobj)' or
-<a name="1408"></a>         *   '(acc)'. To do that, replace the first token used to match the
-<a name="1409"></a>         *   object with the placeholder, and then the other tokens that matched
-<a name="1410"></a>         *   the object with '?-?'.
-<a name="1411"></a>         */
-<a name="1412"></a>        if(verbProd.dobjMatch)
-<a name="1413"></a>        {
-<a name="1414"></a>            idx1 = verbProd.dobjMatch.np_.firstTokenIndex;
-<a name="1415"></a>            idx2 = verbProd.dobjMatch.np_.lastTokenIndex;
-<a name="1416"></a>            toks[idx1] = '(dobj)';
-<a name="1417"></a>            for(local i = idx1 + 1; i &lt;= idx2; i++)
-<a name="1418"></a>                toks[i] = '?-?';
-<a name="1419"></a>        }
-<a name="1420"></a>        
-<a name="1421"></a>        if(verbProd.iobjMatch)
+<a name="1381"></a>    /*   Does this command apply to objects matched to multiple objects? */
+<a name="1382"></a>    matchedMulti = nil
+<a name="1383"></a>    
+<a name="1384"></a>    madeTopic = nil
+<a name="1385"></a>    
+<a name="1386"></a>    /* 
+<a name="1387"></a>     *   Kludge; a way to let Mentionable.matchNameCommon() know which role it's trying to match
+<a name="1388"></a>     *   for.
+<a name="1389"></a>     */
+<a name="1390"></a>    potentialRole = nil
+<a name="1391"></a>    
+<a name="1392"></a>    /* 
+<a name="1393"></a>     *   Get the command phrase entered by the player, with the words used to
+<a name="1394"></a>     *   match the direct, indirect and accessory objects replaced by (dobj),
+<a name="1395"></a>     *   (iobj) and (acc) respectively; e.g. PUT RED BALL ON TABLE becomes 'put
+<a name="1396"></a>     *   (dobj) on (iobj)'
+<a name="1397"></a>     */
+<a name="1398"></a>    getCommandPhrase()
+<a name="1399"></a>    {
+<a name="1400"></a>        /* 
+<a name="1401"></a>         *   If for any reason we don't have a verbProd property, return an
+<a name="1402"></a>         *   empty string (to avoid any run-time errors below).
+<a name="1403"></a>         */
+<a name="1404"></a>        if(verbProd == nil)
+<a name="1405"></a>            return '';
+<a name="1406"></a>        
+<a name="1407"></a>        /*  Get the tokens making up the current command. */
+<a name="1408"></a>        local toks = verbProd.tokenList.mapAll({t: getTokVal(t)});
+<a name="1409"></a>        
+<a name="1410"></a>        /*  Define a couple of local variables for use below */
+<a name="1411"></a>        local idx1, idx2;
+<a name="1412"></a>        
+<a name="1413"></a>        /*  
+<a name="1414"></a>         *   For each of the possible dobjMatch, iobjMatch and accMatch
+<a name="1415"></a>         *   properties, replace the tokens used to match the dobj, iobj or
+<a name="1416"></a>         *   accessory object with the placeholder '(dobj)', '(iobj)' or
+<a name="1417"></a>         *   '(acc)'. To do that, replace the first token used to match the
+<a name="1418"></a>         *   object with the placeholder, and then the other tokens that matched
+<a name="1419"></a>         *   the object with '?-?'.
+<a name="1420"></a>         */
+<a name="1421"></a>        if(verbProd.dobjMatch)
 <a name="1422"></a>        {
-<a name="1423"></a>            idx1 = verbProd.iobjMatch.np_.firstTokenIndex;
-<a name="1424"></a>            idx2 = verbProd.iobjMatch.np_.lastTokenIndex;
-<a name="1425"></a>            toks[idx1] = '(iobj)';
+<a name="1423"></a>            idx1 = verbProd.dobjMatch.np_.firstTokenIndex;
+<a name="1424"></a>            idx2 = verbProd.dobjMatch.np_.lastTokenIndex;
+<a name="1425"></a>            toks[idx1] = '(dobj)';
 <a name="1426"></a>            for(local i = idx1 + 1; i &lt;= idx2; i++)
 <a name="1427"></a>                toks[i] = '?-?';
 <a name="1428"></a>        }
 <a name="1429"></a>        
-<a name="1430"></a>        if(verbProd.accMatch)
+<a name="1430"></a>        if(verbProd.iobjMatch)
 <a name="1431"></a>        {
-<a name="1432"></a>            idx1 = verbProd.accMatch.np_.firstTokenIndex;
-<a name="1433"></a>            idx2 = verbProd.accMatch.np_.lastTokenIndex;
-<a name="1434"></a>            toks[idx1] = '(acc)';
+<a name="1432"></a>            idx1 = verbProd.iobjMatch.np_.firstTokenIndex;
+<a name="1433"></a>            idx2 = verbProd.iobjMatch.np_.lastTokenIndex;
+<a name="1434"></a>            toks[idx1] = '(iobj)';
 <a name="1435"></a>            for(local i = idx1 + 1; i &lt;= idx2; i++)
 <a name="1436"></a>                toks[i] = '?-?';
 <a name="1437"></a>        }
 <a name="1438"></a>        
-<a name="1439"></a>        /* Now remove all the '?-?' tokens */
-<a name="1440"></a>        toks = toks.subset({t: t != '?-?'});
-<a name="1441"></a>        
-<a name="1442"></a>        /* Join the tokens together into a string and return it. */
-<a name="1443"></a>        return toks.join(' ');
-<a name="1444"></a>    }
-<a name="1445"></a>;
-<a name="1446"></a>
-<a name="1447"></a>
-<a name="1448"></a>
-<a name="1449"></a>
-<a name="1450"></a>/* ------------------------------------------------------------------------ */
-<a name="1451"></a>/*
-<a name="1452"></a> *   A FuncCommand is a special version of Command that carries out its
-<a name="1453"></a> *   action via a custom callback function, rather than by executing a
-<a name="1454"></a> *   regular Action.  This can be used to create a simple one-off custom
-<a name="1455"></a> *   command without having to create a separate Action for it.  
-<a name="1456"></a> */
-<a name="1457"></a>class FuncCommand: Command
-<a name="1458"></a>    /*
-<a name="1459"></a>     *   Create: provide the grammar match object, if any, and the callback
-<a name="1460"></a>     *   function to execute to carry out the command. 
-<a name="1461"></a>     */
-<a name="1462"></a>    construct(prod, func)
-<a name="1463"></a>    {
-<a name="1464"></a>        /* call the appropriate inherited constructor */
-<a name="1465"></a>        if (prod != nil)
-<a name="1466"></a>            inherited(prod);
-<a name="1467"></a>        else
-<a name="1468"></a>            inherited();
-<a name="1469"></a>
-<a name="1470"></a>        /* save the callback function */
-<a name="1471"></a>        self.func = func;
-<a name="1472"></a>    }
-<a name="1473"></a>
-<a name="1474"></a>    /* the callback function for carrying out our command action */
-<a name="1475"></a>    func = nil
-<a name="1476"></a>;
+<a name="1439"></a>        if(verbProd.accMatch)
+<a name="1440"></a>        {
+<a name="1441"></a>            idx1 = verbProd.accMatch.np_.firstTokenIndex;
+<a name="1442"></a>            idx2 = verbProd.accMatch.np_.lastTokenIndex;
+<a name="1443"></a>            toks[idx1] = '(acc)';
+<a name="1444"></a>            for(local i = idx1 + 1; i &lt;= idx2; i++)
+<a name="1445"></a>                toks[i] = '?-?';
+<a name="1446"></a>        }
+<a name="1447"></a>        
+<a name="1448"></a>        /* Now remove all the '?-?' tokens */
+<a name="1449"></a>        toks = toks.subset({t: t != '?-?'});
+<a name="1450"></a>        
+<a name="1451"></a>        /* Join the tokens together into a string and return it. */
+<a name="1452"></a>        return toks.join(' ');
+<a name="1453"></a>    }
+<a name="1454"></a>;
+<a name="1455"></a>
+<a name="1456"></a>
+<a name="1457"></a>
+<a name="1458"></a>
+<a name="1459"></a>/* ------------------------------------------------------------------------ */
+<a name="1460"></a>/*
+<a name="1461"></a> *   A FuncCommand is a special version of Command that carries out its
+<a name="1462"></a> *   action via a custom callback function, rather than by executing a
+<a name="1463"></a> *   regular Action.  This can be used to create a simple one-off custom
+<a name="1464"></a> *   command without having to create a separate Action for it.  
+<a name="1465"></a> */
+<a name="1466"></a>class FuncCommand: Command
+<a name="1467"></a>    /*
+<a name="1468"></a>     *   Create: provide the grammar match object, if any, and the callback
+<a name="1469"></a>     *   function to execute to carry out the command. 
+<a name="1470"></a>     */
+<a name="1471"></a>    construct(prod, func)
+<a name="1472"></a>    {
+<a name="1473"></a>        /* call the appropriate inherited constructor */
+<a name="1474"></a>        if (prod != nil)
+<a name="1475"></a>            inherited(prod);
+<a name="1476"></a>        else
+<a name="1477"></a>            inherited();
+<a name="1478"></a>
+<a name="1479"></a>        /* save the callback function */
+<a name="1480"></a>        self.func = func;
+<a name="1481"></a>    }
+<a name="1482"></a>
+<a name="1483"></a>    /* the callback function for carrying out our command action */
+<a name="1484"></a>    func = nil
+<a name="1485"></a>;
 </pre>
-<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 08/12/2025 from adv3Lite version 2.2.2</div>
+<div class=ftr>Adv3Lite Library Reference Manual<br>Generated on 27/01/2026 from adv3Lite version 2.2.2.0.3</div>
 </body>
 </html>
