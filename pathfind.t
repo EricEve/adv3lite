@@ -158,7 +158,7 @@ routeFinder: Pathfinder
                 /* 
                  *   if the object is a locked door and we want to exclude
                  *   locked doors, or if there's some other reason the actor
-                 *   cannot pass this way, we can't use this path.
+                 *   cannot pass this way, we can't use this exit.
                  */
                 
                 if(excludeLockedDoors &&
@@ -166,7 +166,7 @@ routeFinder: Pathfinder
                       || obj.canTravelerPass(gActor) == nil
                       || valToList(obj.travelBarriers).indexWhich(
                           { b: !b.canTravelerPass(gActor, obj)}) != nil))
-                    return;
+                    continue;
                 
                 
                 /* 

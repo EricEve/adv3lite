@@ -929,6 +929,9 @@ class Command: object
             /* run through each NounPhrase in this slot's list */
             foreach (local np in self.(role.npListProp))
             {
+                /* Note which role we're being considered for. */
+                potentialRole = role;
+                
                 /* invoke the callback on this item */
                 func(np);
             }
@@ -1379,6 +1382,12 @@ class Command: object
     matchedMulti = nil
     
     madeTopic = nil
+    
+    /* 
+     *   Kludge; a way to let Mentionable.matchNameCommon() know which role it's trying to match
+     *   for.
+     */
+    potentialRole = nil
     
     /* 
      *   Get the command phrase entered by the player, with the words used to

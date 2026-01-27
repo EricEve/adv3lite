@@ -220,8 +220,8 @@ modify Actor
             gAction = AskFor.createInstance();
             
             /* Install the appropriate objects in the new action. */
-            gAction.curDobj == self;
-            gAction.curIobj == gCommand.dobj;
+            gAction.curDobj = self;
+            gAction.curIobj = gCommand.dobj;
             gAction.curObj = self;            
             
             /* 
@@ -256,8 +256,8 @@ modify Actor
             gAction = AskAbout.createInstance();
             
             /* Install the appropriate objects in the new action. */
-            gAction.curDobj == self;
-            gAction.curIobj == gCommand.dobj;
+            gAction.curDobj = self;
+            gAction.curIobj = gCommand.dobj;
             gAction.curObj = self;
             
             

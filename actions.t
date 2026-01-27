@@ -1386,6 +1386,155 @@ DefineTAction(Take)
     
     announceMultiAction = nil
     allowAll = true
+    
+    /* 
+     *   Do we want failed attempts at taking a group of objects to be reported after succesful
+     *   ones; by default, we do.
+     */
+    reportFailureAfterSuccess = true
+    
+    /* 
+     *   Flag, do we want to use the more sophisticated handling of attempts to take a group of
+     *   objects with a single indefinite plural? By default we probably do, but this flag is
+     *   provided in case games encounter a problem with this behaviour.
+     */
+    advancedGroupHandling = reportFailureAfterSuccess
+    /* 
+     *   Handle a Take action involving a group of objects speficied non-specifically (e.g., TAKE
+     *   MARBLES or TAKE DOCUMENTS) reasonably gracefully.
+     */
+    execGroup(cmd)
+    {
+        /* 
+         *   We only want to intervene if we're acting on one than one direct object through a
+         *   plural match and we want the advancedGroupHandling
+         */
+        if(advancedGroupHandling && cmd.matchedMulti && cmd.dobjs.length > 1)
+        {
+            /* Note which objects are fixed in place. */
+            local fixedList = cmd.dobjs.subset({d:d.obj.isFixed});
+            
+            /* Create a list of portable items from the rest. */
+            local portableList = cmd.dobjs - fixedList;
+            
+            /* 
+             *   Create a list of portable items that are too individually too big  for the actor to
+             *   hold.
+             */
+            local tooBigList = portableList.subset({d: d.obj.bulk > cmd.actor.maxSingleBulk || 
+                                                   !d.obj.fitsLength(cmd.actor)});
+            
+            /* 
+             *   Create a list of items that could potentially be taken by removing the ones that
+             *   the player is already holding.
+             */
+            local takeList = portableList.subset({d:!d.obj.isHeldBy(cmd.actor)});
+            
+            /*   
+             *   Note which of those the actor is already holding, which will be all the portable
+             *   ones less those that the actor could take.
+             */
+            local heldList = portableList - takeList;
+            
+            /* Adjust the list of takeable objects by removing those that are too big. */
+            takeList = takeList - tooBigList;
+                       
+            /* If there are some items already being held, display a message listing them. */
+            if(heldList.length > 0)
+            {
+                local heldObjsList = heldList.mapAll({d:d.obj});
+                DMsg(already holding objects, '{I} {am} aleady holding {1}.\n', 
+                     makeListStr(heldObjsList, &theName));
+            }
+            
+            /* If some of the items are too big, display a message listing them. */
+            if(tooBigList.length > 0)           
+            {
+
+                local tooBigObjs = tooBigList.mapAll({d:d.obj});
+                DMsg(too big for me to hold, '{1} for {me} to hold. ', listStrIs(tooBigObjs));                
+            }
+            
+            /* 
+             *   We next need to check whether taking some or all of the remaining takeable items
+             *   would result in exceeding the actor's carrying capacity. We beging by noting how
+             *   much carrying capacity the actor has free before taking the additional items.
+             */            
+            local bulkCapacityRemaining = cmd.actor.bulkCapacity - cmd.actor.getCarriedBulk();
+            
+            /*   We next note how many more items the actor can carry. */
+            local itemCapacityRemaining = cmd.actor.maxItemsCarried - cmd.actor.directlyHeld.length;
+            
+            /*   
+             *   Set up a list to contain any items that would exceed the the actor's carrying
+             *   capactity.
+             */
+            local exceedList = [];
+            
+            /* 
+             *   Sort the list of potentially takeable items in ascending order of bulk, so that in
+             *   the event of there being insufficient bulk capacity we take the least bulky items
+             *   first.
+             */          
+            takeList = takeList.sort(SortAsc, {a, b: a.obj.bulk - b.obj.bulk });
+            
+            /* 
+             *   Iterate over the sorted list to construct a list of items that would exceed the
+             *   actor's carrying capacity if taken. Skip this step if the actor has a BagOfHolding,
+             *   however, since it could frustrate the operation of the BagOfHolding.
+             */
+            if(cmd.actor.allContents.indexWhich({o: o.ofKind(BagOfHolding) 
+                                                && cmd.actor.canReach(o) }) == nil)
+            {
+                foreach(local d in takeList)
+                { 
+                    /* 
+                     *   If the next item's bulk is more than the actor's spare bulk capacity or the
+                     *   actor has no more room for additional items, add that item to our exceed
+                     *   list.
+                     */
+                    if(d.obj.bulk > bulkCapacityRemaining || itemCapacityRemaining < 1)
+                        exceedList += d;
+                    
+                    /* Dedcrement the number of additional items the actor can carry. */
+                    itemCapacityRemaining--;
+                    
+                    /* Decrement the actor's spare bulk capacity by the bulk of this item. */
+                    bulkCapacityRemaining -= d.obj.bulk;                  
+                }
+            }
+            
+            /* 
+             *   If our exceeedList contains any items (i.e. items the actor would have no room left
+             *   to hold), remove those items from the list of items to be taken and display a
+             *   message listing the items that exceed the actor's capacity.
+             */
+            if(exceedList.length > 0)
+            {
+                /* Remove the exceedList items from the list of items to be taken. */
+                takeList -= exceedList;
+                
+                /* Get a list of those objects. */
+                local excessItems = exceedList.mapAll({d: d.obj});
+                
+                /* 
+                 *   Add the list to be displayed to our after reports so that it is displayed after
+                 *   any announcements of items that are successfully taken.
+                 */
+                local tooFullToHoldMsg = BMsg(hands too full to hold, '{My} hands are too full to 
+                    hold {1}.\n ', makeListStr(excessItems, &theName));
+                
+                reportAfter(tooFullToHoldMsg);
+            }
+            
+            /* 
+             *   Reduce our list of direct objects to the items that can be taken plus those that
+             *   are fixed in place so that this action can go on to handle them in the normal way.
+             */
+            cmd.dobjs = takeList + fixedList;                
+        }       
+    }
+
    
 ;
 
@@ -1396,7 +1545,32 @@ DefineTAction(Drop)
     {
         return scopeList.subset({ x: x.isDirectlyIn(cmd.actor) && !x.isFixed});
     }  
+    
+    /* 
+     *   Flag, do we want to use the more sophisticated handling of attempts to dropk a group of
+     *   objects with a single indefinite plural? By default we probably do, but this flag is
+     *   provided in case games encounter a problem with this behaviour.
+     */
+    advancedGroupHandling = true
+    
+    execGroup(cmd)
+    {
+        /* 
+         *   If we matched multiple objects (with a generic plural), filter out any we're not
+         *   holding.
+         */
+        if(advancedGroupHandling && cmd.matchedMulti && cmd.dobjs.length > 1)
+        {
+            cmd.dobjs = cmd.dobjs.subset({d:d.obj.isHeldBy(cmd.actor)});
+            
+            /* If there's nothing left to act on, say so. */
+            if(cmd.dobjs.length < 1)
+                DMsg(not holding any, '''{I}{'m} not holding any. ''');
+        }
+    }
 ;
+
+
 
 DefineTAction(Throw)
     getAll(cmd, role)
@@ -1939,6 +2113,7 @@ DefineIAction(WriteVague)
 
 DefineTopicTAction(ConsultAbout)
     againRepeatsParse = nil
+    unhides = IndirectObject
 ;
 
 DefineTopicAction(ConsultWhatAbout)
@@ -2375,18 +2550,22 @@ DefineLiteralTAction(TellTo)
 
 DefineTopicTAction(AskAbout)    
     isConversational = true
+    unhides = IndirectObject
 ;
 
 DefineTopicTAction(AskFor)    
     isConversational = true
+    unhides = IndirectObject
 ;
 
 DefineTopicTAction(TellAbout)   
     isConversational = true
+    unhides = IndirectObject
 ;
 
 DefineTopicTAction(TalkAbout)    
     isConversational = true
+    unhides = IndirectObject
 ;
 
 DefineTopicTAction(QueryAbout)    
@@ -2403,6 +2582,7 @@ DefineTopicTAction(QueryAbout)
     #endif
     
     isConversational = true
+    unhides = IndirectObject
 ;
 
 DefineTopicTAction(SayTo)    
@@ -2512,6 +2692,8 @@ ThinkAbout: TopicAction
     noThought = BMsg(no thought comes to mind, 'Nothing comes to mind. ')
     
     againRepeatsParse = nil
+    
+    unhides = true
 ;
 
 DefineIAction(Think)
@@ -2606,6 +2788,7 @@ class ImplicitConversationAction: TopicAction
     topics = nil
     
     isConversational = true
+    unhides = true    
 ;
 
         
