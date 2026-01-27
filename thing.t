@@ -332,7 +332,7 @@ class Mentionable: LMentionable
          *   its existence, or at least shouldn't be able to interact with it,
          *   so it shouldn't match any vocab.
          */
-        if(isHidden && !gCommand.action.unhides)
+        if(isHidden && gCommand.action.unhides not in (true, gCommand.potentialRole))
             return 0;
         
         /* 
