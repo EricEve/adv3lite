@@ -7897,9 +7897,9 @@ suggestedTopicLister: object
         if(systemInfo(SysInfoInterpClass) == SysInfoIClassHTML)
             DMsg(explain enumerating and hyperlinking,'Enumeration and/or hyperlinking of topic
                 suggestions can be toggled on and off using the commands ENUM SUGGS and/or HYPER
-                SUGGS respectively. '); 
+                SUGGS respectively.'); 
         else DMsg(explain numbering, 'Enumeration of topic suggestions can be toggled on and off
-            using the command ENUM SUGGS. ');
+            using the command ENUM SUGGS.');
         
         "<./notification><.p>";        
     }
