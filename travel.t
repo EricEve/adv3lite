@@ -1644,7 +1644,7 @@ class TravelConnector: object
      */
     sayNoDestination()
     {
-        DMsg(no destination, 'That{dummy} {doesn\'t} lead anywhere. ');
+        DMsg(no destination, 'That{dummy} {doesn\'t lead} anywhere. ');
     }
 
        
