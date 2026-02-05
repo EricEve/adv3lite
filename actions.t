@@ -1561,7 +1561,7 @@ DefineTAction(Drop)
          */
         if(advancedGroupHandling && cmd.matchedMulti && cmd.dobjs.length > 1)
         {
-            cmd.dobjs = cmd.dobjs.subset({d:d.obj.isHeldBy(cmd.actor)});
+            cmd.dobjs = cmd.dobjs.subset({d:d.obj.isDirectlyHeldBy(cmd.actor)});
             
             /* If there's nothing left to act on, say so. */
             if(cmd.dobjs.length < 1)
