@@ -1428,7 +1428,7 @@ DefineTAction(Take)
              *   Create a list of items that could potentially be taken by removing the ones that
              *   the player is already holding.
              */
-            local takeList = portableList.subset({d:!d.obj.isHeldBy(cmd.actor)});
+            local takeList = portableList.subset({d:!d.obj.isDirectlyHeldBy(cmd.actor)});
             
             /*   
              *   Note which of those the actor is already holding, which will be all the portable
