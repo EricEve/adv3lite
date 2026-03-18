@@ -619,7 +619,7 @@ DefineSystemAction(CmdMenu)
                  *   the form 'clean (dobj)', so we want to remove '(dobj)' from
                  *   the string to just leave the command name.
                  */
-                local str = act.grammarTemplates[1].findReplace('(dobj)', '');
+                local str = act.grammarTemplates[1].findReplace('(dobj)', '') + ' ';
                 
                 /*  Display a list of commands for this action. */
                 showList(lst, str);            
