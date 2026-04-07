@@ -97,7 +97,7 @@ DefineSystemAction(CmdMenu)
         {
             local str = cmd_str + cur.name;
             local str1 = cmdstr + cur.name;
-            "<<aHref(str1, str)>>\ \ \ ";
+            "<<aHref(str1, str)>>\ \ \ ";           
         }
     }
     
