@@ -43,10 +43,10 @@ DefineSystemAction(CmdMenu)
     {
         DMsg(cmdhelp show options,
         'What would you like to do?\b
-        <<aHref('1','1')>>. Go to another location\n
-        <<aHref('2','2')>>. Investigate your surroundings\n
-        <<aHref('3','3')>>. Relocate something\n
-        <<aHref('4','4')>>. Manipulate something\n');
+        <<aHrefFmt(hlinkFormat,'1','1')>>. Go to another location\n
+        <<aHrefFmt(hlinkFormat,'2','2')>>. Investigate your surroundings\n
+        <<aHrefFmt(hlinkFormat,'3','3')>>. Relocate something\n
+        <<aHrefFmt(hlinkFormat,'4','4')>>. Manipulate something\n');
         
         if(defined(Actor))
         {
@@ -97,7 +97,7 @@ DefineSystemAction(CmdMenu)
         {
             local str = cmd_str + cur.name;
             local str1 = cmdstr + cur.name;
-            "<<aHref(str1, str)>>\ \ \ ";           
+            "<<aHrefFmt(hlinkFormat, str1, str)>>\ \ \ ";           
         }
     }
     
@@ -131,13 +131,6 @@ DefineSystemAction(CmdMenu)
             DMsg(cmdhelp where go, 'Where would you like to go?\n
             The possible exits are: ');
             
-            /* 
-             *   If we have an exit lister, use it to display the list of exits.
-             */
-            if(gExitLister)
-                gExitLister.showExits(gPlayerChar);
-            /*  Otherwise create our own list of exits. */
-            else
             {
                 /* Set up a flag to record if we actually found any exits. */
                 local dirFound = nil;
@@ -149,7 +142,7 @@ DefineSystemAction(CmdMenu)
                      */
                     if(loc.propType(dir.dirProp) is in (TypeCode, TypeObject))
                     {
-                        "<<aHref(dir.name, dir.name)>>\ \ ";
+                        "<<aHrefFmt(hlinkFormat, dir.name, dir.name)>>\ \ ";
                         dirFound = true;
                     }
                 }
@@ -190,7 +183,7 @@ DefineSystemAction(CmdMenu)
                     foreach(local rm in rmList)
                     {
                         local str = 'go to ' + rm.name;
-                        "<<aHref(str, str)>>\ \ ";
+                        "<<aHrefFmt(hlinkFormat, str, str)>>\ \ ";
                     }
                 }
                 
@@ -218,10 +211,10 @@ DefineSystemAction(CmdMenu)
             /* First offer the basic set of intransitive commands. */
             DMsg(cmdhelp investigate, 'Here are some suggestions (other
                 actions may also be possible):\n');
-            "<<aHref('look', 'look', 'Look around the room')>>\ \ 
-            <<aHref('listen', 'listen')>>\ \
-            <<aHref('smell', 'smell')>>\ \ 
-            <<aHref('I', 'inventory', 'See what you\'re carrying')>>\b"; 
+            "<<aHrefFmt(hlinkFormat, 'look', 'look', 'Look around the room')>>\ \ 
+            <<aHrefFmt(hlinkFormat, 'listen', 'listen')>>\ \
+            <<aHrefFmt(hlinkFormat, 'smell', 'smell')>>\ \ 
+            <<aHrefFmt(hlinkFormat, 'I', 'inventory', 'See what you\'re carrying')>>\b"; 
             
            
             /* 
@@ -354,7 +347,7 @@ DefineSystemAction(CmdMenu)
              *   the TAKE ALL command.
              */
             if(take_lst.length > 1)
-                "<<aHref('take all', 'take all')>>";
+                "<<aHrefFmt(hlinkFormat, 'take all', 'take all')>>";
                         
             "<.p>";
             
@@ -386,7 +379,7 @@ DefineSystemAction(CmdMenu)
              *   option.
              */
             if(drop_lst.length > 1)
-                "<<aHref('drop all', 'drop all')>>";
+                "<<aHrefFmt(hlinkFormat, 'drop all', 'drop all')>>";
             
             "<.p>";
             
@@ -501,7 +494,7 @@ DefineSystemAction(CmdMenu)
                            PutOn)))
                     {
                         local str = 'put ' + cur.name + ' on ' + dest.name;
-                        "<<aHref(str, str)>>\ \ ";
+                        "<<aHrefFmt(hlinkFormat, str, str)>>\ \ ";
                         
                         if(++i > maxObjs)
                             break on_loop;
@@ -533,7 +526,7 @@ DefineSystemAction(CmdMenu)
                            PutUnder)))
                     {
                         local str = 'put ' + cur.name + ' under ' + dest.name;
-                        "<<aHref(str, str)>>\ \ ";
+                        "<<aHrefFmt(hlinkFormat, str, str)>>\ \ ";
                         
                         if(++i > maxObjs)
                             break under_loop;
@@ -565,7 +558,7 @@ DefineSystemAction(CmdMenu)
                            PutBehind)))
                     {
                         local str = 'put ' + cur.name + ' behind ' + dest.name;
-                        "<<aHref(str, str)>>\ \ ";
+                        "<<aHrefFmt(hlinkFormat, str, str)>>\ \ ";
                         
                          if(++i > maxObjs)
                             break behind_loop;
@@ -708,7 +701,7 @@ DefineSystemAction(CmdMenu)
                      *   that key.
                      */
                     local str = actstr + lock.name + ' with ' + key.name;
-                    "<<aHref(str, str)>>\ \ ";
+                    "<<aHrefFmt(hlinkFormat, str, str)>>\ \ ";
                 }
                     
             }
@@ -746,7 +739,7 @@ DefineSystemAction(CmdMenu)
              */
             else if(actor_lst.length == 1 && actor_lst[1] ==
                     gPlayerChar.currentInterlocutor)
-                "<<aHref('topics', 'topics')>> ";
+                "<<aHrefFmt(hlinkFormat, 'topics', 'topics')>> ";
             /*  Otherwise display a list of actors to talk to. */
             else    
                 showList(actor_lst, 'talk to ');
@@ -757,9 +750,9 @@ DefineSystemAction(CmdMenu)
         if(num == 6)
         {
             "Some other actions you could try include:\b
-            <<aHref('JUMP', 'JUMP')>>\ \ <<aHref('THINK', 'THINK')>>
-            \ \ <<aHref('WAIT', 'WAIT')>>, <<aHref('YELL', 'YELL')>>
-            \ \ <<aHref('SLEEP', 'SLEEP')>>\b";
+            <<aHrefFmt(hlinkFormat, 'JUMP', 'JUMP')>>\ \ <<aHrefFmt(hlinkFormat,'THINK', 'THINK')>>
+            \ \ <<aHrefFmt(hlinkFormat,'WAIT', 'WAIT')>>, <<aHrefFmt(hlinkFormat,'YELL', 'YELL')>>
+            \ \ <<aHrefFmt(hlinkFormat,'SLEEP', 'SLEEP')>>\b";
         }
         
         gAction = self;
@@ -838,6 +831,12 @@ DefineSystemAction(CmdMenu)
      *   list.
      */
     maxObjs = 10   
+    
+    /* 
+     *   An optional string to format our hyperllinks. If supplied this whould be defined in the
+     *   form 'open text|close text', e.g. '<b><font color=green>|</font></color>'
+     */
+    hlinkFormat = ''
 ;
 
 

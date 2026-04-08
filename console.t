@@ -213,6 +213,54 @@ aHref(href, txt?, title?, flags = 0)
     }
 }
 
+/* ------------------------------------------------------------------------ */
+/*
+ *   Generate a custom formatted string to display hyperlinked text. If we're not in HTML mode,
+ *   we'll simply return the text without the hyperlink; otherwise, we'll return the text with a
+ *   hyperlink to the given HREF.
+ *
+ *   The fmt paramater defines the format to be applied to the nyperlink. It should be provided in
+ *   the form 'open text|close text', for example '<b><FONT COLOR=GREEN>|</FONT></b>' to have the
+ *   hyperlink diaplayed in bold green type.
+ *   
+ *   If the display text is included, we'll generate the entire link,
+ *   including the <A HREF> tag, the hyperlinked text contents, and the
+ *   </A> end tag.  If the text is omitted, we'll simply generate the <A
+ *   HREF> tag itself, leaving it to the caller to display the text and the
+ *   </A>.
+ *   
+ *   The optional 'flags' is a combination of AHREF_xxx flags indicating
+ *   any special properties of the hyperlink.  
+ */
+aHrefFmt(fmt, href, txt?, title?, flags = 0)
+{
+    /* 
+     *   Provided fmt is a string, split it into an array of strings delimited by the | characer.
+     *   Otherwise set fmts to the empty string ''.
+     */
+    local fmts = dataType(fmt) == TypeSString ? fmt.split('|') : '';
+    
+    /* Set up local variables to hold the opening and closing text. */
+    local openText = '', closeText = '';
+    
+    /* 
+     *   If the fmts array has two elements and we're using html enabled output, populate openText
+     *   and closeText with the two elements of the array and set flags to AHREF_Plain so we disable
+     *   the default hyperlink formatting.
+     */
+         
+    if(fmts.length == 2 && outputManager.htmlMode)
+    {
+        openText = fmts[1];
+        closeText = fmts[2];        
+        flags = AHREF_Plain;
+    }    
+    
+    /* Return the hyperlink prefixed and suffixed with our opening and closing text. */
+    return openText + aHref(href, txt, title, flags) + closeText;    
+    
+}
+
 
 /* ------------------------------------------------------------------------ */
 /* 
@@ -237,6 +285,12 @@ aHrefAlt(href, linkedText, altText, title?)
         return altText;
     }
 }
+
+
+
+
+
+
 
 /* ------------------------------------------------------------------------ */
 /*
