@@ -318,7 +318,7 @@ DefineSystemAction(ToggleDisambigEnumeration)
         else
         {
             libGlobal.enumerateDisambigOptions = true;
-            DMsg(disambig enum off, 'Enumeration of disambiguation choices is now on. ');
+            DMsg(disambig enum on, 'Enumeration of disambiguation choices is now on. ');
         }
     }
 ;
@@ -459,7 +459,7 @@ DefineSystemAction(TipsOff)
     execAction(cmd)
     {
         tipMode.isOn = nil;
-        DMsg(tips on, 'Tips are now off. ');
+        DMsg(tips off, 'Tips are now off. ');
     }    
 ;
 
