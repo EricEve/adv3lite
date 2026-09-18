@@ -1233,6 +1233,12 @@ class FinishOption: object
      *   uses. 
      */
     showScoreInFinish = nil
+    
+    /* 
+     *   The order in which this Finish Option is listed in the list of finish options. The higher
+     *   the list order, the later the option is shown.
+     */
+    listOrder = 1
 ;
 
 /*
