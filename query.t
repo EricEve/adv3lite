@@ -542,7 +542,7 @@ QDefaults: Special
          *   the object the actor is attempting to reach, and if said nested room does not
          *   allow reaching in.
          */        
-        if(b.location.isIn(startLoc)) // change a.location to startLoc
+        if(b.location && b.location.isIn(startLoc)) 
         {
             /*  
              *   Set up a list to contain the list of nested rooms the actor needs to enter to reach
